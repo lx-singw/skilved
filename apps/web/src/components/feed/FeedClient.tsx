@@ -106,7 +106,7 @@ export function FeedClient({ opportunities }: FeedClientProps) {
       {/* Filter toggle bar */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-lg font-bold text-foreground">Opportunities</h1>
+          <h2 className="text-lg font-bold text-foreground">Opportunities</h2>
           <span className="font-mono text-xs text-muted-foreground">
             {filtered.length}/{opportunities.length}
           </span>

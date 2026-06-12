@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Header } from "@/components/layout/Header"
 import { getAllOpportunities } from "@/lib/opportunities"
+import { FeedHero } from "@/components/feed/FeedHero"
 import { FeedClient } from "@/components/feed/FeedClient"
 
 export const metadata = {
@@ -14,6 +15,7 @@ export default async function FeedPage() {
     <>
       <Header />
       <main className="mx-auto max-w-2xl px-4 pb-24 pt-6">
+        <FeedHero count={opportunities.length} />
         <Suspense fallback={null}>
           <FeedClient opportunities={opportunities} />
         </Suspense>
