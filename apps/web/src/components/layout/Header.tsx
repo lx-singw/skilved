@@ -5,11 +5,6 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/utils/classNames"
 import { Wordmark } from "@/components/layout/Wordmark"
 
-const NAV_LINKS = [
-  { href: "/saved", label: "Saved" },
-  { href: "/profile", label: "Profile" },
-]
-
 export function Header() {
   const pathname = usePathname()
 
@@ -25,32 +20,23 @@ export function Header() {
           <Wordmark size="md" />
         </Link>
 
-        <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
-          {NAV_LINKS.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "rounded-md px-3 py-1.5 font-medium transition-colors",
-                isActive(href)
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-              aria-current={isActive(href) ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
+        <nav className="flex items-center gap-2 text-sm" aria-label="Main navigation">
           <Link
             href="/auth/signin"
             className={cn(
               "rounded-md px-3 py-1.5 font-medium transition-colors",
               isActive("/auth/signin")
-                ? "bg-primary/80 text-primary-foreground"
-                : "bg-primary text-primary-foreground hover:opacity-90",
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             Sign in
+          </Link>
+          <Link
+            href="/auth/signup"
+            className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-colors hover:opacity-90"
+          >
+            Get your passport
           </Link>
         </nav>
       </div>

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { SlidersHorizontal, X } from "lucide-react"
 import { OpportunityCard } from "@/components/feed/OpportunityCard"
+import { CareerPassportPitch } from "@/components/feed/CareerPassportPitch"
 import { TRADES } from "@/constants/trades"
 import { PROVINCES } from "@/constants/provinces"
 import { OPPORTUNITY_TYPES } from "@/constants/opportunityTypes"
@@ -199,8 +200,13 @@ export function FeedClient({ opportunities }: FeedClientProps) {
         </div>
       ) : (
         <ul className="space-y-4" aria-label="Opportunity listings">
-          {filtered.map((opp) => (
-            <OpportunityCard key={opp.id} opportunity={opp} />
+          {filtered.map((opp, i) => (
+            <li key={opp.id} className="contents">
+              <OpportunityCard opportunity={opp} />
+              {!hasFilters && i === 2 && (
+                <CareerPassportPitch />
+              )}
+            </li>
           ))}
         </ul>
       )}

@@ -2,14 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Briefcase, Bookmark, User, LogIn } from "lucide-react"
+import { Briefcase, Sparkles, LogIn } from "lucide-react"
 import { cn } from "@/utils/classNames"
 
 const NAV_ITEMS = [
-  { href: "/",            label: "Feed",    Icon: Briefcase },
-  { href: "/saved",       label: "Saved",   Icon: Bookmark  },
-  { href: "/profile",     label: "Profile", Icon: User      },
-  { href: "/auth/signin", label: "Sign in", Icon: LogIn     },
+  { href: "/",            label: "Jobs",     Icon: Briefcase },
+  { href: "/auth/signup", label: "Passport", Icon: Sparkles  },
+  { href: "/auth/signin", label: "Sign in",  Icon: LogIn     },
 ]
 
 export function BottomNav() {
@@ -51,4 +50,3 @@ export function BottomNav() {
     </nav>
   )
 }
-
