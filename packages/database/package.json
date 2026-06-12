@@ -1,0 +1,6 @@
+{
+  "name": "@skilved/database",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Database utilities and schemas"
+}
