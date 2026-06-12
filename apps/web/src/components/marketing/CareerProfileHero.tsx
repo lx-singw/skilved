@@ -38,13 +38,13 @@ const SERVICES = [
     Icon: Sparkles,
     kicker: "AI Matching",
     title: "Work that finds you",
-    body: "Your passport is matched to jobs and recruiters automatically — the right roles, near you, first.",
+    body: "Your profile is matched to jobs and recruiters automatically — the right roles, near you, first.",
   },
 ]
 
-const PASSPORT_SKILLS = ["Electrical", "Solar PV", "Fault-finding", "Wiring"]
+const PROFILE_SKILLS = ["Electrical", "Solar PV", "Fault-finding", "Wiring"]
 
-export function FeedHero({ count }: { count: number }) {
+export function CareerProfileHero({ count }: { count: number }) {
   return (
     <section aria-labelledby="hero-heading" className="relative">
       {/* ── Editorial hero ─────────────────────────────── */}
@@ -71,7 +71,7 @@ export function FeedHero({ count }: { count: number }) {
 
           <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
             Stop re-typing your life story into every job form. Skilved gives you one{" "}
-            <span className="font-semibold text-foreground">verified career passport</span>{" "}
+            <span className="font-semibold text-foreground">verified career profile</span>{" "}
             — your skills, reputation and work history in one place — that you reuse on
             every application, forever, with a single link.
           </p>
@@ -81,15 +81,15 @@ export function FeedHero({ count }: { count: number }) {
               href="/auth/signup"
               className="group inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90"
             >
-              Build your career passport — free
+              Build your career profile — free
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
             </Link>
-            <a
-              href="#opportunities"
+            <Link
+              href="/"
               className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold text-foreground transition-colors hover:text-primary"
             >
               Browse opportunities
-            </a>
+            </Link>
           </div>
 
           {/* Trust strip */}
@@ -110,7 +110,7 @@ export function FeedHero({ count }: { count: number }) {
           </div>
         </div>
 
-        {/* Right: floating passport */}
+        {/* Right: floating profile */}
         <div className="relative">
           <div
             aria-hidden
@@ -156,7 +156,7 @@ export function FeedHero({ count }: { count: number }) {
 
             {/* Skills */}
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {PASSPORT_SKILLS.map((skill) => (
+              {PROFILE_SKILLS.map((skill) => (
                 <span
                   key={skill}
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground"

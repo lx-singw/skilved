@@ -22,6 +22,17 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
+          <Link
+            href="/career-profile"
+            className={cn(
+              "hidden rounded-md px-3 py-1.5 font-medium transition-colors sm:inline-block",
+              isActive("/career-profile")
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            How it works
+          </Link>
           <ThemeToggle />
           <Link
             href="/auth/signin"
@@ -38,7 +49,7 @@ export function Header() {
             href="/auth/signup"
             className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-colors hover:opacity-90"
           >
-            Get your passport
+            Create your profile
           </Link>
         </nav>
       </div>
