@@ -1,6 +1,22 @@
+"use client"
+
 import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { cn } from "@/utils/classNames"
+
+const NAV_LINKS = [
+  { href: "/saved", label: "Saved" },
+  { href: "/profile", label: "Profile" },
+]
 
 export function Header() {
+  const pathname = usePathname()
+
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/"
+    return pathname.startsWith(href)
+  }
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
@@ -12,22 +28,31 @@ export function Header() {
             SKILVD
           </span>
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
-          <Link
-            href="/saved"
-            className="rounded-md px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Saved
-          </Link>
-          <Link
-            href="/profile"
-            className="rounded-md px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            Profile
-          </Link>
+
+        <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
+          {NAV_LINKS.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                isActive(href)
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              aria-current={isActive(href) ? "page" : undefined}
+            >
+              {label}
+            </Link>
+          ))}
           <Link
             href="/auth/signin"
-            className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-colors hover:opacity-90"
+            className={cn(
+              "rounded-md px-3 py-1.5 font-medium transition-colors",
+              isActive("/auth/signin")
+                ? "bg-primary/80 text-primary-foreground"
+                : "bg-primary text-primary-foreground hover:opacity-90",
+            )}
           >
             Sign in
           </Link>
@@ -36,3 +61,4 @@ export function Header() {
     </header>
   )
 }
+
