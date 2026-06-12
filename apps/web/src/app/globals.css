@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Neutrals — Zinc */
+    --background: 0 0% 100%;
+    --foreground: 240 6% 10%; /* Zinc dark #18181B */
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    --muted: 240 5% 96%; /* Zinc light #F4F4F5 */
+    --muted-foreground: 240 4% 46%; /* Zinc mid #71717A */
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 221 79% 48%;
+
+    /* Skilved Blue #1A56DB */
+    --primary: 221 79% 48%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Trade Amber #D97706 */
+    --amber: 32 95% 44%;
+    --amber-foreground: 0 0% 100%;
+
+    /* Verified Green #059669 */
+    --verified: 160 94% 30%;
+    --verified-foreground: 0 0% 100%;
+
+    --radius: 12px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
