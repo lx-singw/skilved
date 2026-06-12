@@ -34,7 +34,7 @@ export function CareerPassportPitch() {
   return (
     <section
       aria-labelledby="passport-heading"
-      className="relative my-10 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-zinc-100 sm:p-8"
+      className="relative my-10 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-6 text-zinc-100 dark:border-primary/30 dark:bg-card sm:p-8"
     >
       {/* Ambient glow accent */}
       <div

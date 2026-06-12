@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { BottomNav } from "@/components/layout/BottomNav"
+import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import "./globals.css"
 
 const inter = Inter({
@@ -48,11 +49,14 @@ export default function RootLayout({
   return (
     <html
       lang="en-ZA"
+      suppressHydrationWarning
       className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}
     >
       <body className="font-sans antialiased">
-        {children}
-        <BottomNav />
+        <ThemeProvider>
+          {children}
+          <BottomNav />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/utils/classNames"
 import { Wordmark } from "@/components/layout/Wordmark"
+import { ThemeToggle } from "@/components/layout/ThemeToggle"
 
 export function Header() {
   const pathname = usePathname()
@@ -20,7 +21,8 @@ export function Header() {
           <Wordmark size="md" />
         </Link>
 
-        <nav className="flex items-center gap-2 text-sm" aria-label="Main navigation">
+        <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
+          <ThemeToggle />
           <Link
             href="/auth/signin"
             className={cn(
