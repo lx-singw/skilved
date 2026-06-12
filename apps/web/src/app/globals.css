@@ -6,32 +6,60 @@
   :root {
     /* Neutrals — Zinc */
     --background: 0 0% 100%;
-    --foreground: 240 6% 10%; /* Zinc dark #18181B */
+    --foreground: 240 6% 10%;
     --card: 0 0% 100%;
     --card-foreground: 240 6% 10%;
-    --muted: 240 5% 96%; /* Zinc light #F4F4F5 */
-    --muted-foreground: 240 4% 46%; /* Zinc mid #71717A */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
     --border: 240 6% 90%;
     --input: 240 6% 90%;
     --ring: 142 71% 38%;
 
-    /* Skilved Green #16A34A (primary) */
+    /* Skilved Green */
     --primary: 142 71% 38%;
     --primary-foreground: 0 0% 100%;
 
-    /* Brand wordmark colours */
-    --brand-red: 0 0% 15%; /* SKIL — black */
-    --brand-green: 0 0% 15%; /* VED — black */
+    /* Brand wordmark */
+    --brand-red: 0 0% 15%;
+    --brand-green: 0 0% 15%;
 
-    /* Trade Amber #D97706 */
+    /* Trade Amber */
     --amber: 32 95% 44%;
     --amber-foreground: 0 0% 100%;
 
-    /* Verified Green #059669 */
+    /* Verified Green */
     --verified: 160 94% 30%;
     --verified-foreground: 0 0% 100%;
 
     --radius: 12px;
+  }
+
+  .dark {
+    --background: 240 6% 10%;
+    --foreground: 0 0% 98%;
+    --card: 240 5% 14%;
+    --card-foreground: 0 0% 98%;
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 4% 60%;
+    --border: 240 5% 22%;
+    --input: 240 5% 22%;
+    --ring: 142 71% 45%;
+
+    /* Skilved Green — slightly brighter in dark */
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Brand wordmark — white in dark */
+    --brand-red: 0 0% 98%;
+    --brand-green: 0 0% 98%;
+
+    /* Trade Amber */
+    --amber: 32 95% 52%;
+    --amber-foreground: 0 0% 10%;
+
+    /* Verified Green */
+    --verified: 160 84% 42%;
+    --verified-foreground: 0 0% 100%;
   }
 }
 

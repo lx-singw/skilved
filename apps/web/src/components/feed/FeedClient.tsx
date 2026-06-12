@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { Fragment, useState, useMemo } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { SlidersHorizontal, X } from "lucide-react"
+import { ArrowRight, BadgeCheck, SlidersHorizontal, X } from "lucide-react"
 import { OpportunityCard } from "@/components/feed/OpportunityCard"
-import { CareerPassportPitch } from "@/components/feed/CareerPassportPitch"
 import { TRADES } from "@/constants/trades"
 import { PROVINCES } from "@/constants/provinces"
 import { OPPORTUNITY_TYPES } from "@/constants/opportunityTypes"
@@ -51,6 +51,43 @@ function PillSet({ label, options, value, onChange }: PillSetProps) {
           {opt.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+/** Inline conversion moment — appears once, mid-feed, like a native post. */
+function InlineProfileCard() {
+  return (
+    <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-primary text-primary-foreground" aria-hidden>
+          <BadgeCheck className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-base font-semibold leading-snug text-foreground">
+            Applying to these? Use one verified profile for all of them.
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+            Build your career profile once — verified skills, real reputation — and apply
+            everywhere with a single link.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Link
+              href="/auth/signup"
+              className="group inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              Create your profile — free
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </Link>
+            <Link
+              href="/career-profile"
+              className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+            >
+              How it works
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -104,109 +141,118 @@ export function FeedClient({ opportunities }: FeedClientProps) {
 
   return (
     <div>
-      {/* Filter toggle bar */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-lg font-bold text-foreground">Opportunities</h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            {filtered.length}/{opportunities.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {hasFilters && (
+      {/* ── Sticky trade chips — the "stories" rail ── */}
+      <div className="sticky top-14 z-20 -mx-4 mb-3 border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur lg:-mx-0 lg:rounded-xl lg:border lg:px-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => handleTrade("")}
+            className={cn(
+              "flex-none rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors",
+              trade === ""
+                ? "bg-foreground text-background"
+                : "bg-muted text-muted-foreground hover:text-foreground",
+            )}
+          >
+            All trades
+          </button>
+          {TRADES.map((t) => (
             <button
-              onClick={clearAll}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-              aria-label="Clear all filters"
+              key={t.id}
+              onClick={() => handleTrade(t.id === trade ? "" : t.id)}
+              className={cn(
+                "flex-none rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors",
+                trade === t.id
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:text-foreground",
+              )}
             >
-              <X className="h-3 w-3" aria-hidden />
-              Clear
+              {t.label}
             </button>
-          )}
+          ))}
           <button
             onClick={() => setShowFilters((p) => !p)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-              showFilters
+              "ml-1 flex flex-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
+              showFilters || province || type
                 ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
+                : "border-border text-muted-foreground hover:text-foreground",
             )}
             aria-expanded={showFilters}
+            aria-label="More filters"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-            Filter
-            {hasFilters && (
+            More
+            {(province || type) && (
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {[trade, province, type].filter(Boolean).length}
+                {[province, type].filter(Boolean).length}
               </span>
             )}
           </button>
         </div>
       </div>
 
-      {/* Filters panel */}
+      {/* Extra filters panel */}
       {showFilters && (
-        <div className="mb-5 space-y-3 rounded-lg border border-border bg-card p-4">
-          <PillSet label="Trade" options={TRADES} value={trade} onChange={handleTrade} />
+        <div className="mb-4 space-y-3 rounded-xl border border-border bg-card p-4">
           <PillSet label="Province" options={PROVINCES} value={province} onChange={handleProvince} />
           <PillSet label="Type" options={OPPORTUNITY_TYPES} value={type} onChange={handleType} />
+          {hasFilters && (
+            <button
+              onClick={clearAll}
+              className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" aria-hidden />
+              Clear all filters
+            </button>
+          )}
         </div>
       )}
 
-      {/* Active filter chips */}
-      {hasFilters && !showFilters && (
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          {trade && (
-            <button
-              onClick={() => handleTrade("")}
-              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-            >
-              {TRADES.find((t) => t.id === trade)?.label}
-              <X className="h-3 w-3" aria-hidden />
-            </button>
+      {/* Feed meta line */}
+      <div className="mb-3 flex items-center gap-2 px-1">
+        <span className="relative flex h-2 w-2" aria-hidden>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-verified opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-verified" />
+        </span>
+        <p className="text-xs font-medium text-muted-foreground">
+          <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
+          live {filtered.length === 1 ? "opportunity" : "opportunities"}
+          {hasFilters && (
+            <>
+              {" · "}
+              <button onClick={clearAll} className="font-medium text-primary hover:underline">
+                clear filters
+              </button>
+            </>
           )}
-          {province && (
-            <button
-              onClick={() => handleProvince("")}
-              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-            >
-              {PROVINCES.find((p) => p.id === province)?.label}
-              <X className="h-3 w-3" aria-hidden />
-            </button>
-          )}
-          {type && (
-            <button
-              onClick={() => handleType("")}
-              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
-            >
-              {OPPORTUNITY_TYPES.find((t) => t.id === type)?.label}
-              <X className="h-3 w-3" aria-hidden />
-            </button>
-          )}
-        </div>
-      )}
+        </p>
+      </div>
 
       {/* Results */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border py-16 text-center">
-          <p className="font-semibold text-foreground">No matches</p>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
+          <p className="font-display text-lg font-semibold text-foreground">No matches</p>
           <p className="text-sm text-muted-foreground">Try removing a filter or broadening your search.</p>
           <button
             onClick={clearAll}
-            className="mt-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            className="mt-1 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Clear filters
           </button>
         </div>
       ) : (
-        <ul className="space-y-4" aria-label="Opportunity listings">
+        <ul className="flex flex-col gap-3" aria-label="Opportunity listings">
           {filtered.map((opp, i) => (
-            <li key={opp.id} className="contents">
-              <OpportunityCard opportunity={opp} />
-              {!hasFilters && i === 2 && (
-                <CareerPassportPitch />
+            <Fragment key={opp.id}>
+              <li className="contents">
+                <OpportunityCard opportunity={opp} />
+              </li>
+              {i === 3 && !hasFilters && (
+                <li className="contents">
+                  <InlineProfileCard />
+                </li>
               )}
-            </li>
+            </Fragment>
           ))}
         </ul>
       )}
