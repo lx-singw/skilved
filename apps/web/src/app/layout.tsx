@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Inter, JetBrains_Mono } from "next/font/google"
+import { BottomNav } from "@/components/layout/BottomNav"
 import "./globals.css"
 
 const inter = Inter({
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#1A56DB",
+  themeColor: "#16A34A",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -49,7 +50,10 @@ export default function RootLayout({
       lang="en-ZA"
       className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}
     >
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <BottomNav />
+      </body>
     </html>
   )
 }
