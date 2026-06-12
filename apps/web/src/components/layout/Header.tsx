@@ -20,6 +20,12 @@ export function Header() {
             Saved
           </Link>
           <Link
+            href="/profile"
+            className="rounded-md px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Profile
+          </Link>
+          <Link
             href="/auth/signin"
             className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground transition-colors hover:opacity-90"
           >
