@@ -104,14 +104,25 @@ export function FeedClient({ opportunities }: FeedClientProps) {
   return (
     <div>
       {/* Filter toggle bar */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-lg font-bold text-foreground">Opportunities</h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            {filtered.length}/{opportunities.length}
-          </span>
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2" aria-hidden>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-verified opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-verified" />
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-verified">
+              Live now
+            </span>
+          </div>
+          <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground">
+            Opportunities
+            <span className="ml-2 font-sans text-sm font-medium text-muted-foreground">
+              {filtered.length} of {opportunities.length}
+            </span>
+          </h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pb-1">
           {hasFilters && (
             <button
               onClick={clearAll}

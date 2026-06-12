@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Inter, JetBrains_Mono, Fraunces } from "next/font/google"
 import { BottomNav } from "@/components/layout/BottomNav"
 import { ThemeProvider } from "@/components/layout/ThemeProvider"
 import "./globals.css"
@@ -14,6 +14,14 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains-mono",
   display: "swap",
+})
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-fraunces",
+  display: "swap",
+  style: ["normal", "italic"],
+  axes: ["opsz"],
 })
 
 export const metadata: Metadata = {
@@ -50,7 +58,7 @@ export default function RootLayout({
     <html
       lang="en-ZA"
       suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}
+      className={`${inter.variable} ${jetbrainsMono.variable} ${fraunces.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         <ThemeProvider>

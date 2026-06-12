@@ -14,11 +14,13 @@ export default async function FeedPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-2xl px-4 pb-24 pt-6">
+      <main className="mx-auto max-w-3xl px-4 pb-24 pt-6">
         <FeedHero count={opportunities.length} />
-        <Suspense fallback={null}>
-          <FeedClient opportunities={opportunities} />
-        </Suspense>
+        <div className="mt-16 scroll-mt-20" id="opportunities">
+          <Suspense fallback={null}>
+            <FeedClient opportunities={opportunities} />
+          </Suspense>
+        </div>
       </main>
     </>
   )
