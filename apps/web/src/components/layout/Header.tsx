@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/utils/classNames"
+import { Wordmark } from "@/components/layout/Wordmark"
 
 const NAV_LINKS = [
   { href: "/saved", label: "Saved" },
@@ -20,13 +21,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2" aria-label="Skilved home">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-            S
-          </span>
-          <span className="text-lg font-bold tracking-tight text-foreground">
-            SKILVD
-          </span>
+        <Link href="/" className="flex items-center" aria-label="Skilved home">
+          <Wordmark size="md" />
         </Link>
 
         <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">

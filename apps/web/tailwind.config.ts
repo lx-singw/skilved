@@ -34,6 +34,10 @@ const config: Config = {
           DEFAULT: "hsl(var(--verified))",
           foreground: "hsl(var(--verified-foreground))",
         },
+        brand: {
+          red: "hsl(var(--brand-red))",
+          green: "hsl(var(--brand-green))",
+        },
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

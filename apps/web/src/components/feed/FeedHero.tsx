@@ -19,7 +19,8 @@ export function FeedHero({ count }: { count: number }) {
         id="hero-heading"
         className="mt-2 text-2xl font-bold leading-tight tracking-tight text-foreground text-balance sm:text-3xl"
       >
-        Not just skilled. <span className="text-primary">Skilved.</span>
+        Not just skilled.{" "}
+        <span className="text-brand-red">Skil</span><span className="text-brand-green">ved.</span>
       </h1>
       <p className="mt-2 max-w-prose text-sm leading-relaxed text-muted-foreground text-pretty">
         Real learnerships, apprenticeships, and trade jobs across South Africa —

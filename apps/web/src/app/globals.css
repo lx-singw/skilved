@@ -13,11 +13,15 @@
     --muted-foreground: 240 4% 46%; /* Zinc mid #71717A */
     --border: 240 6% 90%;
     --input: 240 6% 90%;
-    --ring: 221 79% 48%;
+    --ring: 142 71% 38%;
 
-    /* Skilved Blue #1A56DB */
-    --primary: 221 79% 48%;
+    /* Skilved Green #16A34A (primary) */
+    --primary: 142 71% 38%;
     --primary-foreground: 0 0% 100%;
+
+    /* Brand wordmark colours */
+    --brand-red: 0 74% 50%; /* SKIL */
+    --brand-green: 142 71% 38%; /* VED — matches primary */
 
     /* Trade Amber #D97706 */
     --amber: 32 95% 44%;

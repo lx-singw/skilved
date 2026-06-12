@@ -3,6 +3,7 @@
  * that workers share in CVs, WhatsApp, and LinkedIn bios.
  */
 import { TierBadge } from "@/components/profile/TierBadge"
+import { Wordmark } from "@/components/layout/Wordmark"
 import { getTrade } from "@/constants/trades"
 import { getProvince } from "@/constants/provinces"
 import type { UserProfile } from "@/types/user"
@@ -19,15 +20,7 @@ export function SkilvedBadge({ profile }: SkilvedBadgeProps) {
     <div className="inline-flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground"
-            aria-hidden
-          >
-            S
-          </div>
-          <span className="text-sm font-bold tracking-tight text-foreground">SKILVD</span>
-        </div>
+        <Wordmark size="sm" />
         <TierBadge tier={profile.tier} size="sm" />
       </div>
 
