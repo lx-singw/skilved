@@ -20,8 +20,8 @@
     --primary-foreground: 0 0% 100%;
 
     /* Brand wordmark colours */
-    --brand-red: 0 74% 50%; /* SKIL */
-    --brand-green: 142 71% 38%; /* VED — matches primary */
+    --brand-red: 0 0% 15%; /* SKIL — black */
+    --brand-green: 142 71% 38%; /* VED — green */
 
     /* Trade Amber #D97706 */
     --amber: 32 95% 44%;
