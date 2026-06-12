@@ -63,17 +63,17 @@ export function FeedHero({ count }: { count: number }) {
             id="hero-heading"
             className="mt-5 font-display text-[2.75rem] font-semibold leading-[0.98] tracking-tight text-foreground text-balance sm:text-6xl lg:text-[4.25rem]"
           >
-            Apply once.
+            One profile.
             <br />
-            Get hired{" "}
-            <span className="italic text-primary">anywhere.</span>
+            Hired{" "}
+            <span className="italic text-primary">everywhere.</span>
           </h1>
 
           <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
             Stop re-typing your life story into every job form. Skilved gives you one{" "}
             <span className="font-semibold text-foreground">verified career passport</span>{" "}
-            — proof of your skills, your reputation and your work — that you reuse anywhere
-            and share with a single link.
+            — your skills, reputation and work history in one place — that you reuse on
+            every application, forever, with a single link.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -81,7 +81,7 @@ export function FeedHero({ count }: { count: number }) {
               href="/auth/signup"
               className="group inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90"
             >
-              Create your passport — free
+              Build your career passport — free
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
             </Link>
             <a
