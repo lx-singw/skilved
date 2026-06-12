@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
-import { getProfileByUsername } from "@/lib/profiles"
+import Link from "next/link"
+import { Pencil } from "lucide-react"
+import { getProfileByUsername, DEMO_USERNAME } from "@/lib/profiles"
 import { Header } from "@/components/layout/Header"
 import { ProfileHeader } from "@/components/profile/ProfileHeader"
 import { ProfileWorkHistory } from "@/components/profile/ProfileWorkHistory"
@@ -43,7 +45,17 @@ export default async function PublicProfilePage({ params }: Props) {
       <Header />
       <main className="mx-auto max-w-2xl px-4 pb-16 pt-6">
         {/* Top action row */}
-        <div className="mb-6 flex items-center justify-end">
+        <div className="mb-6 flex items-center justify-end gap-2">
+          {/* In Sprint 1 the demo user always sees the edit button */}
+          {profile.username === DEMO_USERNAME && (
+            <Link
+              href="/profile/edit"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit profile
+            </Link>
+          )}
           <ShareProfileButton username={profile.username} />
         </div>
 
