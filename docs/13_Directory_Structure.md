@@ -231,9 +231,11 @@ skilved/
 │   │   │   │   │
 │   │   │   │   ├── agent-activity/
 │   │   │   │   │   ├── AgentActivityFeed.tsx      ← "Agent applied to X on your behalf"
+│   │   │   │   │   ├── ActivityTimeline.tsx       ← full chronological own-activity feed (profile page)
 │   │   │   │   │   ├── ApplicationAgentCard.tsx   ← "Apply for me" action card
 │   │   │   │   │   ├── CareerAgentCard.tsx        ← career plan prompt card
-│   │   │   │   │   └── AgentStatusBadge.tsx       ← "Agent working" indicator
+│   │   │   │   │   ├── AgentStatusBadge.tsx       ← "Agent working" indicator
+│   │   │   │   │   └── DisputeButton.tsx          ← "Reply DISPUTE" affordance on agent messages
 │   │   │   │   │
 │   │   │   │   ├── layout/
 │   │   │   │   │   ├── Header.tsx                 ← top nav
@@ -325,7 +327,36 @@ skilved/
 │   │   └── package.json
 │   │
 │   │
-│   ├── agents/                                    ← 8 AI employee services (Cloud Run)
+│   ├── agents/                                    ← 12 AI employee services (Cloud Run / Functions)
+│   │   │
+│   │   ├── skills-profile/                        ← Agent 0: Skills Profile (The Foundation)
+│   │   │   ├── src/
+│   │   │   │   ├── index.ts                       ← Cloud Functions entry (event-driven)
+│   │   │   │   ├── SkillsProfileAgent.ts          ← main agent class
+│   │   │   │   ├── extraction/
+│   │   │   │   │   ├── GeminiSkillsExtractor.ts   ← extract skills from free text
+│   │   │   │   │   ├── DocumentAIProcessor.ts     ← extract from uploaded certificates
+│   │   │   │   │   ├── QualificationMapper.ts     ← map to NQF + SAQA framework
+│   │   │   │   │   └── prompts.ts
+│   │   │   │   ├── passport/
+│   │   │   │   │   ├── PassportBuilder.ts         ← assemble SkillsPassport object
+│   │   │   │   │   ├── CompletenessScorer.ts      ← 0-100% + named level
+│   │   │   │   │   ├── AgentSummaryGenerator.ts   ← Gemini 2-3 sentence agent-readable summary
+│   │   │   │   │   ├── MatchingSignalBuilder.ts   ← pre-compute signals for matching agent
+│   │   │   │   │   └── EnrichmentNudger.ts        ← "add X to unlock Y" suggestions
+│   │   │   │   ├── verification/
+│   │   │   │   │   ├── SelfReportedValidator.ts   ← flag inconsistencies
+│   │   │   │   │   ├── MyMzansiLinker.ts          ← Phase 2: MyMzansi credential link
+│   │   │   │   │   └── SAQAVerifier.ts            ← flag for SAQA verification
+│   │   │   │   ├── storage/
+│   │   │   │   │   ├── PassportStore.ts           ← Firestore skills_passports collection
+│   │   │   │   │   └── PassportVersioner.ts       ← version history
+│   │   │   │   └── logging/
+│   │   │   │       └── ProfileAgentLogger.ts      ← BigQuery passport enrichment log
+│   │   │   │
+│   │   │   ├── Dockerfile
+│   │   │   ├── tsconfig.json
+│   │   │   └── package.json
 │   │   │
 │   │   ├── scout/                                 ← Agent 1: Scout (Opportunity Discovery)
 │   │   │   ├── src/
@@ -508,6 +539,8 @@ skilved/
 │   │   │   │   │   ├── CoverLetterGenerator.ts    ← Gemini: specific cover letter
 │   │   │   │   │   ├── DocumentAssembler.ts       ← combine into PDF/Word output
 │   │   │   │   │   └── prompts.ts                 ← CV + cover letter generation prompts
+│   │   │   │   ├── safety/
+│   │   │   │   │   └── CircuitBreaker.ts          ← halts if >5 apps/user/hour, logs circuit_breaker_triggered
 │   │   │   │   ├── submission/
 │   │   │   │   │   ├── EmailSubmitter.ts          ← Gmail API / SMTP email applications
 │   │   │   │   │   ├── WebFormSubmitter.ts        ← Playwright web form automation
@@ -615,6 +648,7 @@ skilved/
 │   │   │   │   │   ├── ProfileHelpHandler.ts      ← "how do I improve my profile?"
 │   │   │   │   │   ├── CancellationHandler.ts     ← retention flow before cancel
 │   │   │   │   │   ├── PlacementSuccessHandler.ts ← "I got the job!" celebration + outcome
+│   │   │   │   │   ├── DisputeHandler.ts          ← "Reply DISPUTE" — flags any agent action for review
 │   │   │   │   │   └── EscalationHandler.ts       ← flag for weekly human review
 │   │   │   │   ├── conversation/
 │   │   │   │   │   ├── ConversationHistory.ts     ← Firestore conversation state
@@ -681,6 +715,7 @@ skilved/
 │   │       │   │   ├── OutcomeReplyHandler.ts     ← outcome follow-up replies
 │   │       │   │   ├── DigestReplyHandler.ts      ← digest opt-out / queries
 │   │       │   │   ├── CustomerSuccessRouter.ts   ← route to customer-success agent
+│   │       │   │   ├── InterviewReplyHandler.ts   ← "yes/no" to interview confirmation prompts
 │   │       │   │   ├── PermissionReplyHandler.ts  ← Level change requests
 │   │       │   │   └── UnknownMessageHandler.ts   ← fallback handler
 │   │       │   └── verification/
@@ -691,11 +726,43 @@ skilved/
 │   │       └── package.json
 │   │
 │   │
+│   ├── interview-coordination/                    ← Agent 12: Interview Coordination (Sprint 4 stretch)
+│   │   ├── src/
+│   │   │   ├── index.ts                           ← Cloud Functions entry (event-driven on email receipt)
+│   │   │   ├── InterviewCoordinationAgent.ts      ← main agent class
+│   │   │   ├── detection/
+│   │   │   │   ├── EmailParser.ts                 ← detect interview intent in employer replies
+│   │   │   │   ├── InterviewExtractor.ts          ← extract date/time/format/location
+│   │   │   │   └── IntentClassifier.ts            ← interview vs rejection vs info request
+│   │   │   ├── coordination/
+│   │   │   │   ├── UserConfirmationSender.ts      ← WhatsApp "works for you?" prompt
+│   │   │   │   ├── EmployerConfirmationSender.ts  ← email confirm to employer on user yes
+│   │   │   │   ├── RescheduleNegotiator.ts        ← employer ↔ agent negotiation
+│   │   │   │   └── CalendarWriter.ts              ← write to Firestore interview schedule
+│   │   │   ├── preparation/
+│   │   │   │   ├── PrepNotesRequester.ts          ← trigger Career Agent for prep notes
+│   │   │   │   └── MorningReminderBuilder.ts      ← day-of WhatsApp reminder + prep notes
+│   │   │   └── logging/
+│   │   │       └── InterviewLogger.ts             ← BigQuery interview_scheduled, human_approvals_required: 0
+│   │   │
+│   │   ├── Dockerfile
+│   │   ├── tsconfig.json
+│   │   └── package.json
+│   │
+│   │
+│   ├── gig/                                       ← Agent 13: Gig Agent (Phase 2/3 — stub only in MVP)
+│   │   ├── src/
+│   │   │   ├── index.ts                           ← entry point (placeholder)
+│   │   │   └── README.md                          ← "Phase 2/3 — see 24_AI_Employees_Architecture.md Agent 13"
+│   │   ├── tsconfig.json
+│   │   └── package.json
+│   │
+│   │
 │   └── admin/                                     ← Internal admin + XPRIZE demo dashboard
 │       ├── src/
 │       │   ├── app/
 │       │   │   ├── layout.tsx
-│       │   │   ├── page.tsx                       ← admin home / 8-agent overview
+│       │   │   ├── page.tsx                       ← admin home / 13-agent overview
 │       │   │   ├── autonomy/
 │       │   │   │   └── page.tsx                   ← XPRIZE: 24h decisions, 0 human approvals
 │       │   │   ├── opportunities/
@@ -703,7 +770,12 @@ skilved/
 │       │   │   │   └── [id]/
 │       │   │   │       └── page.tsx               ← detail + edit + analyst output
 │       │   │   ├── agents/
-│       │   │   │   ├── page.tsx                   ← all 8 agents health + run logs
+│       │   │   │   ├── page.tsx                   ← all 13 agents health + run logs
+│       │   │   │   ├── trace/
+│       │   │   │   │   └── [userId]/
+│       │   │   │   │       └── page.tsx           ← Agent Trace Visualizer — full chain for one user (XPRIZE demo centrepiece)
+│       │   │   │   ├── skills-profile/
+│       │   │   │   │   └── page.tsx               ← passport enrichment quality + completeness distribution
 │       │   │   │   ├── scout/
 │       │   │   │   │   └── page.tsx               ← scout run history + source health
 │       │   │   │   ├── analyst/
@@ -737,6 +809,7 @@ skilved/
 │       │   │
 │       │   └── components/
 │       │       ├── AutonomyDashboard.tsx           ← XPRIZE: 24h decisions, 0 approvals
+│       │       ├── AgentTraceTimeline.tsx          ← XPRIZE demo: full agent chain for one user
 │       │       ├── AgentHealthCard.tsx             ← per-agent status + last run
 │       │       ├── AgentRunTable.tsx               ← sortable run history table
 │       │       ├── OpportunityTable.tsx
@@ -747,7 +820,10 @@ skilved/
 │       │       ├── RevenueDecisionLog.tsx          ← revenue agent decision history
 │       │       ├── PermissionLevelChart.tsx        ← Level 1-4 distribution
 │       │       ├── GrowthContentCalendar.tsx       ← agent-generated content log
-│       │       └── EscalationQueue.tsx             ← CS agent escalations for review
+│       │       ├── EscalationQueue.tsx             ← CS agent escalations for review
+│       │       ├── AgentCoordinationLog.tsx        ← agent_context flags + recentActions viewer
+│       │       ├── BehavioralSignalsCard.tsx       ← dismissal patterns + override rate per user
+│       │       └── InterviewLog.tsx                ← interview coordination events + outcomes
 │       │
 │       ├── tsconfig.json
 │       └── package.json
@@ -760,11 +836,14 @@ skilved/
 │   │   │   ├── index.ts
 │   │   │   ├── opportunity.ts                     ← Opportunity + OpportunityIntelligence
 │   │   │   ├── user.ts                            ← User + Profile + PermissionLevel
+│   │   │   ├── passport.ts                        ← SkillsPassport + BehavioralSignals + ReputationSummary
 │   │   │   ├── permission.ts                      ← Level 1-4 permission model types
-│   │   │   ├── agent.ts                           ← all 8 agent run + decision types
-│   │   │   ├── application.ts                     ← Application + ApplicationAgent types
+│   │   │   ├── agent.ts                           ← all 13 agent run + decision types
+│   │   │   ├── agent-context.ts                   ← AgentContext coordination layer type
+│   │   │   ├── application.ts                     ← Application + InterviewSchedule + ApplicationAgent types
 │   │   │   ├── career.ts                          ← CareerPlan + CareerAgent types
 │   │   │   ├── revenue.ts                         ← RevenueTrigger + RevenueDecision types
+│   │   │   ├── gig.ts                             ← Gig + Quote + Invoice types (Phase 2/3 stubs)
 │   │   │   ├── event.ts                           ← analytics event taxonomy
 │   │   │   ├── graph.ts                           ← SkillsGraph + Outcome types
 │   │   │   └── api.ts                             ← API request/response types

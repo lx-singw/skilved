@@ -59,7 +59,7 @@ Cloud Scheduler
 Cloud Pub/Sub (trigger message)
     ↓
 Cloud Run (discovery-agent service)
-    ├── Source fetcher (parallel, 50+ sources)
+    ├── Source fetcher (parallel, 3 portal sources — expanding to 50+)
     │   ├── HTML parser (BeautifulSoup / Playwright for JS-heavy sites)
     │   ├── PDF extractor (Cloud Document AI)
     │   └── RSS/API consumers (where available)
@@ -75,9 +75,17 @@ Quality Agent (triggered)
 BigQuery (agent_run log)
 ```
 
-### Sources (MVP — 50+ sources)
+### Sources (Sprint 1 — 3 Portal Aggregators)
 
-**SETA Portals (21 SETAs):**
+*See `scout_portal_sources.md` for full Scrapy spider specifications, extraction fields, and shared infrastructure.*
+
+**PuffAndPass.co.za** — Learnerships, internships, bursaries, graduate programs, Grade 12
+**RecentJobs.co.za** — Jobs, vacancies, learnerships, internships, apprenticeships, bursaries, government jobs
+**StudentRoom.co.za** — Bursaries, internships, learnerships (largest SA aggregator, 2437+ pages, structured requirements extraction)
+
+### Sources (ON HOLD — Sprint 2+)
+
+**SETA Portals (21 SETAs):** *(deferred — Sprint 1 uses portal aggregators only)*
 - MERSETA (manufacturing, engineering, related services)
 - EWSETA (energy, water)
 - CETA (construction)
@@ -100,7 +108,7 @@ BigQuery (agent_run log)
 - SERVICES SETA
 - FIETA (forest industries)
 
-**Job Platforms (filtered to trades):**
+**Job Platforms (filtered to trades):** *(deferred)*
 - Indeed SA (trade/artisan category)
 - PNet (technical/engineering)
 - CareerJunction (trades/artisan)
@@ -108,13 +116,13 @@ BigQuery (agent_run log)
 - JobMail
 - Gumtree Jobs (artisan category)
 
-**Government Sources:**
+**Government Sources:** *(deferred)*
 - Government Gazette (learnership notices)
 - DPSA vacancy circular
 - Provincial skills development portals (all 9)
 - NAMB (National Artisan Moderation Body) — trade tests
 
-**Employer Direct (top 50 trade employers in SA):**
+**Employer Direct (top 50 trade employers in SA):** *(deferred)*
 - Eskom, Transnet, Sasol, Tongaat Hulett
 - Murray & Roberts, WBHO, Group Five
 - Barloworld, Imperial, WesBank

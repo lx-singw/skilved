@@ -140,68 +140,361 @@ env:
   REGISTRY: gcr.io
 
 jobs:
-  deploy-discovery:
+  # ── Foundation agent ──────────────────────────────────────────
+  deploy-skills-profile:
     runs-on: ubuntu-latest
     if: |
-      contains(github.event.head_commit.modified, 'apps/agents/discovery')
+      contains(github.event.head_commit.modified, 'apps/agents/skills-profile')
       || contains(github.event.head_commit.modified, 'packages/')
     steps:
       - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/skills-profile/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/skills-profile-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/skills-profile-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy skills-profile-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/skills-profile-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 1Gi --cpu 1 --timeout 120 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest"
 
+  # ── Supply side ────────────────────────────────────────────────
+  deploy-scout:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/scout')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Configure Docker
         run: gcloud auth configure-docker
-
-      - name: Build and push Docker image
+      - name: Build and push
         run: |
-          docker build \
-            -f apps/agents/discovery/Dockerfile \
-            -t $REGISTRY/$GCP_PROJECT_ID/discovery-agent:$GITHUB_SHA \
-            -t $REGISTRY/$GCP_PROJECT_ID/discovery-agent:latest \
-            .
-          docker push $REGISTRY/$GCP_PROJECT_ID/discovery-agent:$GITHUB_SHA
-          docker push $REGISTRY/$GCP_PROJECT_ID/discovery-agent:latest
-
+          docker build -f apps/agents/scout/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/scout-agent:$GITHUB_SHA \
+            -t $REGISTRY/$GCP_PROJECT_ID/scout-agent:latest .
+          docker push $REGISTRY/$GCP_PROJECT_ID/scout-agent:$GITHUB_SHA
+          docker push $REGISTRY/$GCP_PROJECT_ID/scout-agent:latest
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy discovery-agent \
-            --image $REGISTRY/$GCP_PROJECT_ID/discovery-agent:$GITHUB_SHA \
+          gcloud run deploy scout-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/scout-agent:$GITHUB_SHA \
             --region $GCP_REGION \
             --platform managed \
             --no-allow-unauthenticated \
-            --memory 2Gi \
-            --cpu 2 \
-            --timeout 3600 \
-            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest"
+            --memory 2Gi --cpu 2 --timeout 3600 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest"
 
-  # Repeat for quality, matching, notification, outcome-tracker, webhook-handler
+  deploy-analyst:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/analyst')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/analyst/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/analyst-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/analyst-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy analyst-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/analyst-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 1Gi --cpu 1 --timeout 120 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest"
+
   deploy-quality:
     runs-on: ubuntu-latest
-    # ... similar steps with quality-agent image
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/quality')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/quality/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/quality-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/quality-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy quality-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/quality-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 512Mi --cpu 1 --timeout 60 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest"
 
+  # ── Matching layer ─────────────────────────────────────────────
   deploy-matching:
     runs-on: ubuntu-latest
-    # ... similar steps with matching-agent image
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/matching')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/matching/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/matching-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/matching-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy matching-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/matching-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 1Gi --cpu 2 --min-instances 1 --max-instances 20 --timeout 30 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              REDIS_URL=REDIS_URL:latest"
 
+  # ── Worker-facing agents ───────────────────────────────────────
+  deploy-career:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/career')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/career/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/career-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/career-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy career-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/career-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 1Gi --cpu 1 --timeout 120 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest"
+
+  deploy-application:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/application')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/application/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/application-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/application-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy application-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/application-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 4Gi --cpu 4 --timeout 300 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              GMAIL_CLIENT_ID=GMAIL_CLIENT_ID:latest,\
+              GMAIL_CLIENT_SECRET=GMAIL_CLIENT_SECRET:latest,\
+              GMAIL_REFRESH_TOKEN=GMAIL_REFRESH_TOKEN:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest"
+
+  deploy-customer-success:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/customer-success')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/customer-success/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/customer-success-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/customer-success-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy customer-success-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/customer-success-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 512Mi --cpu 1 --min-instances 1 --max-instances 20 --timeout 30 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest"
+
+  # ── Business layer agents ──────────────────────────────────────
+  deploy-revenue:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/revenue')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/revenue/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/revenue-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/revenue-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy revenue-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/revenue-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 512Mi --cpu 1 --timeout 60 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest"
+
+  deploy-growth:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/growth')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/growth/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/growth-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/growth-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy growth-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/growth-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 1Gi --cpu 1 --timeout 1800 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              META_PAGE_ACCESS_TOKEN=META_PAGE_ACCESS_TOKEN:latest,\
+              LINKEDIN_ACCESS_TOKEN=LINKEDIN_ACCESS_TOKEN:latest,\
+              GOOGLE_SEARCH_CONSOLE_KEY_FILE=GOOGLE_SEARCH_CONSOLE_KEY_FILE:latest"
+
+  deploy-interview-coordination:
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/interview-coordination')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/interview-coordination/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/interview-coordination-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/interview-coordination-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy interview-coordination-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/interview-coordination-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 512Mi --cpu 1 --timeout 120 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,\
+              GMAIL_CLIENT_ID=GMAIL_CLIENT_ID:latest,\
+              GMAIL_CLIENT_SECRET=GMAIL_CLIENT_SECRET:latest,\
+              GMAIL_REFRESH_TOKEN=GMAIL_REFRESH_TOKEN:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest"
+  # NOTE: Agents 10 (reputation), 11 (credential-issuance), 13 (gig) are Phase 2/3.
+  # They have stub directories in the monorepo but no deploy jobs until Phase 2.
+  # Add their deploy jobs here when Phase 2 begins.
+
+  # ── Supporting agents ──────────────────────────────────────────
   deploy-notification:
     runs-on: ubuntu-latest
-    # ... similar steps with notification-agent image
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/notification')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/notification/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/notification-agent:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/notification-agent:$GITHUB_SHA
+      - run: |
+          gcloud run deploy notification-agent \
+            --image $REGISTRY/$GCP_PROJECT_ID/notification-agent:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 1Gi --cpu 1 --timeout 1800 \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,\
+              WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest"
 
   deploy-outcome-tracker:
     runs-on: ubuntu-latest
-    # ... similar steps with outcome-tracker image
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/outcome-tracker')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/outcome-tracker/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/outcome-tracker:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/outcome-tracker:$GITHUB_SHA
+      - run: |
+          gcloud run deploy outcome-tracker \
+            --image $REGISTRY/$GCP_PROJECT_ID/outcome-tracker:$GITHUB_SHA \
+            --region $GCP_REGION --no-allow-unauthenticated \
+            --memory 512Mi --cpu 1 --timeout 60 \
+            --set-secrets="WHATSAPP_ACCESS_TOKEN=WHATSAPP_ACCESS_TOKEN:latest,\
+              FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest"
 
   deploy-webhook-handler:
     runs-on: ubuntu-latest
-    # ... similar steps with webhook-handler image
-    # This one IS publicly accessible (webhook endpoint)
+    if: |
+      contains(github.event.head_commit.modified, 'apps/agents/webhook-handler')
+      || contains(github.event.head_commit.modified, 'packages/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - run: gcloud auth configure-docker
+      - run: |
+          docker build -f apps/agents/webhook-handler/Dockerfile \
+            -t $REGISTRY/$GCP_PROJECT_ID/webhook-handler:$GITHUB_SHA .
+          docker push $REGISTRY/$GCP_PROJECT_ID/webhook-handler:$GITHUB_SHA
+      - run: |
+          gcloud run deploy webhook-handler \
+            --image $REGISTRY/$GCP_PROJECT_ID/webhook-handler:$GITHUB_SHA \
+            --region $GCP_REGION --allow-unauthenticated \
+            --memory 256Mi --cpu 1 --min-instances 1 --max-instances 20 --timeout 30 \
+            --set-secrets="WHATSAPP_APP_SECRET=WHATSAPP_APP_SECRET:latest,\
+              WHATSAPP_VERIFY_TOKEN=WHATSAPP_VERIFY_TOKEN:latest"
 ```
 
 ---
@@ -374,6 +667,10 @@ CMD ["node", "dist/index.js"]
 | `revenue-agent` | 512Mi | 1 | 0 | 10 | 60s |
 | `growth-agent` | 1Gi | 1 | 0 | 2 | 1800s |
 | `customer-success-agent` | 512Mi | 1 | 1 | 20 | 30s |
+| `interview-coordination-agent` | 512Mi | 1 | 0 | 5 | 120s |
+| `reputation-agent` | 512Mi | 1 | 0 | 5 | 60s | Phase 2 — not deployed in MVP |
+| `credential-issuance-agent` | 512Mi | 1 | 0 | 5 | 60s | Phase 2 — not deployed in MVP |
+| `gig-agent` | 512Mi | 1 | 0 | 10 | 120s | Phase 2/3 — not deployed in MVP |
 | `notification-agent` | 1Gi | 1 | 0 | 1 | 1800s |
 | `outcome-tracker` | 512Mi | 1 | 0 | 10 | 60s |
 | `webhook-handler` | 256Mi | 1 | 1 | 20 | 30s |

@@ -11,18 +11,19 @@ Each phase is gated by the previous. Phase 2 cannot start without a functioning 
 
 ---
 
-## Phase 1 (MVP): Opportunity Infrastructure
-**Timeline:** Month 1–3  
+## Phase 1 (MVP): Opportunity Infrastructure + Skills Passport
+**Timeline:** 8 weeks (4 sprints)
 **Status:** Active (this is the MVP)
 
-Already documented in MVP Scope, PRD, and Feed Development Plan.
+Already documented in MVP Scope, PRD, and Sprint Plan v3.0.
 
 **Exit criteria for Phase 1:**
-- 5,000+ registered users
+- 5,000+ registered users with Skills Passports
+- 200+ Premium subscribers (Permission Level 3/4)
 - 50+ paying employers/SETAs
 - 200+ outcome data points in the graph
-- All 5 agents running autonomously
-- R100,000+ revenue
+- All 9 agents running autonomously (`human_approvals_required: 0`)
+- R300,000+ revenue
 - XPRIZE submission complete
 
 ---
@@ -138,6 +139,88 @@ Currently Skilved redirects to external application URLs. Phase 2 brings applica
 
 ---
 
+### 2.7 The Reputation Graph — Agent 10 (Reputation Agent)
+
+**This is the second half of the moat.** The Skills Passport (MVP) answers "what can this person do?" The Reputation Graph answers "how well do they do it, according to people who've actually worked with them?"
+
+**What it adds to the passport:**
+- `trustScore` — 0-100, synthesised from peer/manager/employer reviews
+- `synthesis` — plain-language summary: "Rated highly for reliability and technical skill by 2 verified employers over 18 months"
+- `topAttributes` — extracted recurring themes from reviews (e.g. "punctual", "strong problem-solver")
+
+**The non-negotiable design constraint — "review the reviewer":**
+Reviews can only come from parties tied to a *verified outcome* in the graph (an employer Skilved has confirmed placed this worker). Each reviewer accumulates a `reviewerCredibilityScore` based on the variance and considered nature of their review history — an employer who rates everyone 5 stars contributes less weight than one with a track record of honest, differentiated feedback.
+
+**Why this can't ship in MVP:** It requires a meaningful base of verified outcomes to synthesize from. Shipping it with 10-20 outcomes would produce thin, unconvincing trust scores — worse than not having the feature. Schema is seeded in MVP Sprint 2 (`reputation` field on `skills_passports`, empty `reviews` collection) so this requires no migration when it ships.
+
+**Revenue impact:** "Verified" tier passports (with reputation data) become a distinct, premium tier for employer search — supporting tiered employer pricing beyond the basic referral fee.
+
+**Timeline:** Design + build Month 4-6, once Phase 1 has produced 200+ outcomes with employer contact relationships established.
+
+---
+
+### 2.8 Credential Issuance — Agent 11 (Credential Issuance Agent)
+
+Once the Reputation Graph exists, Skilved can issue its own verifiable credentials — based on combined outcome + reputation data that no other institution has access to.
+
+**Example:** "Completed Eskom Electrical Apprenticeship — Skilved Verified — Employer-rated 4.8/5 — 18 months — Issued [date]"
+
+This is credential *creation*, not verification of existing paper qualifications. A passport accumulating Skilved-issued credentials over time becomes a fundamentally richer asset than a self-reported profile or even a single MyMzansi-verified qualification.
+
+**Design constraint — build on W3C Verifiable Credentials standard from day one.** This costs nothing extra at build time and makes every credential portable: usable with MyMzansi, shareable with other platforms, and a foundation for eventual cross-border recognition (relevant for Phase 4 pan-African expansion).
+
+**Trigger condition:** Credential issued when Reputation Agent confirms a trust score update tied to a placement with sufficient tenure (3+ months recommended).
+
+**Timeline:** Month 6-9, immediately following Reputation Agent.
+
+---
+
+### 2.9 Community Activity Feed (Opt-In)
+
+The MVP ships a private, per-user `ActivityTimeline` (own agent activity only — see PRD FR-22). Phase 2 extends this to an opt-in, aggregate-first community feed — the mechanism for the "domino effect" of platform growth.
+
+**What it shows:**
+- Aggregate trend stats: "12 electricians placed in Gauteng this week, average employer rating 4.6"
+- Opt-in individual milestones: a user can choose to share "I just completed my N4!" to their network
+- Trade-specific community boards: "47 new electrical opportunities this week — see what others in your trade are doing"
+
+**Privacy-first design:** Aggregate stats never require consent (no individual identified). Individual shares are opt-in per-post, not a default-on social feed. This avoids the trap of "Thabo got placed and didn't want strangers to know."
+
+**Why this matters for growth:** This is the visible proof of the platform's compounding effect — the more people use Skilved, the more visible (and credible) its impact becomes, which drives further adoption. This is the Growth Agent's expanded surface area in Phase 2.
+
+**Timeline:** Month 6-9, alongside Growth Agent maturation.
+
+---
+
+### 2.10 Voice Note Intake for Skills Passport
+
+Many trades workers are more comfortable speaking than typing — particularly for the work-history input that feeds the Skills Profile Agent's extraction pipeline.
+
+**What it adds:** WhatsApp voice note → transcription (Gemini audio or Speech-to-Text API) → Skills Profile Agent extraction pipeline (same as free-text today).
+
+**Why it matters:** This is a meaningful accessibility and inclusion improvement — it lowers the barrier to building a rich passport for workers less comfortable with written English. It's a strong category-impact talking point even before it ships, since it directly addresses a real adoption barrier for the target population.
+
+**Technical note:** No new extraction logic required — the Skills Profile Agent already processes free text; this adds a transcription step upstream.
+
+**Timeline:** Month 4-6, low complexity, high inclusion impact — candidate for early Phase 2 prioritisation.
+
+---
+
+### 2.11 Automated Employer Verification
+
+MVP relies on manual verification of each paying employer (low volume, acceptable for Sprint 2-4). As employer volume grows, this needs automation — both to scale and to protect passport data from fake employer accounts.
+
+**What it adds:**
+- Company registration number verification (CIPC API lookup)
+- Domain verification (employer email domain matches registered company)
+- Flagging for manual review when automated checks are inconclusive
+
+**Why it matters:** As the Reputation Graph (2.7) goes live, employer accounts gain the ability to write reviews that affect workers' trust scores. A fake employer account writing fraudulent reviews is a meaningfully worse problem than a fake employer account viewing the feed. Automated verification should ship before or alongside the Reputation Agent.
+
+**Timeline:** Month 4-6, sequenced just ahead of 2.7.
+
+---
+
 ## Phase 3: Labour Market OS
 **Timeline:** Month 18–48  
 **Theme:** From platform to national infrastructure
@@ -226,6 +309,36 @@ A standalone API product for any platform that needs to verify SA skills and cre
 **Pricing:** R5–R50 per verification depending on depth  
 **Integration:** REST API with OAuth2  
 **Compliance:** POPIA-compliant, consent-based, auditable
+
+---
+
+### 3.6 The Gig Agent — From Job Seeker to Micro-Business (Agent 13)
+
+**This is the bridge between "AI job board" and "AI operating layer for South Africa's informal economy" — and the on-ramp to the full education/career/HR vision.**
+
+**The insight:** A large proportion of Skilved's trades workers are also informal micro-business owners. The electrician using Skilved to find an apprenticeship is frequently the same person who rewires a neighbour's house or fixes a geyser on weekends. That side of their economic life is currently unserved by any platform.
+
+**What it does:** Acts as an AI back office for a tradesperson's private gig work — reusing infrastructure already built for the core platform:
+
+- Customer messages the tradesperson's Skilved-linked WhatsApp number with an inquiry ("my geyser is leaking, how much to fix?")
+- Gig Agent asks clarifying questions, generates a quote based on standing rates (same Gemini reasoning as Application Agent's CV/cover letter generation)
+- Schedules the job, sends reminders, generates a simple invoice after completion
+- The completed gig becomes an outcome in the graph — feeding **Reputation Agent (2.7)** as a second source of trust signals (private customer reviews alongside employer reviews)
+
+**Why this is the inevitable addition, not a generic one:**
+
+1. **Near-zero new infrastructure.** Same WhatsApp interface (Customer Success Agent), same Gemini reasoning (Application Agent), same outcome→reputation pipeline (Agents 10/11)
+2. **Valuable independent of employment status.** A fully employed tradesperson still does side work — Skilved becomes useful every week, not just during job searches. This is the mechanism that makes the platform something users genuinely can't live without
+3. **Strengthens the reputation graph faster** — a second, independent source of trust data alongside employer reviews
+4. **The structural on-ramp to the full vision.** A tradesperson with a strong Gig Agent track record is, functionally, running a small business. The same agentic infrastructure scales to help them formally register that business, hire their first employee through Skilved, and eventually appear on the **employer side** of the platform. This closes the loop: Skilved becomes the operating layer for the entire career lifecycle — education → first job → skilled worker → micro-business → employer — not just the entry point.
+
+**Dependencies:** Reputation Agent (2.7) live for outcome feedback; Automated Employer Verification (2.11) live to prevent fraudulent gig-customer accounts at scale.
+
+**Revenue:** Initially free (drives engagement + reputation data). Phase 3+: small transaction fee on invoiced amounts (1-2%), or bundled into Worker Premium+ tier.
+
+**Timeline:** Month 6-12, immediately following Reputation Agent. Named in the roadmap and referenced in the XPRIZE narrative now (see `04_XPRIZE_Strategy.md`), even though it does not ship in the 8-week MVP — it is the long-term story that justifies the category framing "beyond job creation."
+
+**Full technical spec:** see `24_AI_Employees_Architecture.md`, Agent 13.
 
 ---
 
@@ -383,6 +496,8 @@ This is not a job board. This is the economic mobility engine for 800 million wo
 
 ---
 
-*Document version 1.0 — June 2026*  
-*Owner: Founder*  
+*Document version 3.0 — June 2026*
+*v2.0: Added sections 2.7-2.11 — Reputation Graph (Agent 10), Credential Issuance (Agent 11), community activity feed, voice note intake, automated employer verification*
+*v3.0: Added section 3.6 — Gig Agent (Agent 13), the bridge from job seeker to micro-business to employer, and the on-ramp to the full education/career/HR vision*
+*Owner: Founder*
 *Review: Quarterly*

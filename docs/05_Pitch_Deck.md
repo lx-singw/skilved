@@ -37,17 +37,41 @@
 
 ## Slide 3: The Solution
 
-**Headline:** Skilved is the AI agent that finds, matches, and helps skilled workers apply for every opportunity in South Africa — before they even search.
+**Headline:** Skilved flips the paradigm. Workers don't search for opportunities. Opportunities find workers — through AI agents.
 
-**Three things Skilved does:**
-1. **Discovers** every apprenticeship, learnership, bursary, and trade job in SA — automatically, every 4 hours
-2. **Matches** each opportunity to the right worker based on trade, qualification, location — no search required
-3. **Guides** the application — AI-generated cover notes, requirement checklists, outcome tracking
+**The old primitive (every product before Skilved):**
+```
+Worker searches → finds opportunity → applies
+```
 
-**The key line:**
-> No signup required. No gate. Full details, direct apply. Skilved comes as the upgrade, not the price of entry.
+**The Skilved primitive:**
+```
+Agent discovers → Agent analyses → Agent matches → Agent applies
+Worker wakes up to results
+```
 
-**Visual:** Clean three-step flow diagram. Discovery → Match → Apply.
+**The user creates a profile once. Eight agents work forever.**
+
+**Three things Skilved does differently:**
+
+1. **Scout + Analyst:** AI discovers and reads every SA trades opportunity every 4 hours — from SETAs, employers, government, NGOs. Workers never need to search.
+
+2. **Career + Matching:** AI understands each worker's skills, goals, and gaps. It ranks opportunities by fit and maps the career path to get there. Workers see exactly what matches them and why.
+
+3. **Application Agent:** With one tap, AI generates a tailored CV, writes a specific cover letter, fills the application form, and submits. Workers apply while they sleep.
+
+**The business layer — what makes this a company, not a product:**
+
+4. **Revenue Agent** makes monetisation decisions autonomously — when to prompt upgrades, what price to offer, which experiments to run.
+
+5. **Growth Agent** creates daily content, seeds WhatsApp communities, and manages the referral programme — without human direction.
+
+**The hybrid model:** Workers start with AI notifying them. As trust builds, they grant more autonomy. By week 3, most are letting agents apply on their behalf.
+
+**The sentence that defines the category:**
+> "LinkedIn helps people present themselves. Skilved helps opportunities find people."
+
+**Visual:** Before/after diagram. Left: human at computer, searching. Right: human sleeping, agents working.
 
 ---
 
@@ -79,23 +103,34 @@
 
 ## Slide 5: The Technology
 
-**Headline:** Five AI agents run Skilved. Zero humans curate, filter, or approve. This is AI-native, not AI-assisted.
+**Headline:** Eight AI employees run Skilved. Zero humans curate, filter, apply, or approve. This is a business operated by AI.
 
-**Agent table:**
+**The 8 AI employees:**
 
 | Agent | Runs | What it decides autonomously |
 |---|---|---|
-| Discovery | Every 4 hours | Which opportunities to ingest from 50+ sources |
-| Matching | Every page load | How to rank opportunities per user in real time |
-| Quality | Continuous | Which listings are scams, duplicates, or expired |
-| Notification | Daily 7am | Which 3–5 opportunities to include in each user's digest |
-| Outcome Tracker | Event-driven | When to follow up, how to update the graph |
+| Scout | Every 4 hours | Which opportunities to ingest from 3 portal sources (PuffAndPass, RecentJobs, StudentRoom), expanding to 50+ |
+| Analyst | Per new opportunity | What structured intelligence to extract from every listing |
+| Matching | Every feed load | How to rank all opportunities for each specific user |
+| Career | On profile + weekly | What career path to recommend, which steps are next |
+| Application | On user permission | CV generation, cover letter, form fill, submission — end to end |
+| Revenue | Event-driven | When to prompt upgrades, what price, which experiments |
+| Growth | Daily | Content creation, community seeding, SEO, referral management |
+| Customer Success | Always-on | Every onboarding message, every support query, every follow-up |
+
+**The trust escalation model (the hybrid):**
+Workers start at Level 1 (agent notifies, human decides). Trust builds through results. By week 3, most users are at Level 3 — agent applies autonomously to high-confidence matches. This is intentional architecture, not a limitation.
 
 **The infrastructure:**
-- Built on Google Cloud (Vertex AI, Gemini, BigQuery, Cloud Run)
-- The graph: every match, application, and outcome stored in BigQuery — compounds with every user
+Built entirely on Google Cloud — Vertex AI, Gemini, BigQuery, Cloud Run, Cloud Pub/Sub. 14 GCP services. Remove any one and an agent stops functioning.
 
-**Talking point:** "Remove the AI and the business does not function at scale. That is the definition of AI-native."
+**The 24-hour audit:**
+```
+4,540 autonomous decisions yesterday.
+0 human approvals.
+```
+
+**Talking point:** "Most teams build an AI-powered product. We built an AI-operated business. The difference is every slide from here."
 
 ---
 
@@ -122,17 +157,37 @@
 
 ## Slide 7: Business Model
 
-**Headline:** Free for workers. Paid by employers and institutions who benefit from verified matches.
+**Headline:** Workers use Skilved free. The agents create so much value that workers pay for more autonomy — and employers pay for the candidates the agents find.
 
-**Revenue streams:**
+**The three-sided revenue model:**
 
-| Stream | Pricing | Status |
-|---|---|---|
-| Employer referral fee | R500–R2,000 per qualified candidate | Live Day 14 |
-| SETA institutional contract | R5,000–R20,000/year per SETA | Live Month 2 |
-| Employer search dashboard | R2,000–R5,000/month | v1.1 |
-| Verification API (Phase 2) | R5–R20 per verification | Phase 2 |
-| Skills intelligence reports | R50,000–R200,000 per report | Year 2 |
+| Stream | Pricing | Who pays | Status |
+|---|---|---|---|
+| Employer referral fee | R500–R2,000 per candidate | Employers | Live Day 14 |
+| Worker Premium — Level 3 (semi-auto Application Agent) | R200/month | Workers | Live Day 30 |
+| Worker Premium+ — Level 4 (full-auto Application Agent) | R500/month | Workers | Live Day 45 |
+| SETA institutional contract | R10,000–R200,000/year | SETAs | Live Month 2 |
+| Employer dashboard SaaS | R2,000–R12,000/month | Employers | v1.1 |
+| Verification API (Phase 2) | R5–R20 per check | Any platform | Phase 2 |
+| Skills intelligence data | R50,000–R1,000,000/year | Government, corporates | Year 2 |
+
+**Why workers pay:**
+The Application Agent does work that would otherwise cost a worker 3–4 hours per application. At R200/month for unlimited autonomous applications, the ROI is immediate. Workers aren't paying for access — they're paying for the agent to work for them.
+
+**The flywheel:**
+```
+More workers → better graph → better matches
+→ Application Agent improves → more Premium upgrades
+→ More Revenue Agent triggers → more employer revenue
+→ More workers join (word of mouth from placements)
+```
+
+**Unit economics (Month 6):**
+- Employer (Growth plan): R13,000/month revenue, 85% gross margin
+- Worker (Premium): R500/month, ~95% gross margin
+- SETA contract: R80,000/year, 81% gross margin
+
+**Revenue Agent running all monetisation decisions autonomously.**
 
 **Unit economics (Day 90 target):**
 - 50 employer relationships

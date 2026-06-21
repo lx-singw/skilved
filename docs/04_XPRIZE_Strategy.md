@@ -1,12 +1,28 @@
 # Skilved — XPRIZE Strategy
-### Build with Gemini XPRIZE | 90-Day Execution Plan | June 2026
+### Build with Gemini XPRIZE | 8-Week Execution Plan | Version 5.0 | June 2026
+
+---
+
+## Table of Contents
+
+- [The Prize](#the-prize)
+- [Why Skilved Wins](#why-skilved-wins)
+- [The "Bringing the Future to the Present" Frame](#the-bringing-the-future-to-the-present-frame)
+- [Judging Criteria — Skilved's Score](#judging-criteria--skilvedss-score)
+- [8-Week Execution Timeline](#8-week-execution-timeline)
+- [GCP Stack — Depth of Integration](#gcp-stack--depth-of-integration)
+- [Risk Register](#risk-register)
+- [The Judge Narrative](#the-judge-narrative)
+- [The 10-Year Story](#the-10-year-story-beyond-job-creation)
+- [Pre-Submission Checklist](#pre-submission-checklist)
+- [Change Log](#change-log)
 
 ---
 
 ## The Prize
 
-$2,000,000 total prizes. $500,000 for first place.  
-Category: **Entrepreneurship & Job Creation**  
+$2,000,000 total prizes. $500,000 for first place.
+Category: **Entrepreneurship & Job Creation**
 Requirements: Real business, real users, real revenue. AI agents run operations. Category impact at scale.
 
 ---
@@ -15,15 +31,75 @@ Requirements: Real business, real users, real revenue. AI agents run operations.
 
 Most XPRIZE submissions will be polished demos with synthetic users and aspirational revenue. Skilved enters with structural advantages none of them can replicate:
 
-1. **A real national pain.** 32% youth unemployment in South Africa. 500K+ trades workers actively seeking opportunities at any given time. This is not a manufactured problem.
+**1. A real national pain.**
+32% youth unemployment in South Africa. 500K+ trades workers actively seeking opportunities. 21 government skills agencies funding thousands of learnerships that expire unfilled every year. This is not a manufactured problem.
 
-2. **A real infrastructure tailwind.** MyMzansi is live government DPI. Skilved is the private-sector intelligence layer on top of it. No other submission has sovereign government infrastructure as its foundation.
+**2. A real infrastructure tailwind.**
+MyMzansi is live government DPI. Skilved is the private-sector intelligence layer on top of it. No other submission has sovereign government infrastructure as their foundation.
 
-3. **Genuine AI-native operations.** The opportunity discovery, matching, quality filtering, notification, and outcome tracking agents all run without human intervention. The business literally cannot operate at scale without the AI — that is not an LLM wrapper, that is an agentic system.
+**3. Seventeen AI employees running the entire business.**
+Scout, Analyst, Matching, Career, Application, Revenue, Growth, Customer Success, Interview Coordination — plus Skills Pulse, Career Simulation, Employer Accountability, and Collective Intelligence agents. Zero human intervention. This is not an LLM wrapper — this is a company operated by AI.
 
-4. **A zero-to-one data asset.** The outcome graph is not replicable. After 90 days, it has data no competitor can buy. After 3 years, it is national infrastructure.
+**4. The fundamental reframe.**
+Most teams will build a job board with a chatbot and call it AI. Skilved inverts the entire paradigm: workers no longer search for opportunities. Opportunities hunt workers — through agents. The user is the exception. The agent is the default.
 
-5. **The right category.** Entrepreneurship & Job Creation is the most nakedly impact-aligned with Skilved's thesis. The judges will understand the opportunity.
+**5. The ATS adapter strategy.**
+Application Agent targets the 8 underlying platforms covering 80%+ of SA employer opportunities — SuccessFactors, Oracle Taleo, PageUp, plus 3 SETA portal adapters. Named employers, real submissions, verifiable in BigQuery.
+
+**6. A trust escalation model.**
+Level 1 to 4 permission model — intentional architecture for population-scale AI autonomy. Not a limitation. The design that makes full autonomy achievable.
+
+**7. A zero-to-one data asset.**
+The outcome graph is not replicable. After 90 days, it has data no competitor can buy.
+
+**8. Bringing the future to the present — four new capabilities.**
+The Skills Pulse Dashboard, Career Simulation Engine, Employer Accountability Layer, and Collective Intelligence Layer make four things possible today that the world thought were years away. See next section.
+
+**The sentence judges will remember:**
+> "LinkedIn helps people present themselves to opportunities. Skilved helps opportunities find people."
+
+**The sentence that wins first place:**
+> "We didn't optimise the existing system. We changed what information is available, to whom, and when — bringing an economic future to South Africa's workers that was previously only accessible to a privileged few."
+
+---
+
+## The "Bringing the Future to the Present" Frame
+
+This is the XPRIZE's core question: does your submission make something possible today that the world thought was 5–10 years away?
+
+Most submissions will show AI making existing processes faster or cheaper. That is optimisation, not the future. Skilved makes four genuinely new capabilities real:
+
+### Future 1: Real-Time National Skills Intelligence
+
+**What was impossible before:** South Africa allocates R25 billion in skills development funding annually based on surveys conducted 18 months ago. Thousands of learnerships expire unfilled because no one has real-time intelligence about demand vs. supply.
+
+**What Skilved makes real now:** The Skills Pulse Dashboard at `skilved.com/skills-pulse` — the first real-time national skills intelligence platform on the African continent. Updated daily from verified outcomes. Showing which trades are in shortage, which learnerships are expiring unfilled, which qualifications have the best ROI. Free, public, cited by government.
+
+**The judge moment:** "No government, no research institution, no management consultancy has this. It exists nowhere on the continent. And Skilved built it as a byproduct of helping individual workers — the national intelligence emerges from the individual data."
+
+### Future 2: Outcome-Verified Career Simulation
+
+**What was impossible before:** Career guidance in South Africa is either generic ("get more qualifications") or anecdotal ("my uncle said..."). McKinsey charges R500,000 for the workforce planning analysis that contains real career path intelligence.
+
+**What Skilved makes real now:** Any worker can ask "what happens to my career if I get my Wireman's licence?" and receive an answer grounded in what actually happened to 47 people who were exactly where they are — verified, timestamped, real. Free. On a phone. In 30 seconds.
+
+**The judge moment:** "This is what McKinsey charges half a million rand for. Thandeka from Soweto can get it for free, right now, in a WhatsApp message."
+
+### Future 3: Democratic Career Insider Knowledge
+
+**What was impossible before:** The career intelligence that flows through elite social networks — which opportunities actually lead somewhere, which employers are worth applying to, what are people like you actually doing — is invisible to workers without those connections.
+
+**What Skilved makes real now:** The Collective Intelligence Layer surfaces this intelligence from verified outcome data and makes it available to every worker. "3 N3 electricians in Gauteng applied to this opportunity. 2 got interviews. 1 got placed." This is the information the child of an Eskom executive has always had. Now Thandeka from Soweto has it too.
+
+**The judge moment:** "Economic equity isn't just about equal access to opportunities. It's about equal access to information about opportunities. Skilved closes that gap."
+
+### Future 4: Employer Accountability at Scale
+
+**What was impossible before:** Workers have no way to know if a learnership at Company X actually leads anywhere. Exploitative learnerships — collecting SETA funding, paying inadequate stipends, delivering no real training — face no market consequences because candidates have no information.
+
+**What Skilved makes real now:** Every employer gets a verified accountability score based on what actually happened to candidates. Workers see this before they apply. Employers who score poorly lose candidate flow. Good employers attract more. For the first time, the SA learnership market has accountability driven by verified data, not regulation alone.
+
+**The judge moment:** "This is a systemic change. Not a product feature. The SA learnership market is more accountable today than it was before Skilved."
 
 ---
 
@@ -31,214 +107,227 @@ Most XPRIZE submissions will be polished demos with synthetic users and aspirati
 
 ### Criterion 1: Business Viability
 
+**Target score: 90/100**
+
 **What judges assess:** Real users acquired, real revenue generated, sustainable business model.
 
-**Skilved's approach:**
+**Evidence Skilved provides:**
+- Screenshots of PayFast transactions (employer referral fees, Day 16+)
+- Named paying employers with invoice amounts
+- SETA letters of intent or signed contracts
+- Worker Premium billing evidence (R200–R500/month)
+- 5,000+ registered users with Skills Passports
+- 50+ paying employers/SETAs
 
-*Users:* Trades workers have an acute, immediate pain. They are actively searching. There is no marketing budget required to explain the value proposition. "Find me an electrical apprenticeship" is the whole pitch. Target: 5,000 registered users in 90 days, 50,000+ anonymous feed sessions.
-
-*Revenue:* Two streams, both live by Day 14:
-- Employer referral fees: R500–R2,000 per qualified candidate referred
-- SETA placement fees: R5,000–R20,000 per institutional contract
-
-Conservative 90-day revenue model:
+**Revenue model (90-day):**
 ```
-Month 1: 5 employers × 3 referrals × R1,000 = R15,000
-Month 2: 15 employers × 4 referrals × R1,000 = R60,000
-Month 3: 30 employers × 5 referrals × R1,500 = R225,000
-Total: ~R300,000 (~$16,500 USD)
+Month 1: R11,500
+Month 2: R83,000
+Month 3: R290,000
+Total 90 days: ~R384,500
 ```
 
-*Sustainability:* The business model improves with scale. More users → better graph → better matches → higher employer willingness to pay → more users. Classic two-sided marketplace flywheel, powered by AI that compounds.
+**Action this week:** Close 2 employers at even R500 introductory pricing. Get a signed letter of intent from one SETA. These are relationship calls, not engineering tasks.
 
-**Projected score: 88/100**
+**Projected score: 90/100**
 
 ---
 
 ### Criterion 2: AI-Native Operations
 
+**Target score: 96/100**
+
 **What judges assess:** AI runs key decisions live in production. Not AI-assisted — AI-operated.
 
-**The five autonomous agents Skilved runs in production:**
+**The 17 autonomous agents Skilved runs:**
 
-#### Agent 1: Discovery Agent
-- **Decision:** Which opportunities to ingest, extract, and publish
-- **Autonomy:** Runs every 4 hours without human input
-- **Human role:** None in normal operation (only infrastructure alerts)
-- **GCP:** Cloud Scheduler → Cloud Run → Vertex AI Search → Firestore
-- **Demonstrable:** Agent run logs show: time started, sources crawled, opportunities found/published/rejected, no human approval step
+| Agent | What It Decides Autonomously |
+|---|---|
+| 0. Skills Profile | Extract, structure, enrich the Skills Passport |
+| 1. Scout | Which opportunities to ingest from 3 portal sources (PuffAndPass, RecentJobs, StudentRoom) every 4 hours, expanding to 50+ |
+| 2. Analyst | What structured intelligence + ATS platform for every opportunity |
+| 3. Matching | How to rank opportunities per user with cohort intelligence |
+| 4. Career | What career path to recommend, which steps are next |
+| 5. Application | Which ATS adapter to use, CV generation, autonomous submission |
+| 6. Revenue | When to prompt upgrades, what price, which experiments |
+| 7. Growth | Daily content, community seeding, SEO |
+| 8. Customer Success | Every onboarding message, every support query |
+| 12. Interview Coordination | Detect interviews, schedule, generate prep notes |
+| 14. Skills Pulse | Build and publish national skills intelligence daily |
+| 15. Career Simulation | Answer "what if I do X?" with outcome-verified data |
+| 16. Employer Accountability | Calculate and publish employer scores from outcomes |
+| 17. Collective Intelligence | Surface cohort-based career intelligence per user |
 
-#### Agent 2: Matching Agent
-- **Decision:** How to rank opportunities for each user
-- **Autonomy:** Runs on every page load, personalises in real time
-- **Human role:** None
-- **GCP:** Vertex AI Ranking API → Cloud Run → personalisation pipeline
-- **Demonstrable:** Side-by-side comparison of anonymous vs. logged-in feed showing different ranking for same opportunity set
+**The XPRIZE demonstration script (updated):**
 
-#### Agent 3: Quality Agent
-- **Decision:** Which opportunities are scams, duplicates, or low quality
-- **Autonomy:** Runs on every new opportunity, auto-removes without approval
-- **Human role:** Reviews flagged edge cases weekly (not in real-time path)
-- **GCP:** Gemini classification → Cloud Run → Firestore update
-- **Demonstrable:** Show opportunities rejected with quality agent reasoning
+> "Here is the agent dashboard. Every row is an autonomous decision made by Skilved's AI employees in the last 24 hours — no human made any of these choices.
+>
+> Scout discovered 312 opportunities from 50 sources.
+> Analyst extracted intelligence and detected ATS platforms for all 312.
+> Application Agent submitted 34 applications — 18 via SuccessFactors, 10 via Oracle Taleo, 6 via email.
+> Skills Pulse Agent updated the national skills dashboard with fresh intelligence.
+> Career Simulation Agent answered 47 'what if' career queries.
+> Employer Accountability Agent recalculated scores for 23 employers.
+> Collective Intelligence Agent surfaced cohort data on 891 feed loads.
+>
+> Total autonomous decisions: 6,247.
+> Human approvals required: 0.
+> Workers protected from low-scoring employers: 3.
+> Workers who saw their career simulation and immediately applied: 12.
+>
+> This is not AI-assisted. This is a business operated by AI — that brings an awesome future to the present."
 
-#### Agent 4: Notification Agent
-- **Decision:** Which opportunities to include in each user's daily digest
-- **Autonomy:** Sends personalised WhatsApp message to each user at 7am
-- **Human role:** None
-- **GCP:** Cloud Scheduler → Cloud Run → Gemini (message personalisation) → WhatsApp API
-- **Demonstrable:** Show digest content differing per user based on profile
-
-#### Agent 5: Outcome Tracking Agent
-- **Decision:** When to prompt users for outcome updates, how to update the graph
-- **Autonomy:** Monitors application events, sends follow-up prompts, updates BigQuery
-- **Human role:** None
-- **GCP:** Cloud Functions (event trigger) → Gemini → WhatsApp → BigQuery
-- **Demonstrable:** Show graph data accumulating from user outcome reports
-
-**The XPRIZE Demonstration Script:**
-
-> "Here is the agent dashboard. Every row is an autonomous decision made by Skilved's AI in the last 4 hours — no human made any of these choices. 847 opportunities discovered. 12 rejected as scams. 3 duplicates removed. 1,247 personalised feeds updated. 892 WhatsApp digests sent. 0 human approvals required. This is not AI-assisted. This is AI-operated."
-
-**Projected score: 94/100**
+**Projected score: 96/100**
 
 ---
 
 ### Criterion 3: Category Impact
 
-**What judges assess:** Meaningfully moves the needle in the category — redefines how it works OR reaches credible scale.
-
-**Skilved's impact story has three layers:**
+**Target score: 97/100**
 
 **Layer 1 — Immediate (Day 90):**
-- 5,000 SA trades workers with daily AI-matched opportunity access they didn't have before
-- 200+ measurable placements (applied → outcome documented)
-- First AI-native opportunity platform built specifically for Africa's largest skilled-trades workforce
-- Zero equivalent product exists in SA or on the continent
+- 5,000 SA trades workers with daily AI-matched opportunity access
+- 200+ measurable placements
+- National skills intelligence dashboard live and cited
+- First employer accountability scores published
+- Collective intelligence giving workers access to previously exclusive knowledge
 
 **Layer 2 — Medium-term (Year 1–3):**
-- MyMzansi credential wallet integrates with Skilved profiles
-- "I have this certificate" becomes "verify from MyMzansi" — government-grade trust
-- Skilved becomes the private-sector completion of MyMzansi's explicit social promise: "linking grant recipients to jobs, training and education opportunities that lead to sustainable livelihoods"
-- This is not incidental — it is the government's stated goal, and Skilved is the mechanism
+- MyMzansi credential integration — government-grade verified Skills Passports
+- Skills Pulse Dashboard cited in government budget submissions
+- Employer accountability scores changing learnership quality industry-wide
+- Career Simulation Engine informing thousands of career decisions monthly
 
 **Layer 3 — Long-term (Year 3–10):**
-- The SA Skills Graph: the definitive map of which skills unlock which opportunities, verified by outcome data
-- National Treasury and DPSA use Skilved data for skills policy
-- Every TVET college uses Skilved placement data to adjust curriculum in real time
-- Pan-African expansion: the model replicates to Kenya, Nigeria, Rwanda — countries building the same DPI stack
+- SA Skills Graph: definitive record of which skills unlock which opportunities
+- National Treasury and DPSA using Skilved data for skills policy
+- Pan-African expansion: same model for Kenya, Nigeria, Rwanda
 
 **The category-redefining claim:**
 
-> "Every job board in history has asked employers to post opportunities and workers to search for them. Skilved inverts this: the AI agent finds opportunities autonomously, matches them to workers before they search, and builds a verified outcome graph that makes every subsequent match smarter. Job creation isn't about more listings. It's about better intelligence. Skilved is that intelligence layer."
+> "Every job board in history has asked employers to post opportunities and workers to search for them. Skilved inverts this. But more than that — Skilved builds the intelligence layer that the entire SA skills economy has never had. Workers can see their futures. Employers are held accountable. Government can see where to invest. This is not optimisation. This is a category change."
 
-**Projected score: 95/100**
-
----
-
-## 90-Day Execution Timeline
-
-### Days 1–7: Infrastructure + First Feed
-**Must-haves by Day 7:**
-- GCP project provisioned (all services enabled)
-- Discovery agent v1 live (10 SETA sources, 4-hour cycle)
-- Opportunity Firestore schema live
-- Feed UI live at skilved.com (200+ opportunities)
-- BigQuery event pipeline live
-- Cloud Monitoring + alerting live
-
-**Team allocation:**
-- 2 engineers: Discovery agent + Firestore + Cloud Run
-- 1 engineer: Next.js feed UI
-- 1 designer: Card design system
-- Founder: SETA source list compilation, first employer outreach
+**Projected score: 97/100**
 
 ---
 
-### Days 8–14: Matching + First Revenue
-**Must-haves by Day 14:**
-- Matching agent v1 live (anonymous ranking)
+## 8-Week Execution Timeline
+
+**Week 0 (Pre-Sprint):**
+- Close 2 pilot employers (even R500 introductory pricing) — phone calls this week
+- Email MERSETA + EWSETA with data-first pitch
+- Register Skilved (Pty) Ltd + POPIA Information Officer
+- Apply for WhatsApp Business API (takes 1–7 days — do today)
+- Record rough demo video of vision — forces articulation before build
+
+---
+
+### Sprint 1 — Weeks 1–2: The Feed + First Intelligence
+
+**Must-haves:**
+- Scout + Analyst (with ATS detection) + Quality agents live
+- Feed live at skilved.com — 200+ opportunities, all 12 trades, all 9 provinces
+- Full detail view + direct apply — no login required
+- "Found X hours ago" freshness on every card
 - WhatsApp share live
-- First employer / SETA contact pitched and signed (R500+ fee)
-- Match explanation on cards
-- All 12 trade categories in discovery scope
+- Anonymous ceiling locked
+- **Skills Pulse Dashboard v1** — static page with live opportunity counts, trade × province distribution
+- BigQuery `agent_autonomy` view live from Day 1 with `human_approvals_required: 0`
+- ATS platform stored on every opportunity from day 1
 
-**First revenue target:** R1,000–5,000 by Day 14
-
-**Employer pitch script:**
-> "Skilved's AI agent finds and indexes every trade opportunity in South Africa every 4 hours. We have [X] electrical candidates in Gauteng actively browsing right now. For R1,000 per qualified candidate we refer to you, you access pre-interested talent without advertising. No placement, no charge."
+**Gate:** Feed loads < 1.5s, 200+ real opportunities, ATS detection running, Skills Pulse page live
 
 ---
 
-### Days 15–30: Accounts + Quality
-**Must-haves by Day 30:**
-- Account creation (WhatsApp OTP)
-- Personalised feed (logged-in users)
-- Quality agent live (scam detection, duplicate removal)
-- WhatsApp digest agent live
-- Outcome tracking flow
-- 500+ registered users
-- 5+ paying employers
+### Sprint 2 — Weeks 3–4: The Skills Passport + Collective Intelligence
 
-**Revenue target Day 30:** R15,000–30,000
+**Must-haves:**
+- Skills Profile Agent v1 live — passport onboarding < 90 seconds
+- Matching Agent live (authenticated users only)
+- **Collective Intelligence Layer v1** — "X people with your profile viewed this" on opportunity cards
+- **Micro-credentials live** — Skilved Verified: Active Applicant and Profile Complete
+- **Agent Trace Visualizer live** — full chain for any user_id, XPRIZE demo artifact
+- Public profile URL live: `skilved.com/[username]`
+- Notification digest sending
+- Outcome tracker Day 3 follow-up
+- **First employer referral fee received — Day 16 target (FIRST REVENUE)**
+- 500+ registered users, 5+ paying employers
 
----
-
-### Days 31–60: Scale + Graph
-**Must-haves by Day 60:**
-- 2,000+ registered users
-- 20+ paying employers / SETAs
-- 50+ documented outcomes (applied → result)
-- All 9 provinces validated
-- Employer referral dashboard (basic)
-- First SETA institutional contract signed (R5,000–20,000)
-- Vertex AI matching model v2 (trained on first outcome data)
-
-**Revenue target Day 60:** R60,000–100,000
+**Gate:** Passport live, matching running, collective intelligence on cards, first revenue, Trace Visualizer working
 
 ---
 
-### Days 61–90: XPRIZE Submission Prep
-**Must-haves by Day 90:**
-- 5,000+ registered users
-- 50,000+ anonymous feed sessions
-- 50+ paying employers / SETAs
-- 200+ documented outcomes
-- All 5 agents running autonomously (demonstrable)
-- Revenue R100,000–300,000 documented
-- Agent autonomy dashboard built (for judges)
-- Video demo scripted and recorded
-- Submission document complete
+### Sprint 3 — Weeks 5–6: Agents + Future Capabilities
 
-**Submission components:**
-1. Business metrics report (users, revenue, placements)
-2. Agent autonomy demonstration (live or recorded)
-3. Category impact narrative (3-layer story)
-4. 10-year architecture (MyMzansi integration roadmap)
-5. GCP integration depth documentation
+**Must-haves:**
+- Career Agent live (triggers at 40% passport completeness)
+- **Career Simulation Engine v1** (opportunity-based, no outcome data needed)
+- Customer Success Agent onboarding sequence live
+- **Application Agent v1** (email + SuccessFactors adapter)
+- **First real autonomous application submitted in production**
+- **Employer Accountability Layer v1** (scores based on early outcome data)
+- Permission Level 1+2+3 with POPIA consent
+- Worker Premium subscriptions billing live (R200/month)
+- 2,000+ users, 30+ paying employers/SETAs
+
+**Gate:** Application Agent submitting real applications, Career Simulation answering queries, employer scores on cards
+
+---
+
+### Sprint 4 — Weeks 7–8: Scale + Full Intelligence + Submission
+
+**Must-haves:**
+- Application Agent v2 (Oracle Taleo + PageUp + MERSETA + EWSETA adapters)
+- Revenue Agent + Growth Agent live
+- **Skills Pulse Dashboard v2** — fully automated, updating daily, Gemini intelligence
+- **Career Simulation Engine v2** — outcome-verified with real graph data
+- **Collective Intelligence Layer v3** — full outcome-backed cohort intelligence
+- Agent 14, 15, 16, 17 all running autonomously
+- Agent coordination layer (`agent_context`) live
+- Permission Level 4 live
+- All 17 agents: `human_approvals_required: 0` across full BigQuery view
+- 5,000+ registered users with Skills Passports
+- 200+ Premium subscribers
+- 50+ paying employers/SETAs
+- R300,000+ documented revenue
+- 200+ outcomes in graph
+- Demo video recorded (5 minutes)
+- **SUBMIT**
+
+**Submission package:**
+1. Business metrics — users, revenue, placements, Premium subscribers
+2. Agent autonomy dashboard — live, `human_approvals_required: 0`
+3. Skills Passport → matching → career plan → autonomous application chain demo
+4. Skills Pulse Dashboard — national intelligence live
+5. Career Simulation Engine — live "what if" query in demo
+6. Employer accountability scores — real scores on real opportunities
+7. Collective intelligence — cohort data on live feed
+8. Permission model progression data (Level 1 → Level 4)
+9. Category impact narrative — 90 days → 10 years
+10. GCP integration depth documentation
 
 ---
 
 ## GCP Stack — Depth of Integration
 
-The XPRIZE requires meaningful GCP integration. Skilved's stack is not cosmetic:
-
-| GCP Service | How Skilved Uses It | Why This Isn't Cosmetic |
+| GCP Service | Agents That Depend on It | Why Not Cosmetic |
 |---|---|---|
-| Vertex AI Search | Opportunity discovery indexing and retrieval | Core to the discovery agent — without it, the agent cannot function |
-| Vertex AI Ranking | Personalised feed ranking | Core to the matching agent — the personalisation model lives here |
-| Gemini API | Quality agent classification, match explanations, cover note generation, digest personalisation | Multiple production agents depend on Gemini for decisions |
-| Cloud Run | All agent execution environments | Every agent runs on Cloud Run — it is the operational backbone |
-| Cloud Scheduler | Agent trigger orchestration | Schedules discovery, notification, and outcome agents |
-| BigQuery | The graph — every event, outcome, and match | This IS the product's long-term moat — not just analytics |
-| Firestore | Opportunity store, user profiles, session state | Primary operational database |
-| Cloud Pub/Sub | Event-driven agent communication | Agents communicate via Pub/Sub — true event-driven architecture |
-| Cloud Monitoring | Agent health, alerting, SLO tracking | Production monitoring — judges can see uptime and agent health |
-| Cloud Storage | Source cache, opportunity snapshots | Discovery agent caches source pages for processing |
-| Secret Manager | API keys, WhatsApp credentials | Security best practice |
-| Firebase Auth | User authentication | WhatsApp OTP + Google OAuth |
-
-**The key judge message:** Skilved does not use GCP as a deployment platform. GCP is the intelligence infrastructure. Remove any of these services and the business stops functioning.
+| Vertex AI Search | Scout, Matching | Cannot index or retrieve opportunities without it |
+| Vertex AI Ranking | Matching | Feed ranking collapses without it |
+| Gemini API | 12 of 17 agents | Core reasoning for every intelligent decision |
+| Document AI | Skills Profile | Cannot extract skills from certificate PDFs |
+| Cloud Run | All 17 agents | Every agent executes here |
+| Cloud Scheduler | Scout, Notification, Growth, Skills Pulse | All scheduled agents stop |
+| Cloud Pub/Sub | Scout→Analyst→Quality→Matching pipeline | Agent pipeline collapses |
+| BigQuery | All agents (the graph) | Graph stops building; model retraining fails |
+| Firestore | All agents (operational data) | No passport = no agents |
+| Cloud Memorystore (Redis) | Matching, Collective Intelligence | Feed latency 10×; cohort cache lost |
+| Cloud Monitoring | All agents | Agents fail silently |
+| Cloud Functions | Skills Profile, Revenue, Outcome Tracker | Event-driven agents cannot trigger |
+| Secret Manager | All agents | Credentials unavailable |
+| Firebase Auth | Web + agents | Permission model breaks |
+| Playwright on Cloud Run | Application Agent | Cannot fill ATS forms |
+| Gmail API | Application Agent | Email applications fail |
 
 ---
 
@@ -246,28 +335,131 @@ The XPRIZE requires meaningful GCP integration. Skilved's stack is not cosmetic:
 
 | Risk | Probability | Impact | Mitigation |
 |---|---|---|---|
-| SETA websites block crawler | Medium | High | Use HTML parsing fallback, respect robots.txt, manual CSV import as backup |
-| WhatsApp Business API approval delays | High | High | Apply Day 1, use Twilio as backup while waiting |
-| Employer sales cycle > 14 days | Medium | High | Offer free trial (first 3 referrals free) to accelerate first revenue |
-| Fake/scam opportunities in feed | Medium | High | Quality agent live before public launch |
-| POPIA compliance challenge | Low | High | Legal review Week 1, POPIA notice on all data collection |
-| Competitor launches similar product in 90 days | Low | Medium | The graph moat — they cannot replicate 90 days of outcome data |
-| Team bandwidth (90-day sprint) | Medium | High | Narrow scope ruthlessly, no scope creep, MVP discipline |
+| SuccessFactors structure changes | Low | High | Version-pin adapter, weekly health check |
+| CAPTCHA solving API downtime | Low | Medium | Two CAPTCHA provider keys (2captcha + CapSolver fallback) |
+| ATS blocks Skilved IP | Medium | Medium | Rotate IPs via Cloud Run, respect robots.txt |
+| SETA websites block crawler | Medium | High | HTML parsing fallback, manual CSV, multiple sources |
+| WhatsApp API approval delays | High | High | Apply Day 1, Twilio fallback while waiting |
+| Employer sales cycle > 14 days | Medium | High | Free trial (first 3 referrals free) to accelerate |
+| Skills Pulse insufficient data Sprint 1 | Certain | Low | Launch as "opportunity intelligence" — no outcome data needed |
+| Career Simulation < 5 outcomes | High (Sprint 2) | Low | Opportunity-based simulation first, label honestly |
+| Employer Accountability insufficient data | High (Sprint 3) | Low | "Based on limited early data" label, show "N/A" if < 3 |
+| 8-week timeline too tight | Medium | High | Drop Growth/Revenue/Coord layer if behind; keep feed + passport + application |
 
 ---
 
 ## The Judge Narrative
 
-When Skilved presents to XPRIZE judges, the story is:
+### Opening (30 seconds)
 
-> "South Africa has 32% youth unemployment and 500,000 skilled trades workers who cannot find the opportunities that exist for them — not because the opportunities don't exist, but because there is no intelligent system finding and matching them. We built one.
+> "South Africa has 32% youth unemployment and R25 billion in annual skills development funding. Thousands of learnerships expire unfilled every year while qualified candidates can't find them. This is not a supply problem. It is an information problem. No one — not government, not employers, not workers — can see the skills market clearly. Until now."
+
+### The Product (60 seconds)
+
+> "Skilved is the intelligence layer South Africa's skills economy has never had. Seventeen AI employees work around the clock: discovering every trade opportunity in the country every four hours, matching them to workers by real profile fit, submitting applications autonomously, and building the verified outcome graph that makes every agent smarter over time.
 >
-> Skilved's AI agents discovered 10,000 opportunities this quarter. They matched them to 5,000 workers based on trade, qualification, and location. They sent personalised daily digests to every user without a single human approval. They tracked 200 outcomes that became the first nodes in the SA Skills Graph — the data asset that compounds forever.
+> Workers create a profile once. Agents work forever. Thandeka from Soweto woke up this morning to see that her agent had applied to two opportunities on her behalf while she slept — both via the same SuccessFactors system that Eskom uses, submitted with a tailored CV and cover letter. She did nothing. The agents did everything."
+
+### The Future (60 seconds)
+
+> "But Skilved is more than a job-matching platform. It is the intelligence layer the entire SA skills market has been missing.
 >
-> This is not a job board with AI features. This is an AI-native advancement layer built on South Africa's new digital public infrastructure. The government built the identity rails. We built the intelligence on top. And we are just getting started."
+> The Skills Pulse Dashboard shows — in real time — which trades are in shortage, which learnerships are expiring unfilled, which qualifications have the best ROI. National Treasury has never had this. It exists nowhere on the continent.
+>
+> The Career Simulation Engine lets any worker ask 'what happens to my career if I get my trade test?' and receive an answer grounded in 47 real verified trajectories — not generic advice. This is what McKinsey charges R500,000 for. Thandeka gets it free on WhatsApp.
+>
+> The Employer Accountability Layer publishes verified scores for every employer, based on what actually happened to their candidates. For the first time, the SA learnership market has accountability — not from regulation, from data.
+>
+> And the Collective Intelligence Layer gives every worker access to the career intelligence that previously only flowed through elite social networks — which opportunities actually lead somewhere, verified by real outcomes."
+
+### The Numbers (30 seconds)
+
+> "In 90 days: 5,000 workers with Skills Passports. 34 applications submitted daily by our Application Agent. 200 verified placements. R300,000 in documented revenue. 200 outcomes in the SA Skills Graph. Zero human approvals in any agent run.
+>
+> And one national intelligence dashboard that South Africa's government will be bookmarking."
+
+### The Close (30 seconds)
+
+> "LinkedIn helps people present themselves. Skilved helps opportunities find people — and gives workers, employers, and government the intelligence they need to make better decisions about South Africa's most valuable asset: its skilled workers.
+>
+> This is not the future of job searching. This is what the SA skills economy looks like when it can finally see itself."
 
 ---
 
-*Document version 1.0 — June 2026*  
-*Owner: Founder*  
-*Submission deadline: 90 days from incorporation*
+## The 10-Year Story: Beyond Job Creation
+
+Judges scoring "Autonomous Agents & Workflow Automation" look for three things: agents with persistent memory, multiple agents that genuinely collaborate, and agents that automate complete end-to-end workflows.
+
+Skilved delivers all three — and extends the same architecture into new domains:
+
+**Persistent memory:** The Skills Passport is memory of what a worker is. `behaviouralSignals` is memory of how they behave. The graph is memory of what worked for people like them. Every agent improves for every user across every session.
+
+**Genuine multi-agent collaboration:** The `agent_context` coordination layer means agents reason about each other's recent actions. Revenue Agent suppresses upgrade prompts after CS escalations. Application Agent re-scores against Career Agent's updated plan. Career Simulation Agent and Collective Intelligence Agent feed each other's outputs. The Agent Trace Visualizer makes this visible to judges.
+
+**End-to-end workflow automation:** Discovery → matching → application → interview scheduling → outcome tracking. The entire pipeline from "opportunity exists" to "person placed" with zero human steps.
+
+**The second workflow — the Gig Agent:** The same agentic infrastructure extends to managing a tradesperson's private gig work. Customer inquiry → quote → scheduling → invoice. This bridges "worker" to "micro-business" to "employer on Skilved" — the full lifecycle.
+
+**The 10-year claim:**
+
+> "Skilved starts with trades. It builds toward the operating system for work itself in South Africa — and then Africa. The intelligence that tells 800 million working-age Africans what they should do next, and increasingly does it for them, anchored to their government-verified identity. That is the awesome future we are bringing to the present."
+
+---
+
+## Pre-Submission Checklist
+
+### Two Weeks Before Submission
+- [ ] All 17 agents running autonomously in production
+- [ ] BigQuery: `human_approvals_required = 0` across 8-week view
+- [ ] 5,000+ registered users confirmed
+- [ ] 200+ Premium subscribers confirmed
+- [ ] 50+ paying employers/SETAs confirmed
+- [ ] R300,000+ revenue documented with evidence
+- [ ] 200+ outcomes in graph confirmed
+- [ ] Skills Pulse Dashboard fully live and auto-updating
+- [ ] Career Simulation Engine answering real queries
+- [ ] Employer accountability scores on real employer cards
+- [ ] Collective intelligence showing on authenticated feed
+- [ ] Agent Trace Visualizer showing real user journey
+- [ ] Demo video scripted and first draft recorded
+
+### One Week Before Submission
+- [ ] Demo video final version recorded and edited
+- [ ] All submission materials compiled
+- [ ] Submission narrative finalised
+- [ ] GCP integration depth documented
+- [ ] Legal review of submission claims
+- [ ] One documented end-to-end placement story (with permission)
+- [ ] XPRIZE submission package assembled
+
+### Day of Submission
+- [ ] All systems healthy (check `/api/health`)
+- [ ] BigQuery autonomy query returns all zeros
+- [ ] Demo video uploaded
+- [ ] Submission complete before deadline
+
+---
+
+## Change Log
+
+### v5.0 — June 2026
+- Added "Bringing the Future to the Present" section with four future-present capabilities
+- Updated XPRIZE demonstration script for 17 agents
+- Added Skills Pulse Dashboard to Sprint 1 deliverables
+- Added Collective Intelligence Layer to Sprint 2 deliverables
+- Added Career Simulation Engine and Employer Accountability to Sprint 3
+- Added all four new agents to Sprint 4 full autonomy requirements
+- Updated GCP stack table for new agents
+- Added pre-submission checklist
+- Added ATS adapter strategy to risk register
+- Strengthened judge narrative with four "future to present" arguments
+- Updated submission package (10 items vs previous 6)
+
+### v4.0 — June 2026
+- Added 8-agent architecture
+- Added trust escalation model
+- Added agent coordination layer
+
+*Document version 5.0 — June 2026*
+*Owner: Founder*
+*8-week sprint. Submission at end of Week 8.*
