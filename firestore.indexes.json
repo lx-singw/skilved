@@ -1,0 +1,67 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "opportunities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",       "order": "ASCENDING"  },
+        { "fieldPath": "discoveredAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "opportunities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradeCategory", "order": "ASCENDING"  },
+        { "fieldPath": "province",      "order": "ASCENDING"  },
+        { "fieldPath": "status",        "order": "ASCENDING"  },
+        { "fieldPath": "discoveredAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "opportunities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "opportunityType", "order": "ASCENDING"  },
+        { "fieldPath": "province",        "order": "ASCENDING"  },
+        { "fieldPath": "status",          "order": "ASCENDING"  },
+        { "fieldPath": "discoveredAt",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "opportunities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tradeCategory", "order": "ASCENDING" },
+        { "fieldPath": "status",        "order": "ASCENDING" },
+        { "fieldPath": "deadline",      "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",    "order": "ASCENDING"  },
+        { "fieldPath": "appliedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "applications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",    "order": "ASCENDING"  },
+        { "fieldPath": "status",    "order": "ASCENDING"  },
+        { "fieldPath": "appliedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "consents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",      "order": "ASCENDING" },
+        { "fieldPath": "consentType", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -1,0 +1,14 @@
+[
+  {"name": "event_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "event_type", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "user_id", "type": "STRING"},
+  {"name": "ip_address", "type": "STRING"},
+  {"name": "user_agent", "type": "STRING"},
+  {"name": "document_id", "type": "STRING"},
+  {"name": "document_type", "type": "STRING"},
+  {"name": "action", "type": "STRING"},
+  {"name": "success", "type": "BOOLEAN"},
+  {"name": "failure_reason", "type": "STRING"},
+  {"name": "risk_score", "type": "FLOAT64"},
+  {"name": "event_at", "type": "TIMESTAMP", "mode": "REQUIRED"}
+]

@@ -90,7 +90,7 @@ Employer accountability scores are shown to anonymous and authenticated users al
 │                                          │
 │ 👥 3 people like you applied · 2 inter. │ ← NEW: Cohort intelligence (auth only)
 │                                          │
-│ [View Details]  [Apply Now]  [↗ Share]   │ ← Actions
+│ [View Details]  [Quick View]  [↗ Share]   │ ← Actions
 └─────────────────────────────────────────┘
 ```
 
@@ -205,7 +205,7 @@ When a user views an opportunity that requires a qualification they're close to 
 │    95% match for this (currently 67%)   │
 │    [See what N4 does to your career]     │
 │                                          │
-│ [View Details]  [Apply Now]  [Share]     │
+│ [View Details]  [Quick View]  [Share]     │
 └─────────────────────────────────────────┘
 ```
 

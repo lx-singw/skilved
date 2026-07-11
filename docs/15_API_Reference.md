@@ -1,5 +1,32 @@
 # Skilved — API Reference
-### Internal + External APIs | Version 1.0 | June 2026
+
+### Internal + External APIs | Version 2.0 | June 2026
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Authentication](#authentication)
+- [Internal API Routes](#internal-api-routes)
+  - [Feed](#get-apifeed)
+  - [Opportunities](#get-apiopportunitiesid)
+  - [Apply](#post-apiapply)
+  - [Career Simulation](#post-apicareersimulate-new-v20)
+  - [Skills Pulse](#get-apiskills-pulse-new-v20)
+  - [Employer Score](#get-apiemployersidaccountability-new-v20)
+  - [Cohort Intelligence](#get-apicohortintelligence-new-v20)
+  - [Credentials](#get-apicredentials-new-v20)
+  - [Verify Credential](#get-apiveriflycode-new-v20)
+  - [Profile](#get-apiprofile)
+  - [Permissions](#get-apipermissions)
+  - [Events](#post-apievents)
+  - [Auth](#post-apiauthwhatsappsend-otp)
+  - [Webhooks](#post-apiwebhookswhatsapp)
+  - [Health](#get-apihealth)
+- [External API (Phase 2)](#external-api-phase-2--employer--verification)
+- [Error Responses](#error-responses)
+- [Change Log](#change-log)
 
 ---
 
@@ -12,33 +39,34 @@ Skilved exposes two API surfaces:
 
 All APIs are JSON over HTTPS. Authentication uses Firebase ID tokens (JWT) passed as `Authorization: Bearer {token}`.
 
-**Base URL:** `https://skilved.com/api`  
+**Base URL:** `https://skilved.com/api`
 **API Version prefix (external):** `/v1/`
 
 ---
 
 ## Authentication
 
-### Anonymous requests
-No authentication required. Session tracked via `X-Session-ID` header (UUID stored in cookie).
+### Anonymous Requests
+No authentication required. Session tracked via `X-Session-ID` header.
 
-### Authenticated requests
+### Authenticated Requests
 ```
 Authorization: Bearer {firebase_id_token}
 ```
 
-Token obtained via Firebase Auth (WhatsApp OTP or Google OAuth).
-
 ### Rate Limiting
-| Endpoint type | Anonymous | Authenticated |
+
+| Endpoint Type | Anonymous | Authenticated |
 |---|---|---|
 | Feed | 60 req/min | 120 req/min |
+| Career Simulation | 5 req/min | 20 req/min |
+| Skills Pulse | 120 req/min | 120 req/min |
+| Employer Score | 120 req/min | 120 req/min |
+| Cohort Intelligence | 30 req/min | 60 req/min |
 | Detail | 100 req/min | 200 req/min |
 | Apply | 10 req/min | 20 req/min |
 | Profile write | — | 10 req/min |
 | Events | 200 req/min | 200 req/min |
-
-Rate limit headers returned: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
 ---
 
@@ -46,9 +74,9 @@ Rate limit headers returned: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-Ra
 
 ### `GET /api/feed`
 
-Returns a ranked list of opportunities for the current user/session.
+Returns ranked list of opportunities with intelligence layer data.
 
-**Query parameters:**
+**Query Parameters:**
 
 | Param | Type | Required | Description |
 |---|---|---|---|
@@ -56,104 +84,77 @@ Returns a ranked list of opportunities for the current user/session.
 | `province` | string | No | Province filter |
 | `type` | string | No | Opportunity type filter |
 | `sort` | string | No | `relevance` (default) \| `newest` \| `closing_soon` |
-| `salaryMin` | number | No | Minimum salary filter |
+| `minEmployerGrade` | string | No | Filter by employer grade: `A` \| `B` \| `AB` (NEW v2.0) |
+| `salaryMin` | number | No | Minimum salary |
 | `page` | number | No | Page number (default: 1) |
-| `limit` | number | No | Results per page (default: 20, max: 50) |
+| `limit` | number | No | Results per page (max: 50) |
 
-**Request headers:**
-```
-X-Session-ID: {session_uuid}          ← required for anonymous personalisation
-Authorization: Bearer {token}          ← optional, unlocks personalised ranking
-```
-
-**Response:**
+**Response additions v2.0:**
 ```typescript
-{
-  opportunities: OpportunityCard[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    hasMore: boolean;
-  };
-  meta: {
-    personalised: boolean;             // true if logged-in user
-    filterCount: number;               // active filters applied
-    totalActive: number;               // total active opportunities
-    lastUpdated: string;               // ISO timestamp of last agent run
-  };
-}
-
 interface OpportunityCard {
-  id: string;
-  slug: string;
-  title: string;
-  organisation: string;
-  opportunityType: string;
-  tradeCategory: string;
-  province: string;
-  city?: string;
-  salaryDisplay?: string;
-  deadline?: string;                   // ISO date
-  discoveredAt: string;                // ISO timestamp
-  freshnessLabel: string;              // "Found 2 hours ago"
-  isNew: boolean;                      // < 24 hours old
-  isClosingSoon: boolean;              // < 3 days to deadline
-  applicationMethod: string;
-  qualityScore: number;
-  // Personalisation (logged-in only)
-  matchScore?: number;
-  matchExplanation?: string;
-  // Engagement
-  viewCount: number;
-  applyClickCount: number;
-}
-```
+  // ... all existing fields ...
 
-**Example:**
-```bash
-curl https://skilved.com/api/feed \
-  -H "X-Session-ID: sess_abc123" \
-  -G \
-  --data-urlencode "trade=electrical" \
-  --data-urlencode "province=gauteng" \
-  --data-urlencode "sort=newest"
+  // Employer Accountability — NEW v2.0
+  employerAccountabilityScore?: number;
+  employerAccountabilityGrade?: 'A' | 'B' | 'C' | 'D' | 'F';
+  employerAccountabilityContext?: string; // "8 placements · 92% completed"
+  employerScoreSampleSize?: number;
+
+  // Cohort Intelligence — NEW v2.0 (authenticated only)
+  cohortViewers?: number;
+  cohortApplicants?: number;
+  cohortInterviews?: number;
+  cohortPlacements?: number;
+  cohortInterviewRate?: number;
+  cohortIsTopForProfile?: boolean;
+  cohortSize?: number;
+
+  // Career Simulation Teaser — NEW v2.0 (authenticated only)
+  simulationTeaser?: {
+    missingQualification: string;
+    currentMatchScore: number;
+    hypotheticalMatchScore: number;
+    message: string; // "Getting N4 would make you a 95% match"
+  };
+
+  // ATS platform — NEW v2.0
+  applicationPlatform?: ATSPlatform;
+}
 ```
 
 ---
 
 ### `GET /api/opportunities/:id`
 
-Returns full opportunity detail.
+Returns full opportunity detail including intelligence layer data.
 
-**Path parameters:**
-- `id` — opportunity ID or slug
-
-**Response:**
+**Response additions v2.0:**
 ```typescript
 {
   opportunity: {
-    // All OpportunityCard fields, plus:
-    descriptionFull: string;
-    descriptionSummary: string;
-    requirementsChecklist: string[];
-    qualificationsRequired: string[];
-    experienceRequired?: string;
-    tradeTested: boolean;
-    documentsRequired?: string[];
-    duration?: string;
-    applicationUrl?: string;
-    applicationEmail?: string;
-    sourceUrl: string;
-    sourceName: string;
-    isVerifiedSource: boolean;
+    // ... all existing fields ...
+    applicationPlatform: ATSPlatform;       // NEW
+    employerAccountabilityFull?: {          // NEW
+      score: number;
+      grade: string;
+      sampleSize: number;
+      placementRate: number;
+      completionRate: number;
+      avgSalary: number;
+      wouldRecommend: number;
+      summary: string;
+      trend: 'improving' | 'stable' | 'declining';
+    };
+    cohortIntelligenceFull?: {              // NEW (authenticated only)
+      cohortSize: number;
+      cohortDescription: string;
+      applicants: number;
+      interviews: number;
+      placements: number;
+      interviewRate: number;
+      isTopForCohort: boolean;
+    };
   };
-  related: OpportunityCard[];          // 3-5 similar opportunities
-  // Personalisation
-  userHasApplied?: boolean;
-  userHasSaved?: boolean;
-  matchScore?: number;
-  matchExplanation?: string;
 }
 ```
 
@@ -186,15 +187,260 @@ Records an application (in-app method) or tracks external apply click.
 
 ---
 
-### `POST /api/save`
+---
 
-Saves or unsaves an opportunity for a logged-in user.
+### `POST /api/career/simulate` — NEW v2.0
 
-**Request body:**
+Run a career simulation for the authenticated user.
+
+**Authentication:** Required (Bearer token)
+
+**Request Body:**
 ```typescript
 {
-  opportunityId: string;
-  action: 'save' | 'unsave';
+  queryType:
+    | 'add_qualification'
+    | 'change_province'
+    | 'get_trade_test'
+    | 'take_learnership'
+    | 'add_certification'
+    | 'change_trade';
+  queryDetail: string;  // e.g., "N4 Electrical Engineering" or "gauteng"
+  compareWith?: {       // Optional: Type 6 path comparison
+    queryType: string;
+    queryDetail: string;
+  };
+}
+```
+
+**Response:**
+```typescript
+{
+  simulationId: string;
+  query: {
+    type: string;
+    detail: string;
+    description: string; // human-readable "If you get N4 Electrical Engineering"
+  };
+  currentState: {
+    opportunities: number;
+    avgSalary?: number;
+    placementRate?: number;
+    avgDaysToPlacement?: number;
+  };
+  hypotheticalState: {
+    opportunities: number;
+    avgSalary?: number;
+    placementRate?: number;
+    avgDaysToPlacement?: number;
+  };
+  delta: {
+    opportunitiesChange: number;      // always available
+    salaryChange?: number;            // only when outcome data available
+    placementRateChange?: number;
+    daysToPlacementChange?: number;
+  };
+  sampleSize: number;
+  confidence: 'insufficient' | 'low' | 'medium' | 'high';
+  narrative: string;                  // Gemini-generated explanation
+  alignedOpportunities: OpportunityCard[]; // Current open opps matching simulation
+  dataNote: string;                   // "Based on X verified outcomes" or "Opportunity-based only"
+}
+```
+
+**Example:**
+```bash
+curl -X POST https://skilved.com/api/career/simulate \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"queryType":"add_qualification","queryDetail":"N4 Electrical Engineering"}'
+```
+
+---
+
+### `GET /api/skills-pulse` — NEW v2.0
+
+Returns the latest Skills Pulse snapshot for the public dashboard.
+
+**Authentication:** Not required (public)
+
+**Query Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `trade` | string | Filter by trade category |
+| `province` | string | Filter by province |
+| `section` | string | `overview` \| `gaps` \| `expiry` \| `roi` \| `tvet` \| `predictive` \| `all` |
+| `date` | string | Specific snapshot date (YYYY-MM-DD, default: latest) |
+
+**Response:**
+```typescript
+{
+  snapshot: {
+    date: string;
+    generatedAt: string;
+    nationalOverview: NationalOverview;
+    demandSupplyGaps?: DemandSupplyGap[];
+    expiryRisks?: ExpiryRisk[];
+    qualificationROI?: QualificationROI[];
+    tvetPerformance?: TVETPerformance[];
+    predictiveSignals?: PredictiveSignal[];
+    geminiIntelligence?: {
+      urgentGaps: string[];
+      weeklyInsight: string;
+      policyRecommendation?: string; // shown to authenticated government users
+    };
+    dataNote: string; // "Based on N data points"
+    confidenceScore: number;
+  };
+  availableDates: string[]; // last 30 days of snapshots
+}
+```
+
+---
+
+### `GET /api/employers/:id/accountability` — NEW v2.0
+
+Returns full employer accountability score.
+
+**Authentication:** Not required (public)
+
+**Response:**
+```typescript
+{
+  employerName: string;
+  score: number | null;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F' | null;
+  sampleSize: number;
+  confidence: 'insufficient' | 'low' | 'medium' | 'high';
+  components?: {
+    placementScore: number;
+    completionScore: number;
+    salaryScore: number;
+    feedbackScore: number;
+    timeScore: number;
+  };
+  placementRate?: number;
+  completionRate?: number;
+  avgSalary?: number;
+  wouldRecommend?: number;
+  avgDaysToPlacement?: number;
+  summary?: string;
+  trend?: 'improving' | 'stable' | 'declining';
+  calculatedAt: string;
+  dataNote: string;
+}
+```
+
+---
+
+### `GET /api/cohort/intelligence` — NEW v2.0
+
+Returns cohort intelligence for the current user's profile.
+
+**Authentication:** Required
+
+**Query Parameters:**
+
+| Param | Type | Description |
+|---|---|---|
+| `opportunityId` | string | Get cohort intel for specific opportunity |
+| `type` | string | `weekly_summary` \| `top_opportunities` \| `warnings` |
+
+**Response:**
+```typescript
+{
+  cohort: {
+    size: number;
+    description: string;  // "N3 electricians in Gauteng, entry level"
+  };
+  forOpportunity?: {      // if opportunityId provided
+    viewers: number;
+    applicants: number;
+    interviews: number;
+    placements: number;
+    interviewRate: number;
+    isTopForCohort: boolean;
+  };
+  topOpportunities?: {    // top opportunities for cohort this week
+    opportunityId: string;
+    title: string;
+    organisation: string;
+    applicants: number;
+    interviewRate: number;
+    isHighSuccess: boolean;
+  }[];
+  warningOpportunities?: {  // low success rate opportunities
+    opportunityId: string;
+    title: string;
+    lowSuccessReason: string;
+  }[];
+  weeklyStats?: {
+    totalApplied: number;
+    totalPlaced: number;
+    avgDaysToPlacement: number;
+    topEmployer: string;
+  };
+}
+```
+
+---
+
+### `GET /api/credentials` — NEW v2.0
+
+Returns the current user's micro-credentials.
+
+**Authentication:** Required
+
+**Response:**
+```typescript
+{
+  credentials: {
+    id: string;
+    type: CredentialType;
+    issuedAt: string;
+    badgeLabel: string;
+    badgeColor: string;
+    verificationCode: string;
+    publicUrl: string;
+    qrCodeUrl: string;
+    metadata?: Record<string, any>;
+    status: 'active' | 'revoked';
+  }[];
+  eligibleFor?: {          // credentials user could earn but hasn't yet
+    type: CredentialType;
+    requirement: string;   // "Submit 3 more applications"
+    currentProgress: number;
+    targetProgress: number;
+  }[];
+}
+```
+
+---
+
+### `GET /api/verify/:code` — NEW v2.0
+
+Public credential verification endpoint.
+
+**Authentication:** Not required (public)
+
+**Response:**
+```typescript
+{
+  valid: boolean;
+  credential?: {
+    type: CredentialType;
+    label: string;
+    issuedAt: string;
+    metadata?: Record<string, any>;
+  };
+  holder?: {
+    displayName: string;
+    trade: string;
+    province: string;
+  };
+  verifiedAt: string;
+  reason?: string;  // if valid: false
 }
 ```
 
@@ -205,6 +451,8 @@ Saves or unsaves an opportunity for a logged-in user.
 Returns the current user's profile (auth required).
 
 **Response:** Full `User` object (minus sensitive fields like hashed phone)
+
+---
 
 ---
 
@@ -250,6 +498,14 @@ Updates the current user's profile.
 
 ---
 
+---
+
+### `GET /api/permissions`
+
+*(Unchanged from v1.0)*
+
+---
+
 ### `POST /api/events`
 
 Analytics event ingestion. Fire-and-forget.
@@ -270,6 +526,18 @@ interface AnalyticsEvent {
 ```
 
 **Response:** `{ received: number }`
+
+---
+
+**New event types v2.0:**
+- `career_simulation_started`
+- `career_simulation_completed`
+- `employer_score_viewed`
+- `cohort_intelligence_displayed`
+- `cohort_intelligence_acted_on`
+- `micro_credential_issued`
+- `micro_credential_verified`
+- `skills_pulse_viewed`
 
 ---
 
@@ -296,6 +564,8 @@ Rate limited: 3 OTP sends per phone number per hour.
 
 ---
 
+---
+
 ### `POST /api/auth/whatsapp/verify-otp`
 
 Verifies OTP and returns Firebase custom token.
@@ -318,6 +588,8 @@ Verifies OTP and returns Firebase custom token.
 
 ---
 
+---
+
 ### `POST /api/webhooks/whatsapp`
 
 Receives incoming WhatsApp messages (Meta webhook).
@@ -332,9 +604,11 @@ Receives incoming WhatsApp messages (Meta webhook).
 
 ---
 
+---
+
 ### `GET /api/health`
 
-Uptime check. Returns 200 if healthy.
+*(Updated v2.0)*
 
 **Response:**
 ```typescript
@@ -347,6 +621,13 @@ Uptime check. Returns 200 if healthy.
     bigquery: 'ok' | 'degraded' | 'down';
     redis: 'ok' | 'degraded' | 'down';
     gemini: 'ok' | 'degraded' | 'down';
+    captchaSolver: 'ok' | 'degraded' | 'down';  // NEW v2.0
+  };
+  agents: {                                       // NEW v2.0
+    scout: { lastRun: string; status: string };
+    skillsPulse: { lastRun: string; status: string };
+    employerAccountability: { lastRun: string; status: string };
+    collectiveIntelligence: { lastRun: string; status: string };
   };
 }
 ```
@@ -361,168 +642,41 @@ Authentication via API key: `X-API-Key: sk_live_{key}`
 
 ---
 
-### `GET /v1/candidates`
+Authentication via API key: `X-API-Key: sk_live_{key}`
 
-Search for matched candidates (employer dashboard).
+### `GET /v1/skills-pulse/export` — NEW v2.0
 
-**Query parameters:**
+Government data license API endpoint.
 
-| Param | Type | Description |
-|---|---|---|
-| `trade` | string | Trade category |
-| `province` | string | Province |
-| `qualificationMin` | string | Minimum NQF level |
-| `experienceMin` | string | Minimum experience level |
-| `tradeTested` | boolean | Require trade-tested |
-| `verified` | boolean | Require MyMzansi-verified |
-| `page` | number | Pagination |
-| `limit` | number | Results per page (max 50) |
+**Authentication:** Government API key required (`X-API-Key: sk_gov_{key}`)
 
-**Response:**
-```typescript
-{
-  candidates: CandidateProfile[];
-  total: number;
-  hasMore: boolean;
-}
-
-interface CandidateProfile {
-  id: string;                          // anonymised until contact purchased
-  trade: string;
-  province: string;
-  qualification: string;
-  nqfLevel: number;
-  experienceLevel: string;
-  tradeTested: boolean;
-  verified: boolean;                   // MyMzansi verified
-  completionLevel: string;             // profile completeness
-  lastActiveAt: string;                // recency signal
-  // Contact details revealed after referral purchase:
-  contactRevealed: boolean;
-  displayName?: string;                // only if contactRevealed
-  whatsappNumber?: string;             // only if contactRevealed
-}
-```
-
----
-
-### `POST /v1/referrals`
-
-Purchase a candidate referral (reveals contact details, bills employer).
-
-**Request body:**
-```typescript
-{
-  candidateId: string;
-  jobTitle: string;                    // what role you're hiring for
-  message?: string;                    // optional intro message to candidate
-}
-```
-
-**Response:**
-```typescript
-{
-  referralId: string;
-  candidate: {
-    displayName: string;
-    whatsappNumber: string;
-    email?: string;
-  };
-  billedAmount: number;               // in ZAR
-  invoiceUrl: string;
-}
-```
-
----
-
-### `POST /v1/verify`
-
-Verify a candidate's credentials (Phase 2 — requires MyMzansi integration).
-
-**Request body:**
-```typescript
-{
-  candidateId?: string;                // Skilved candidate ID
-  // OR:
-  idNumber?: string;                   // SA ID number
-  qualificationType: string;           // "N3 Electrical", "Trade Test - Electrician"
-}
-```
-
-**Response:**
-```typescript
-{
-  verified: boolean;
-  verificationId: string;
-  credential?: {
-    type: string;
-    issuingAuthority: string;
-    issueDate: string;
-    expiryDate?: string;
-    nqfLevel?: number;
-  };
-  verifiedAt: string;
-  source: 'mymzansi' | 'saqa' | 'namb' | 'seta';
-  billedAmount: number;                // in ZAR (R5-R20)
-}
-```
-
----
-
-### `GET /v1/graph/insights`
-
-Access the SA Skills Graph data (data license required).
-
-**Query parameters:**
+**Query Parameters:**
 
 | Param | Type | Description |
 |---|---|---|
-| `trade` | string | Filter by trade |
-| `qualification` | string | Filter by qualification |
+| `from` | string | Start date (YYYY-MM-DD) |
+| `to` | string | End date (YYYY-MM-DD) |
 | `province` | string | Filter by province |
-| `metric` | string | `salary_range` \| `placement_rate` \| `time_to_placement` |
+| `trade` | string | Filter by trade |
+| `format` | string | `json` \| `csv` \| `pdf` |
 
-**Response:**
-```typescript
-{
-  insights: SkillsGraphInsight[];
-  dataAsOf: string;                    // last graph rebuild date
-  sampleSize: number;                  // data points this is based on
-}
+**Response:** Full Skills Pulse data for date range, optimised for government consumption.
 
-interface SkillsGraphInsight {
-  trade: string;
-  qualification: string;
-  nqfLevel: number;
-  province?: string;
-  
-  salaryRange?: {
-    min: number;
-    median: number;
-    max: number;
-    currency: 'ZAR';
-  };
-  
-  placementRate?: {
-    applyToInterview: number;          // percentage
-    applyToOffer: number;
-    offerToAccept: number;
-  };
-  
-  timeToPlacement?: {
-    avgDays: number;
-    medianDays: number;
-  };
-  
-  opportunityTypes: {
-    type: string;
-    count: number;
-    avgSalary: number;
-  }[];
-  
-  confidenceScore: number;             // 0-1 based on sample size
-}
-```
+### `GET /v1/employer/:id/score` — NEW v2.0
+
+B2B employer accountability score API.
+
+**Authentication:** Standard API key
+
+**Response:** Full employer accountability score with all components.
+
+### `POST /v1/career/simulate` — NEW v2.0
+
+B2B career simulation API for white-label partners.
+
+**Authentication:** Partner API key
+
+**Request/Response:** Same as internal `/api/career/simulate`
 
 ---
 
@@ -557,33 +711,42 @@ All errors follow this format:
 
 ---
 
-## Webhooks (Employer API)
+**New error codes v2.0:**
 
-Employers can register webhook URLs to receive real-time events.
-
-**Supported events:**
-
-| Event | Description |
-|---|---|
-| `candidate.matched` | New candidate matches employer's criteria |
-| `referral.accepted` | Candidate accepts employer's intro |
-| `referral.declined` | Candidate declines |
-| `placement.confirmed` | Outcome confirmed as accepted |
-
-**Webhook payload:**
-```typescript
-{
-  id: string;                          // event ID
-  type: string;                        // event type
-  createdAt: string;
-  data: Record<string, any>;           // event-specific data
-}
-```
-
-**Security:** HMAC-SHA256 signature in `X-Skilved-Signature` header.
+| Code | HTTP Status | Description |
+|---|---|---|
+| `SIMULATION_INSUFFICIENT_DATA` | 422 | Cohort size too small for outcome simulation |
+| `EMPLOYER_SCORE_UNAVAILABLE` | 404 | Employer has insufficient outcome data |
+| `COHORT_TOO_SMALL` | 422 | Cohort < 5 users — privacy threshold |
+| `CREDENTIAL_NOT_FOUND` | 404 | Verification code not found |
+| `CREDENTIAL_REVOKED` | 410 | Credential has been revoked |
+| `CAPTCHA_SOLVER_UNAVAILABLE` | 503 | CAPTCHA solving service temporarily unavailable |
+| `ATS_ADAPTER_UNAVAILABLE` | 503 | Specific ATS platform adapter temporarily down |
+| `SKILLS_PULSE_STALE` | 503 | Dashboard data older than 26 hours |
 
 ---
 
-*Document version 1.0 — June 2026*  
-*Owner: Engineering*  
+## Change Log
+
+### v2.0 — June 2026
+- Added `POST /api/career/simulate` endpoint
+- Added `GET /api/skills-pulse` endpoint
+- Added `GET /api/employers/:id/accountability` endpoint
+- Added `GET /api/cohort/intelligence` endpoint
+- Added `GET /api/credentials` endpoint
+- Added `GET /api/verify/:code` public credential verification endpoint
+- Updated `GET /api/feed` response with employer score, cohort intelligence, simulation teaser, ATS platform fields
+- Updated `GET /api/opportunities/:id` response with full employer score and cohort intelligence
+- Updated `GET /api/health` with CAPTCHA solver and agent status fields
+- Added `minEmployerGrade` query parameter to feed
+- Added new event types to `POST /api/events`
+- Added new error codes for intelligence layer
+- Added `GET /v1/skills-pulse/export` government API endpoint
+- Added `GET /v1/employer/:id/score` B2B endpoint
+- Added `POST /v1/career/simulate` B2B endpoint
+- Updated rate limiting table for new endpoints
+- Added table of contents
+
+*Document version 2.0 — June 2026*
+*Owner: Engineering*
 *External API (v1) available Phase 2+*

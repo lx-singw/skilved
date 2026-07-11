@@ -1,0 +1,11 @@
+[
+  {"name": "event_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "document_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "user_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "document_type", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "verification_source", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "verification_status", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "verification_reference", "type": "STRING"},
+  {"name": "verified_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+  {"name": "details", "type": "STRING"}
+]

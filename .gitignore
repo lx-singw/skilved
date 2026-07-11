@@ -30,6 +30,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Firebase Emulator Data
+.emulator-data/
+
 # Terraform
 *.tfstate
 *.tfstate.*
@@ -39,4 +42,3 @@ Thumbs.db
 # Misc
 coverage/
 *.tsbuildinfo
-.github/workflows/

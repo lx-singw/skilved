@@ -1,0 +1,19 @@
+[
+  {"name": "decision_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "opportunity_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "agent_run_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "decided_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+  {"name": "decision", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "quality_score", "type": "FLOAT64"},
+  {"name": "rules_passed", "type": "STRING", "mode": "REPEATED"},
+  {"name": "rules_failed", "type": "STRING", "mode": "REPEATED"},
+  {"name": "gemini_score", "type": "FLOAT64"},
+  {"name": "gemini_reasoning", "type": "STRING"},
+  {"name": "source_score", "type": "FLOAT64"},
+  {"name": "source_name", "type": "STRING"},
+  {"name": "rejection_reason", "type": "STRING"},
+  {"name": "user_reported_issue", "type": "BOOLEAN"},
+  {"name": "user_report_reason", "type": "STRING"},
+  {"name": "overridden_by_human", "type": "BOOLEAN"},
+  {"name": "human_decision", "type": "STRING"}
+]

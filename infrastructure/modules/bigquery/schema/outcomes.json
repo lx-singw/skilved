@@ -1,0 +1,23 @@
+[
+  {"name": "outcome_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "user_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "opportunity_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "outcome_type", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "outcome_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+  {"name": "outcome_reported_at", "type": "TIMESTAMP", "mode": "REQUIRED"},
+  {"name": "reported_by", "type": "STRING"},
+  {"name": "opp_trade", "type": "STRING"},
+  {"name": "opp_type", "type": "STRING"},
+  {"name": "opp_province", "type": "STRING"},
+  {"name": "opp_salary", "type": "FLOAT64"},
+  {"name": "opp_source", "type": "STRING"},
+  {"name": "opp_organisation", "type": "STRING"},
+  {"name": "user_trade", "type": "STRING"},
+  {"name": "user_province", "type": "STRING"},
+  {"name": "user_qualification", "type": "STRING"},
+  {"name": "user_nqf_level", "type": "INT64"},
+  {"name": "user_experience", "type": "STRING"},
+  {"name": "user_trade_tested", "type": "BOOLEAN"},
+  {"name": "days_to_apply", "type": "INT64"},
+  {"name": "days_to_outcome", "type": "INT64"}
+]

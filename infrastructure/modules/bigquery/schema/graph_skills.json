@@ -1,0 +1,18 @@
+[
+  {"name": "skill_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "trade", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "qualification", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "nqf_level", "type": "INT64"},
+  {"name": "opportunity_types_accessible", "type": "STRING", "mode": "REPEATED"},
+  {"name": "avg_salary_accessible", "type": "FLOAT64"},
+  {"name": "max_salary_accessible", "type": "FLOAT64"},
+  {"name": "min_salary_accessible", "type": "FLOAT64"},
+  {"name": "apply_to_interview_rate", "type": "FLOAT64"},
+  {"name": "apply_to_offer_rate", "type": "FLOAT64"},
+  {"name": "offer_to_accept_rate", "type": "FLOAT64"},
+  {"name": "avg_days_to_placement", "type": "FLOAT64"},
+  {"name": "applicant_count", "type": "INT64"},
+  {"name": "outcome_count", "type": "INT64"},
+  {"name": "confidence_score", "type": "FLOAT64"},
+  {"name": "last_updated", "type": "TIMESTAMP", "mode": "REQUIRED"}
+]

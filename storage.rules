@@ -1,0 +1,40 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function under10MB()  { return request.resource.size < 10 * 1024 * 1024; }
+    function isDoc() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('image/.*');
+    }
+
+    // user documents (CVs, certificates)
+    match /documents/{userId}/{allPaths=**} {
+      allow read:   if isOwner(userId);
+      allow write:  if isOwner(userId) && under10MB() && isDoc();
+      allow delete: if isOwner(userId);
+    }
+
+    // profile photos — public read
+    match /avatars/{userId}/{allPaths=**} {
+      allow read:   if true;
+      allow write:  if isOwner(userId) &&
+                       request.resource.size < 2 * 1024 * 1024 &&
+                       request.resource.contentType.matches('image/.*');
+      allow delete: if isOwner(userId);
+    }
+
+    // agent screenshots — service account write only
+    match /screenshots/{allPaths=**} {
+      allow read:  if isSignedIn();
+      allow write: if false;
+    }
+
+    // default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
