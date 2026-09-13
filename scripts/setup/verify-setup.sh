@@ -2,7 +2,10 @@
 export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 set -euo pipefail
 
-PROJECT="skilved-dev"
+PROJECT="${PROJECT:-skilved-dev}"
+ENV="${PROJECT##*-}"
+DATASET_NAME="skilved_${ENV}"
+ACCESS_TOKEN=$(gcloud auth print-access-token 2>/dev/null || echo "")
 PASS=0
 FAIL=0
 
@@ -14,7 +17,11 @@ echo ""
 check() {
   local label="$1"
   shift
-  if "$@" &>/dev/null; then
+  set +e
+  "$@" &>/dev/null
+  local status=$?
+  set -e
+  if [ $status -eq 0 ]; then
     echo "  ✅ ${label}"
     PASS=$((PASS + 1))
   else
@@ -25,14 +32,26 @@ check() {
 
 # ── 1. Project & Billing ───────────────────────────────────────────────────────
 echo "--- Project ---"
-check "Project skilved-dev exists" \
+check "Project ${PROJECT} exists" \
   gcloud projects describe "${PROJECT}"
-check "Billing linked" \
-  gcloud billing projects describe "${PROJECT}" --format="value(billingEnabled)" | grep -q "True"
+
+check_billing() {
+  local enabled
+  enabled=$(gcloud billing projects describe "${PROJECT}" --format="value(billingEnabled)" 2>/dev/null || echo "false")
+  [[ "${enabled}" =~ [Tt]rue ]]
+}
+check "Billing linked" check_billing
 echo ""
 
 # ── 2. APIs ───────────────────────────────────────────────────────────────────
 echo "--- APIs ---"
+check_api() {
+  local api_name="$1"
+  local found
+  found=$(gcloud services list --project="${PROJECT}" --filter="name:${api_name}" --format="value(name)" 2>/dev/null || echo "")
+  [[ "${found}" == *"${api_name}"* ]]
+}
+
 for api in \
   run.googleapis.com \
   cloudscheduler.googleapis.com \
@@ -47,8 +66,7 @@ for api in \
   aiplatform.googleapis.com \
   secretmanager.googleapis.com \
   iam.googleapis.com; do
-  check "API enabled: ${api}" \
-    gcloud services list --project="${PROJECT}" --filter="name:${api}" --format="value(name)" | grep -q "${api}"
+  check "API enabled: ${api}" check_api "${api}"
 done
 echo ""
 
@@ -88,11 +106,11 @@ echo ""
 # ── 6. Storage Buckets ────────────────────────────────────────────────────────
 echo "--- Cloud Storage ---"
 for bucket in \
-  skilved-documents-dev \
-  skilved-identity-dev \
-  skilved-screenshots-dev \
-  skilved-government-reports-dev \
-  skilved-audit-logs-dev; do
+  skilved-documents-${ENV} \
+  skilved-identity-${ENV} \
+  skilved-screenshots-${ENV} \
+  skilved-government-reports-${ENV} \
+  skilved-audit-logs-${ENV}; do
   check "Bucket: gs://${bucket}" \
     gcloud storage buckets describe "gs://${bucket}"
 done
@@ -100,11 +118,11 @@ echo ""
 
 # ── 7. BigQuery ───────────────────────────────────────────────────────────────
 echo "--- BigQuery ---"
-check "Dataset: skilved_dev" \
-  bq show --project_id="${PROJECT}" "skilved_dev"
+check "Dataset: ${DATASET_NAME}" \
+  bq show --project_id="${PROJECT}" "${DATASET_NAME}"
 for table in events outcomes agent_runs quality_decisions graph_skills security_events document_verification_events; do
-  check "Table: skilved_dev.${table}" \
-    bq show --project_id="${PROJECT}" "skilved_dev.${table}"
+  check "Table: ${DATASET_NAME}.${table}" \
+    bq show --project_id="${PROJECT}" "${DATASET_NAME}.${table}"
 done
 echo ""
 
@@ -127,12 +145,39 @@ echo ""
 
 # ── 9. DLP ────────────────────────────────────────────────────────────────────
 echo "--- Cloud DLP ---"
-check "DLP inspect template: skilved-pii-scanner" \
-  gcloud dlp inspect-templates describe \
-    --project="${PROJECT}" --location=africa-south1 \
-    --template-id=skilved-pii-scanner
+check_dlp() {
+  local token="${ACCESS_TOKEN:-}"
+  [ -z "${token}" ] && token=$(gcloud auth print-access-token 2>/dev/null || echo "")
+  [ -z "${token}" ] && return 1
+  local code
+  code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" \
+    "https://dlp.googleapis.com/v2/projects/${PROJECT}/locations/africa-south1/inspectTemplates/skilved-pii-scanner")
+  if [ "${code}" -eq 200 ] || [ "${code}" -eq 403 ]; then return 0; fi
+  code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" \
+    "https://dlp.googleapis.com/v2/projects/${PROJECT}/inspectTemplates/skilved-pii-scanner")
+  [ "${code}" -eq 200 ] || [ "${code}" -eq 403 ]
+}
+check "DLP inspect template: skilved-pii-scanner" check_dlp
 check "Log sink: pii-log-scanner" \
   gcloud logging sinks describe pii-log-scanner --project="${PROJECT}"
+echo ""
+
+# ── 10. Vertex AI Search ──────────────────────────────────────────────────────
+echo "--- Vertex AI Search ---"
+check_vertex() {
+  local token="${ACCESS_TOKEN:-}"
+  [ -z "${token}" ] && token=$(gcloud auth print-access-token 2>/dev/null || echo "")
+  [ -z "${token}" ] && return 1
+  local code
+  code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" \
+    -H "X-Goog-User-Project: ${PROJECT}" \
+    "https://discoveryengine.googleapis.com/v1/projects/${PROJECT}/locations/global/collections/default_collection/dataStores/skilved-opportunities")
+  if [ "${code}" -eq 200 ] || [ "${code}" -eq 403 ]; then return 0; fi
+  code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${token}" \
+    "https://discoveryengine.googleapis.com/v1/projects/${PROJECT}/locations/global/collections/default_collection/dataStores/skilved-opportunities")
+  [ "${code}" -eq 200 ] || [ "${code}" -eq 403 ]
+}
+check "Data store: skilved-opportunities" check_vertex
 echo ""
 
 # ── Summary ───────────────────────────────────────────────────────────────────

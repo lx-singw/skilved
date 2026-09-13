@@ -1,48 +1,80 @@
-#!/usr/bin/env bash
+export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 set -euo pipefail
 
-PROJECT="skilved-dev"
+PROJECT="${PROJECT:-skilved-dev}"
 
 echo "=== Step 8: Configure Cloud DLP ==="
 
-# Create inspect template
-cat > /tmp/dlp-inspect-template.json << 'EOF'
-{
-  "inspectTemplate": {
-    "displayName": "Skilved PII Scanner",
-    "description": "Scans logs for SA ID numbers, names, and other PII",
-    "inspectConfig": {
-      "infoTypes": [
-        {"name": "PERSON_NAME"},
-        {"name": "PHONE_NUMBER"},
-        {"name": "EMAIL_ADDRESS"},
-        {"name": "STREET_ADDRESS"},
-        {"name": "PASSPORT"},
-        {"name": "SOUTH_AFRICA_ID_NUMBER"},
-        {"name": "CREDIT_CARD_NUMBER"},
-        {"name": "IBAN_CODE"}
-      ],
-      "minLikelihood": "LIKELY",
-      "limits": {
-        "maxFindingsPerRequest": 100
-      }
-    }
-  }
-}
-EOF
+TOKEN=$(gcloud auth print-access-token 2>/dev/null || true)
 
-if gcloud dlp inspect-templates describe --project="${PROJECT}" --location=africa-south1 \
-  --template-id=skilved-pii-scanner &>/dev/null; then
+HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  "https://dlp.googleapis.com/v2/projects/${PROJECT}/locations/africa-south1/inspectTemplates/skilved-pii-scanner")
+
+if [ "${HTTP_STATUS}" -eq 200 ] || [ "${HTTP_STATUS}" -eq 409 ]; then
   echo "DLP inspect template skilved-pii-scanner already exists."
 else
-  gcloud dlp inspect-templates create \
-    --project="${PROJECT}" \
-    --location=africa-south1 \
-    --template-id=skilved-pii-scanner \
-    --json-file=/tmp/dlp-inspect-template.json
-  echo "Created DLP inspect template."
+  RESP=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "inspectTemplate": {
+        "displayName": "Skilved PII Scanner",
+        "description": "Scans logs for SA ID numbers, names, and other PII",
+        "inspectConfig": {
+          "infoTypes": [
+            {"name": "PERSON_NAME"},
+            {"name": "PHONE_NUMBER"},
+            {"name": "EMAIL_ADDRESS"},
+            {"name": "STREET_ADDRESS"},
+            {"name": "PASSPORT"},
+            {"name": "SOUTH_AFRICA_ID_NUMBER"},
+            {"name": "CREDIT_CARD_NUMBER"},
+            {"name": "IBAN_CODE"}
+          ],
+          "minLikelihood": "LIKELY",
+          "limits": {
+            "maxFindingsPerRequest": 100
+          }
+        }
+      },
+      "templateId": "skilved-pii-scanner"
+    }' \
+    "https://dlp.googleapis.com/v2/projects/${PROJECT}/locations/africa-south1/inspectTemplates")
+  
+  if echo "${RESP}" | grep -q "HTTP_STATUS:400"; then
+    # Fallback to global location if region-specific location is not supported for DLP templates
+    curl -s -X POST \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "inspectTemplate": {
+          "displayName": "Skilved PII Scanner",
+          "description": "Scans logs for SA ID numbers, names, and other PII",
+          "inspectConfig": {
+            "infoTypes": [
+              {"name": "PERSON_NAME"},
+              {"name": "PHONE_NUMBER"},
+              {"name": "EMAIL_ADDRESS"},
+              {"name": "STREET_ADDRESS"},
+              {"name": "PASSPORT"},
+              {"name": "SOUTH_AFRICA_ID_NUMBER"},
+              {"name": "CREDIT_CARD_NUMBER"},
+              {"name": "IBAN_CODE"}
+            ],
+            "minLikelihood": "LIKELY",
+            "limits": {
+              "maxFindingsPerRequest": 100
+            }
+          }
+        },
+        "templateId": "skilved-pii-scanner"
+      }' \
+      "https://dlp.googleapis.com/v2/projects/${PROJECT}/inspectTemplates" > /dev/null
+  fi
+  echo "Created DLP inspect template skilved-pii-scanner."
 fi
-rm -f /tmp/dlp-inspect-template.json
 
 # Create Pub/Sub topic for DLP log routing
 gcloud pubsub topics create dlp-log-scan --project="${PROJECT}" 2>/dev/null || \

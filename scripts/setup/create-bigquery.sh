@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT="skilved-dev"
-DATASET_NAME="skilved_dev"
+PROJECT="${PROJECT:-skilved-dev}"
+ENV="${PROJECT##*-}"
+DATASET_NAME="${DATASET_NAME:-skilved_${ENV}}"
 DATASET="${PROJECT}:${DATASET_NAME}"
 
 echo "=== Step 10-11: BigQuery Dataset + Tables + Views ==="

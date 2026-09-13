@@ -2,8 +2,12 @@
 export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 set -euo pipefail
 
-PROJECT="skilved-dev"
-PROJECT_NAME="Skilved Development"
+PROJECT="${PROJECT:-skilved-dev}"
+if [ "${PROJECT}" = "skilved-prod" ]; then
+  PROJECT_NAME="${PROJECT_NAME:-Skilved Production}"
+else
+  PROJECT_NAME="${PROJECT_NAME:-Skilved Development}"
+fi
 
 echo "=== Step 1: Create GCP Project ==="
 

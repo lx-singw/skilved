@@ -2,7 +2,7 @@
 export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 set -euo pipefail
 
-PROJECT="skilved-dev"
+PROJECT="${PROJECT:-skilved-dev}"
 
 echo "=== Step 3: Create Service Accounts + IAM Bindings ==="
 

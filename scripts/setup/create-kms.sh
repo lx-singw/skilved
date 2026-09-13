@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT="skilved-dev"
+PROJECT="${PROJECT:-skilved-dev}"
 
 echo "=== Step 7: Configure Cloud KMS Key Ring ==="
 

@@ -7,16 +7,12 @@ set -euo pipefail
 export BILLING_ID="${BILLING_ID:-}"
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT="skilved-dev"
+PROJECT="${PROJECT:-skilved-dev}"
 
 echo "=============================================="
 echo "  Skilved GCP Setup — ${PROJECT}"
 echo "=============================================="
 echo ""
-
-gcloud config set project "${PROJECT}"
-gcloud config set compute/region africa-south1
-gcloud config set run/region africa-south1
 
 echo "Starting ordered setup..."
 echo ""
@@ -31,12 +27,17 @@ if [ -z "${BILLING_ID:-}" ]; then
 fi
 echo ""
 
-# Step 1
+# Step 1: Create GCP Project first
 echo "=============================================="
 echo "  Step 1: Create GCP Project"
 echo "=============================================="
 bash "${DIR}/create-gcp-project.sh"
 echo ""
+
+# Now set project and default region non-interactively
+gcloud config set project "${PROJECT}" --quiet
+gcloud config set run/region africa-south1 --quiet
+gcloud config set compute/region africa-south1 --quiet 2>/dev/null || true
 
 # Step 2
 echo "=============================================="
@@ -108,10 +109,11 @@ echo ""
 echo "Next steps:"
 echo "  1. Add secret values using the commands printed by configure-secrets.sh"
 echo "  2. Create Terraform state bucket and initialise:"
-echo "     gcloud storage buckets create gs://skilved-terraform-state-dev \\"
+echo "     ENV=\"${PROJECT##*-}\""
+echo "     gcloud storage buckets create gs://skilved-terraform-state-\${ENV} \\"
 echo "       --project=${PROJECT} --location=africa-south1 --uniform-bucket-level-access"
 echo "     cd infrastructure && terraform init \\"
-echo "       -backend-config=\"bucket=skilved-terraform-state-dev\" \\"
-echo "       -backend-config=\"prefix=skilved-dev\""
+echo "       -backend-config=\"bucket=skilved-terraform-state-\${ENV}\" \\"
+echo "       -backend-config=\"prefix=${PROJECT}\""
 echo "  3. Run: BILLING_ID=${BILLING_ID:-<your-billing-id>} bash scripts/setup/firebase-setup.sh"
 echo "  4. Run: bash scripts/setup/verify-setup.sh  (to confirm everything was provisioned)"

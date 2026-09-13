@@ -2,5 +2,10 @@
   "name": "@skilved/database",
   "version": "1.0.0",
   "private": true,
-  "description": "Database utilities and schemas"
+  "description": "Database clients and helpers for Firestore, BigQuery, and Redis",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@skilved/types": "workspace:*"
+  }
 }

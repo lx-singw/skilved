@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT="skilved-dev"
+PROJECT="${PROJECT:-skilved-dev}"
 
 echo "=== Step 2: Enable All Required APIs ==="
 
@@ -17,7 +17,9 @@ gcloud services enable \
   storage.googleapis.com \
   cloudkms.googleapis.com \
   dlp.googleapis.com \
-  firestore.googleapis.com \
+  firestore.googleapis.com
+
+gcloud services enable \
   bigquery.googleapis.com \
   aiplatform.googleapis.com \
   discoveryengine.googleapis.com \
