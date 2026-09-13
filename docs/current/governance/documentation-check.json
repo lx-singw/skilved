@@ -1,0 +1,24 @@
+{
+  "CheckedAt": "2026-09-13T06:47:09.1840476Z",
+  "CurrentMarkdownFiles": 77,
+  "DisciplineFolders": 16,
+  "ActiveMarkdownFiles": 149,
+  "LocalLinkTargetsChecked": 933,
+  "ArchiveManifestEntries": 70,
+  "ArchiveCopiesVerified": 70,
+  "RequirementDefinitions": 64,
+  "RequirementDeliveryMappings": 64,
+  "WorkPackageDefinitions": 35,
+  "PhaseTotalsChecked": 6,
+  "CalendarScenarioCellsChecked": 18,
+  "AcceptedCompanionIdeas": 24,
+  "CompanionAcceptanceCases": 24,
+  "M0DeliverySlices": 10,
+  "M0EffortHours": [
+    160,
+    288
+  ],
+  "M0CalendarScenariosChecked": 3,
+  "Issues": [],
+  "Passed": true
+}

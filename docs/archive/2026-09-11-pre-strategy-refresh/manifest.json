@@ -1,0 +1,352 @@
+[
+  {
+    "Original": "docs/00_INDEX.md",
+    "SHA256": "1ACACDE511F42F3B276DFF09C052F19D815F2FB72381446B9D5F47D1CAC5B008",
+    "Bytes": 13946
+  },
+  {
+    "Original": "docs/01_MVP_Scope.md",
+    "SHA256": "A4FDD01353F1FA50766D34DA608966DFC329B60EC36BA7B8B35A1AB90DE18E96",
+    "Bytes": 25566
+  },
+  {
+    "Original": "docs/02_PRD.md",
+    "SHA256": "948C716791BBBD9F6CF5E22F3BC167134783E6E51C2D5D6A8ACC9FDA4AD93562",
+    "Bytes": 67692
+  },
+  {
+    "Original": "docs/03_Feed_Development_Plan.md",
+    "SHA256": "2EBD1CC97884A17E8FAC3697DA55CBE4BD660F0FE9DAF7E56F525F28EDD6F1E4",
+    "Bytes": 21382
+  },
+  {
+    "Original": "docs/04_XPRIZE_Strategy.md",
+    "SHA256": "ADD9505242D59BAD010ACE5C7F7C0B141EC1732C6261BC2669686F83B1D82B49",
+    "Bytes": 25857
+  },
+  {
+    "Original": "docs/05_Pitch_Deck.md",
+    "SHA256": "09407A477A3EABF1D20945A9B3CF705B5B4ED766FEC94A2CF53C22C5D03009BC",
+    "Bytes": 13610
+  },
+  {
+    "Original": "docs/06_Agent_Architecture.md",
+    "SHA256": "FFDC62E88430222B856CF760B44FB5EE6177AD37025F8CDECACEAF9BE230A59A",
+    "Bytes": 21268
+  },
+  {
+    "Original": "docs/07_Go_To_Market.md",
+    "SHA256": "6D37BE39417AE445134DB5E1C44D611056ED91070C136336A35ADC453BEB06A7",
+    "Bytes": 23370
+  },
+  {
+    "Original": "docs/08_Post_MVP_Future_Plans.md",
+    "SHA256": "D1514CDBBBC066E9B0A6E0F910770B0EC85F5CD0A0FED57B95EA6884BCACA96E",
+    "Bytes": 28541
+  },
+  {
+    "Original": "docs/09_Financial_Model.md",
+    "SHA256": "E87E8354CD680C4D0C31C44CDD5D8CC8032CA969A05F8362195970284C529E12",
+    "Bytes": 14525
+  },
+  {
+    "Original": "docs/10_Legal_Compliance.md",
+    "SHA256": "C5F79B79E339DFF532D1836370C3B79110053598266DCFB2E31FC9B1B8846FDB",
+    "Bytes": 12681
+  },
+  {
+    "Original": "docs/11_Brand_Design_System.md",
+    "SHA256": "467F7FFD8F7D7E55855A9DAB907FF2DE3801B155B52A5CEA675CF76B8D429F56",
+    "Bytes": 9604
+  },
+  {
+    "Original": "docs/12_Operations_Team.md",
+    "SHA256": "709BCD7E8EB81CDA89A090BA2A623F2CC3F291AEE35A022B670B32D4990DAE90",
+    "Bytes": 9152
+  },
+  {
+    "Original": "docs/13_Directory_Structure.md",
+    "SHA256": "540143A3DE259FC93A83DE8D26D4166F121983B81DDD967E163E4CCF11BB3643",
+    "Bytes": 70988
+  },
+  {
+    "Original": "docs/14_Data_Models_Schema.md",
+    "SHA256": "6CBE24E8E47E1AF74BB4730310DD27BDEB15E2B2ABF2607F97B7A29E8AA76AEB",
+    "Bytes": 50258
+  },
+  {
+    "Original": "docs/15_API_Reference.md",
+    "SHA256": "F3BBCDBF3B9DAAA63349EE55F9D1D767AF0ED7E542CDEC8753890499FD82BC45",
+    "Bytes": 18578
+  },
+  {
+    "Original": "docs/16_Environment_Variables.md",
+    "SHA256": "E5FB3457CA6BF26FC3BD26F7E553EEF0EB127737FAC4A88C1DDC56D5CBEDAB55",
+    "Bytes": 19540
+  },
+  {
+    "Original": "docs/17_CICD_Deployment.md",
+    "SHA256": "16B1A2003BEE93803C8FB12AB412D4378677E1206C7660B7CFDB7BC1CF100B3C",
+    "Bytes": 27766
+  },
+  {
+    "Original": "docs/18_Testing_Strategy.md",
+    "SHA256": "4A08D2545BC76EC3C98DA3AA4EEB0E3C9BC53821D4CD56CA355D77ED27C0FFB0",
+    "Bytes": 16043
+  },
+  {
+    "Original": "docs/20_Sprint_Plan.md",
+    "SHA256": "67B1EB392821B55067980F050AD850ED9ACCF784763701A552D3E10C4DE73BA3",
+    "Bytes": 28205
+  },
+  {
+    "Original": "docs/21_SETA_Partnership_Playbook.md",
+    "SHA256": "8B32BE6A0A707065654F859E9CEBE13B3DFCCCC7655B23F25995215D4131BEFC",
+    "Bytes": 11175
+  },
+  {
+    "Original": "docs/22_Runbooks.md",
+    "SHA256": "3FA525245333A9FE6EE99DEA3E949194DB8BE3B00CDF06332C58B13475468DED",
+    "Bytes": 22035
+  },
+  {
+    "Original": "docs/23_README.md",
+    "SHA256": "93E79519B270C332B041C38304A99A6CB5458FE71F18D2F6936E81A0BE4CDEEF",
+    "Bytes": 12330
+  },
+  {
+    "Original": "docs/24_AI_Employees_Architecture.md",
+    "SHA256": "7097A2ACC9A8757EDC441E89833038E27BC4919ABA2286394562AF3AF0C2FB5D",
+    "Bytes": 18484
+  },
+  {
+    "Original": "docs/26_Worker_Permission_Model.md",
+    "SHA256": "C69A103A28993D02D5BC6383039BD602747EA9581A6F1371414B98C83177D587",
+    "Bytes": 25818
+  },
+  {
+    "Original": "docs/27_Skills_Pulse_Dashboard.md",
+    "SHA256": "F4961237AE9D67A04F8FA31D330CD2DFDBF4B4A9661215402AD1CEE3581C0630",
+    "Bytes": 13792
+  },
+  {
+    "Original": "docs/28_Career_Simulation_Engine.md",
+    "SHA256": "DD8C883534DC6DC3A230480596A163DF2CB3C51CC1B0F1FD0A246AB8FB9A4D60",
+    "Bytes": 13140
+  },
+  {
+    "Original": "docs/29_ATS_Adapter_Strategy.md",
+    "SHA256": "C82B4DDE29E65D250C6120814E2265A2E118171058B584E5E2E3655ED5F6CA40",
+    "Bytes": 34212
+  },
+  {
+    "Original": "docs/30_Employer_Accountability_Layer.md",
+    "SHA256": "6FEF9E498454FF78672DB0FAC5210892BFC1B0E8FEDE35EFB6D43489BE390D1D",
+    "Bytes": 15814
+  },
+  {
+    "Original": "docs/31_Micro_Credential_System.md",
+    "SHA256": "E564639F19F662C0C83195F4B7D8525E9134306E1EB4B862950F955A4297D51C",
+    "Bytes": 14765
+  },
+  {
+    "Original": "docs/32_Collective_Intelligence_Layer.md",
+    "SHA256": "58626F4986120D7F14D17DF47C4B4A7E61543B22973BFAB2393EBCB16A7304EF",
+    "Bytes": 18378
+  },
+  {
+    "Original": "docs/33_Document_Vault.md",
+    "SHA256": "53DA187399A0D1F39D8D1D1B932EF721941750DD850B86162C1418C2AE751A30",
+    "Bytes": 31484
+  },
+  {
+    "Original": "docs/34_MyMzansi_Integration.md",
+    "SHA256": "11EDB00483B747C729B780756675B2A1FC4BD7FB5FA1A5F5203BF50B2902A588",
+    "Bytes": 19797
+  },
+  {
+    "Original": "docs/35_Security_Architecture.md",
+    "SHA256": "FEF7A2F158ADC603C4477981A976C48F1EABEAAF9499B5509FB5AEE8E71A9FFE",
+    "Bytes": 23627
+  },
+  {
+    "Original": "docs/36_Scope_Expansion_Strategy.md",
+    "SHA256": "CB6E01E4B71340203F6DA4C64CE19E26EE8FCC598FF444353C9E6CA1A3AF9706",
+    "Bytes": 13069
+  },
+  {
+    "Original": "docs/37_Architecture_Audit_Report.md",
+    "SHA256": "C52268F5EDD7C6013D00E34D74D4B0E6D74F2AB3FAEA4BC6F0A23474663221D5",
+    "Bytes": 13229
+  },
+  {
+    "Original": "docs/38_MVP_Recommendation_2026-09-05.md",
+    "SHA256": "5270892CA6C7B02AC8D38654AFAD7A5007F50870DE47233D80CC544AAF4655B3",
+    "Bytes": 32492
+  },
+  {
+    "Original": "docs/contributing.md",
+    "SHA256": "A9ABC85B2A4CB2C7A82608519F0751DED5EE16B541DAEC5BF7719F1879F9A493",
+    "Bytes": 3306
+  },
+  {
+    "Original": "docs/FIREBASE_TO_GCP_UPGRADE.md",
+    "SHA256": "E78D06F3F560044FDC5A7F4C2BEE37CB8DB3ED243A3D8D09472935D480439BC9",
+    "Bytes": 3041
+  },
+  {
+    "Original": "docs/gcp_setup_via_cli.md",
+    "SHA256": "373CE68E7FB9855534562401C1C627DC2D567EE2EAE9825482B63EE7AAF7F180",
+    "Bytes": 27811
+  },
+  {
+    "Original": "docs/implementation_plan_Terraform_configuration_files.md",
+    "SHA256": "74862569269E7C98D00731E6D44A678B3BAF97F0EA8512C342ABF98FA989E53A",
+    "Bytes": 8044
+  },
+  {
+    "Original": "docs/MASTER_CHANGE_LOG.md",
+    "SHA256": "1734A9ABAFD36E136183EBA326E3688B5AE69FC53BDD9CACE0078A6787E2B7C1",
+    "Bytes": 18510
+  },
+  {
+    "Original": "docs/scout_portal_sources.md",
+    "SHA256": "EACEA30A39DAA9077070565CA37E9A63AA804AA61BB683014CAFE03987A737E9",
+    "Bytes": 8493
+  },
+  {
+    "Original": "docs/api/feed.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/api/opportunities.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/api/profile.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/api/webhooks.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/runbooks/agent-failure.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/runbooks/data-breach.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/runbooks/deploy.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/runbooks/rollback.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/first-paid-pilot/01_OFFER.md",
+    "SHA256": "22ECF45A098EDBDB8B240E922C4FBE520E7366BB77F3C0CCBF38978C8C86BB16",
+    "Bytes": 3752
+  },
+  {
+    "Original": "docs/first-paid-pilot/02_DEMONSTRATION.md",
+    "SHA256": "9B9154C54E77B81C01367AA7A4376FF5B8AD8A8073CBD013A8E2DEC0F981F384",
+    "Bytes": 5479
+  },
+  {
+    "Original": "docs/first-paid-pilot/03_DELIVERY_PLAYBOOK.md",
+    "SHA256": "F837C720CB96AC71012F92EB70DF73A8D85C1148D892AE95F4BDD424592FE024",
+    "Bytes": 7417
+  },
+  {
+    "Original": "docs/first-paid-pilot/04_CUSTOMER_CONVERSATIONS.md",
+    "SHA256": "387CAA30C6AA308A9721F3A2B45AE2028478DB1A2A157D12BD8302FA21E2F651",
+    "Bytes": 4919
+  },
+  {
+    "Original": "docs/agents/discovery.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/agents/matching.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/agents/notification.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/agents/outcome-tracker.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/agents/quality.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/agent-design.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/data-model.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/overview.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/adr/001-monorepo.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/adr/002-nextjs-vercel.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/adr/003-firestore-vs-postgres.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/adr/004-bigquery-for-graph.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "docs/architecture/adr/005-whatsapp-first.md",
+    "SHA256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+    "Bytes": 0
+  },
+  {
+    "Original": "README.md",
+    "SHA256": "A3D1D521ABFFFFB822DEC1ED1F1928C5346AC094FEF55F502F2E7EA5A7476960",
+    "Bytes": 2331
+  },
+  {
+    "Original": "CLAUDE.md",
+    "SHA256": "E3BCBA2064933C60306F81BA91121CA8C3106461640AA7200AD4D91825CB02CB",
+    "Bytes": 24353
+  }
+]
