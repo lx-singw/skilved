@@ -4,6 +4,10 @@
 
 @layer base {
   :root {
+    /* System fonts keep builds and page loads independent of font services. */
+    --font-inter: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-jetbrains-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+    --font-fraunces: Georgia, "Times New Roman", serif;
     /* Neutrals — Zinc */
     --background: 0 0% 100%;
     --foreground: 240 6% 10%;

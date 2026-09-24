@@ -2,13 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Briefcase, Sparkles, LogIn } from "lucide-react"
+import { Briefcase, Info } from "lucide-react"
 import { cn } from "@/utils/classNames"
 
 const NAV_ITEMS = [
-  { href: "/",               label: "Jobs",    Icon: Briefcase },
-  { href: "/career-profile", label: "Profile", Icon: Sparkles  },
-  { href: "/auth/signin",    label: "Sign in", Icon: LogIn     },
+  { href: "/", label: "Opportunities", Icon: Briefcase },
+  { href: "/about", label: "About", Icon: Info },
 ]
 
 export function BottomNav() {

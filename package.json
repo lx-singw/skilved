@@ -13,7 +13,11 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "web:lint": "pnpm --filter @skilved/web lint",
+    "web:typecheck": "pnpm --filter @skilved/web typecheck",
+    "web:build": "pnpm --filter @skilved/web build",
+    "web:test": "pnpm --filter @skilved/web test:boundary"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

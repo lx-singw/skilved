@@ -43,7 +43,7 @@ function matchesClosingWindow(
 ): boolean {
   if (window === "any") return true
   const days = daysUntil(o.closesAt, now)
-  if (days === null) return window === "any"
+  if (days === null) return false
   if (days < 0) return false
   if (window === "this-week") return days <= 7
   if (window === "this-month") return days <= 31

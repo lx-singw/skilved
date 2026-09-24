@@ -1,3 +1,8 @@
 import { NextResponse } from "next/server"
-export async function GET() { return NextResponse.json({ error: "Not implemented" }, { status: 501 }) }
-export async function POST() { return NextResponse.json({ error: "Not implemented" }, { status: 501 }) }
+
+/** Process liveness only; this is not a source, database or release readiness check. */
+export function GET() {
+  return NextResponse.json({ status: "ok", service: "web" }, {
+    headers: { "Cache-Control": "no-store" },
+  })
+}

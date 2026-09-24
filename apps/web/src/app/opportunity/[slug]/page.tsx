@@ -31,7 +31,7 @@ export default async function OpportunityDetailPage({ params }: Props) {
   const opp = getOpportunityBySlug(slug)
   if (!opp) notFound()
 
-  const related = getRelatedOpportunities(opp.id, 3)
+  const related = getRelatedOpportunities(opp, 3)
   const expired = isExpired(opp)
 
   return (
@@ -174,4 +174,3 @@ export default async function OpportunityDetailPage({ params }: Props) {
     </>
   )
 }
-
