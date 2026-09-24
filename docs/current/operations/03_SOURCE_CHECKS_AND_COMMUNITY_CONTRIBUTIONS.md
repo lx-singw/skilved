@@ -14,6 +14,10 @@ For each source record issuer/owner, discovery method, permitted collection basi
 
 The local coverage matrix distinguishes community/area, opportunity category, national/remote reach, active source inventory, last successful review and gaps. A national catalogue can have concentrated first-community depth. Do not imply all local jobs are indexed. Capture residency eligibility separately from place of work/study. Employment stages and internship subtypes remain distinct; no trade-only or entry-level-only restriction.
 
+24 September adoption: deepen coverage for reachable communities, including artisan/technical routes where founder knowledge helps, while maintaining real representative inventory across all six categories. Do not allocate all curation to trades or represent six empty filters as coverage. Initial six links or 2–3 examples per category are preparation samples, not national launch quotas; a larger arbitrary count does not establish usefulness either.
+
+Before launch, record a representative task matrix: category/subtype, audience stage, chosen location/residence conditions, national/remote alternatives, relevant current results, unmet needs, source freshness and review effort. Include all six categories, both internship paths, broad jobs and likely searches from the initial community. B01 proposes the task set and decision criteria; B03 maintains coverage and B10 observes it. Diagnose persistent irrelevant/empty results, improve sources or navigation where possible and disclose limited/seasonal supply. Do not fabricate filler, silently broaden eligibility or promise comprehensive national coverage. Record the owner and review date for each gap; assess launch usefulness against these tasks and existing six-category acceptance.
+
 Publish concise attribution and source links with only permitted necessary excerpts. Store original/discovery source and destination separately. When an aggregator reveals the issuer, move ongoing checks to the permitted primary route where practical while preserving discovery provenance. Remove content or change collection when rights/access conditions require it; no rotating-identity evasion.
 
 ## 3. Review workflow
@@ -28,6 +32,8 @@ Publish concise attribution and source links with only permitted necessary excer
 8. Record time/cost and sample decisions during review meetings. Route errors into corrective action and parser/template improvements.
 
 Unknown nonessential fields can remain unknown. Identity/destination ambiguity that prevents an appropriate application handoff cannot be concealed behind a reassuring badge. An accessible official notice with an unspecified deadline may be shown with that limitation; an unresolved alleged opportunity need not be published to fill a category.
+
+Review suggested next actions with the same care as facts. An unclear requirement can point to actual issuer guidance/contact or the reporting route; unknown deadlines cannot become capacity-closing claims or invented urgency. Source-stated transport/accommodation support, attendance and pay periods should be captured when available. Fares, dropout predictions and generic document/certification assumptions are not issuer facts. Review new checklist exports after material changes through the same public-projection controls.
 
 ## 4. Check schedule and changes
 

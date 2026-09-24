@@ -2,6 +2,12 @@
 
 Date: 11 September 2026. Status: observed repository orientation plus proposed workflow. No successful clean install/build is claimed by this documentation refresh.
 
+Implementation update, 24 September 2026: the [public web stabilisation record](10_PUBLIC_WEB_STABILISATION_2026-09-24.md) supersedes the initial build status for the selected web package. Scoped lint, typecheck, build and 21 production-server regression tests pass. This is not an all-workspace pass or a clean-install/deployment claim.
+
+## Current selected web checks
+
+From the repository root run `pnpm web:lint`, `pnpm web:typecheck`, `pnpm web:build`, then `pnpm web:test`. Set `NEXT_TELEMETRY_DISABLED=1` in the shell for these checks. The test command requires the fresh production build and starts/stops a local loopback server. `apps/web/prototype/` preserves historical code outside routing, lint and typecheck; do not import it into production. The root generic Turbo commands still cover broader workspaces and have separate readiness requirements. Regenerate a build after relevant changes before relying on HTTP results.
+
 ## Observed baseline
 
 The repository is a pnpm/Turborepo TypeScript monorepo with a Next.js web application and agent/service scaffolding. Static package inspection found pnpm 9, Turbo 2, Node >=20 and a web package targeting Next.js ^15.1, React 19 and TypeScript 5.7. Resolve the actual supported runtime and lockfile in S01; these observations are not a recommendation to remain indefinitely on an old major version.

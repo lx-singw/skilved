@@ -33,6 +33,24 @@ Updated: 13 September 2026. Status: specified tests and observations, **NOT RUN*
 
 ## 2. Release allocation
 
+### 24 September operational subcriteria — not run
+
+The founder accepted the [operational refinements](../governance/08_OPERATIONAL_REFINEMENTS_2026-09-24.md). Extend the existing DCF cases below; keep DCF-01–24 identifiers and counts unchanged. These are specified checks, not recorded results.
+
+| Existing cases | Additional scenario | Required evidence |
+|---|---|---|
+| DCF-01/02/18 | Run representative first-community searches across all categories, both internship routes, general jobs and location/national/remote conditions | Record relevant results, gaps, seasonal availability, comprehension and curation load; starter-sample counts are not launch proof; no trade-only hidden restriction |
+| DCF-04/05/18/24 | Review unknown deadline, provisional results, unstated pay and missing official contact | Concise uncertainty plus a supported action; no invented capacity deadline, payment, certification age, contact or qualification alternative |
+| DCF-02/06/18 | Inspect stipend/pay period, attendance, transport/accommodation support and unknown compensation | Sourced facts remain distinct; practical travel-cost prompt understandable; no guessed fare/net-pay ranking, eligibility exclusion or guaranteed dropout prediction |
+| DCF-11/12 | Save, leave for external application and return; then separately clear site data, block storage or use a shared browser | Normal handoff preserves local state when storage remains; loss and visibility limits understood; no automatic restoration, account backup or sync claim |
+| DCF-13/14/15 | Preview and copy/download/share a public checklist, then change/close/withhold the listing or fail its current fetch | Current safe public requirements, dated source context and distinct detail/application labels; unknowns retained; unsafe destination excluded; canonical-link fallback if current facts unavailable; old copies labelled static |
+| DCF-10/14/21 | Put distinctive local personal stages/annotations and a receipt capability on the test browser, then generate all public export variants | None of those values enters exported text, filenames, share parameters, public metadata or telemetry; no personal-completion ticks automatically included |
+| DCF-14/19/24 | Cancel share, lack WhatsApp/native share, deny clipboard access or inspect a downloaded text file | Usable fallback and truthful attempted-action states; no delivery, permanence, restoration, universal offline or zero-data claim |
+| DCF-19/21 | Render reviewed pages with model service unavailable and inspect workload/transfer measurements | Core browse/detail remains useful without per-visit inference; actual bytes and total operating/review costs recorded separately |
+| DCF-22 (extension) | Check public deployment boundary and selected package/dependency checks after stabilisation | Every public route classified; unsupported sensitive actions disabled server-side; real passing selected checks/build recorded; excluded packages listed; filtered pass is not reported as full-workspace success |
+
+The source-checklist export is public information, not a backup of saved user progress. Personal progress export, an affordability calculator and carrier zero-rating are not prerequisites in these M0 subcriteria; each needs a separate later decision and appropriate tests if pursued.
+
 DCF-01–22 and DCF-24 apply to relevant exposed M0 functions. DCF-20 tests current shelves/issuer pages at M0; actual trend activation also needs its later experiment evidence. DCF-23 is a later social-release gate, not a demand to build the social network before M0. Full document/agent/organisation tests remain applicable when those capabilities release.
 
 The minimum observed task covers find/understand/save/handoff, one source uncertainty, one failure/change and shared-device understanding. Include all six category paths in fixtures and representative source samples. Recruit reachable people ethically and respect age-specific arrangements; an initial small sample informs improvements, not national market conclusions.

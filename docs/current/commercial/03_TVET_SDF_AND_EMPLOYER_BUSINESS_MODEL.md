@@ -1,5 +1,7 @@
 # Free consumer platform and institutional revenue
 
+24 September reaffirmation: the founder retained the ambition and agreed scope after reviewing external feedback. Keep this revenue hypothesis active for post-M0 research; do not archive it or begin speculative institution dashboards/grant automation before the relevant buyer and recipient gates. Consider actual accessible private providers, employers, SDF practices and colleges without assuming fixed purchase cycles, delegated authority or secured subsidy for free users. Consumer traffic alone does not validate demand. See the [operational adoption register](../governance/08_OPERATIONAL_REFINEMENTS_2026-09-24.md).
+
 13 September sequence: launch the [discovery-first M0](../product/03_DISCOVERY_FIRST_MVP.md) before the broader institutional research programme. This model remains the post-M0 revenue hypothesis; no institution, procurement approval or payment is needed for discovery launch. Validate the relevant buyer and acceptance conditions before institutional build commitments. Consumer traffic does not itself establish B2B demand.
 
 Updated: 12 September 2026. Status: founder-confirmed free consumer direction; institutional buyers, prices, procurement routes and revenue remain hypotheses. Owner: founder/commercial, supported by product, privacy and programme operations roles.

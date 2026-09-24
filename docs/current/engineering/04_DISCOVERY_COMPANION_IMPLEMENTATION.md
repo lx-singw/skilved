@@ -4,9 +4,13 @@ Updated: 13 September 2026. Status: proposed implementation specification; no ro
 
 ## 1. Implementation boundaries
 
+24 September refinement: implement the [adopted operational improvements](../governance/08_OPERATIONAL_REFINEMENTS_2026-09-24.md) within the existing M0 boundaries. These are contracts, not completed controls.
+
 Retain the reference stack and permitted crawler/source pipeline. M0 adds bounded public read models, review operations, browser-local progress and a reviewed public-link intake. It does not require private document storage, learner accounts, real-time chat, a graph database or full autonomous application agents. Existing useful code should be reused after testing; unfinished sensitive routes must be disabled server-side in the public deployment.
 
 Flow: permitted source/lead → safe retrieval → draft assertions → validation/review → versioned publication → cached public projection → feed/detail/share → local progress/external handoff. A public visit does not trigger an unbounded crawl, model call or credential check. Parse/review once and reuse approved results until sources change.
+
+B01 begins from the [bounded audit](09_BASELINE_AUDIT_2026-09-24.md). Inventory all public routes and imports, then disable unsupported private/verification/action routes at the server/deployment boundary. Select the public application and required dependencies for reproducible checks; package removal is not an automatic prerequisite. Excluding an agent from workspace discovery does not remove a web route's import of it. Track excluded checks and unfinished packages explicitly, without reporting a filtered pass as monorepo success. Check manifests, runtime, lint dependencies/configuration, build-time network assets and actual type diagnostics before choosing repairs. Do not promise a fixed error count or one-day completion. A static catalogue may support an isolated labelled development demonstration; it is not proof of reviewed live inventory or a source pipeline.
 
 ## 2. Extend the canonical opportunity model
 
@@ -24,6 +28,8 @@ Use existing `Fact<T>`, versions and source references. Add these explicit conce
 | Checks | scope, outcome, actor/method, checkedAt, evidence/source version and next check; public summary separated from internal notes |
 
 Migrate singular compensation without losing its original assertion; do not sum mixed periods, currencies or tuition and monthly cash into a fictitious salary. Keep existing values readable during migration. Source-derived no-experience filters require affirmative evidence; unknown rules remain unknown. National/remote records remain accessible with local filtering controls.
+
+Affordability presentation reuses sourced compensation, attendance and location components. It introduces no guessed fares, net-income rank or hard eligibility exclusion. If later user-entered costs are trialled, keep estimates separate from source facts, align currency/period, allow unknowns and evaluate privacy/storage before implementation. That calculator is not required for M0.
 
 ## 3. Source checks and publication projection
 
@@ -65,6 +71,8 @@ Application-route opening is an independent event. User-selected stages remain r
 
 Test unavailable storage, quota failures, malformed/older schema records, clearing, multi-tab updates and intentional user removal. Use revision/time reconciliation without silently re-creating cleared work; corrupt items should not crash the feed. Local storage is origin-specific and can be unavailable or cleared, so success messages must follow successful writes and fallbacks must work. [MDN localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
 
+Describe loss on site-data removal/device change and shared-browser visibility at first save. Test external handoff and return without treating navigation as data deletion. Test actual site-data removal separately from HTTP asset-cache clearing. Public-checklist export is a fallback reference, not local-state backup, restoration or cross-device migration.
+
 On revisit, resolve merged IDs, compare viewed/public revisions and show material differences. Keep prior user stage when a listing closes. Browser-local M0 has no guaranteed background notification. A withdrawn/unsafe record must not retain an active application link in local cached content.
 
 ## 7. Sharing and metadata
@@ -73,6 +81,8 @@ Build share text from the approved current public projection. Allow user review 
 
 Serve accurate canonical URL, title, description and modest public preview imagery if used. Do not put raw submitted URLs, receipt capabilities, personal progress, invite identities or profile facts into metadata. Closed/withdrawn listings retain safe current landing states. Third-party preview caches and forwarded text cannot be recalled; include an as-of date in longer text and encourage checking the current page. No guarantee of consistent preview layout across messaging clients.
 
+Build plain-text preparation exports from the same approved current projection and reviewed checklist used on the detail page. Include source revision/check time and a separately labelled canonical detail URL and permitted official application URL. Whitelist public fields; never read local user stages, completed ticks, private notes or receipt storage into the export. Copy, text-file download, native share and WhatsApp compose reuse this public payload. Validate/encode links, handle Unicode and unavailable APIs, and report copy/download initiation accurately without claiming retention or message delivery. A record that is closed, withheld or materially changed must export its current safe state; an unavailable current record falls back to the canonical link. Previously saved external copies cannot be revoked or updated. No restore/import subsystem or personal checklist-completion model is added by this refinement.
+
 ## 8. Performance, accessibility and cost
 
 Prefer reusable static/server-rendered public content, bounded cursor pagination, compression, minimal fonts/scripts and appropriately sized optional images. Keep core source/detail text readable if enhancement fails. Do not embed live social widgets, autoplay or programmatic ad scripts in M0. Cache only approved public data; privileged review and receipt responses are private/no-store. Use explicit invalidation for safety and material content changes.
@@ -80,6 +90,8 @@ Prefer reusable static/server-rendered public content, bounded cursor pagination
 During the first delivery slice, record cold/repeat transfer size including scripts/fonts/images, requests, usability timings and memory behaviour for feed/detail/shortlist on the chosen low-end phone and constrained network. Set measured page/JS budgets and failure thresholds in release configuration; the old 100KB number is not a promise or silently assumed acceptance test. Tests must exercise load-more, back navigation, focus and interrupted requests, not just a desktop landing screenshot.
 
 Limit AI to reviewed batch extraction/explanation where useful; deterministic formatting renders saved approved facts. Cost model includes source checks, human review, corrections, hosting, status abuse and support. Set intake and workload limits with an honest paused state instead of unlimited background processing or charging learners when a limit is reached.
+
+Record ordinary browse behaviour during model unavailability and verify that approved pages do not invoke per-visit inference. This does not make hosting, source maintenance or the user's connectivity free. Measure actual transfer size and device/network behaviour; configuration region is not evidence of deployed location or carrier zero-rating. Seek a carrier arrangement only as a separately justified later option, not a launch assumption.
 
 ## 9. Migration and release checklist
 

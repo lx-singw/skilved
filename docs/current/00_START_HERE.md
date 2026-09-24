@@ -8,6 +8,12 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
+24 September implementation evidence: the [public web stabilisation record](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md) records passing scoped lint, typecheck, production build and 21 HTTP/regression tests. Prototype personal/action paths and sample listings are isolated; Home/About expose an honest preparation state. This is partial B01/S01 progress, not a completed catalogue, M0 or deployment.
+
+24 September operational adoption: the founder approved [targeted operational refinements](governance/08_OPERATIONAL_REFINEMENTS_2026-09-24.md) while preserving the ambition and six-category M0. Catalogue usefulness, local-save limits, public-checklist export, practical affordability, actionable source-faithful copy and technical stabilisation now have linked design, engineering, operations and acceptance requirements. Institutional development remains behind the existing research gates; estimates require reconciliation and no implementation is implied.
+
+24 September future direction: the [future direction and execution brief](product/04_FUTURE_DIRECTION_AND_EXECUTION.md) connects the founder's AI and international ambition to impact hypotheses, experiments and the existing M0 sequence. These are recommendations, not new launch scope or delivered capability. The [discussion coverage register](governance/07_FUTURE_DISCUSSION_COVERAGE.md) maps the substantive conversation points, clarifications, evidence and unresolved matters. The [bounded technical baseline audit](engineering/09_BASELINE_AUDIT_2026-09-24.md) records actual local checks and next engineering work.
+
 Accepted companion revision, 13 September 2026: start with the updated [M0 scope](product/03_DISCOVERY_FIRST_MVP.md), then [experience and copy](design/05_OPPORTUNITY_COMPANION_EXPERIENCE.md), [implementation contracts](engineering/04_DISCOVERY_COMPANION_IMPLEMENTATION.md), [source/contribution operations](operations/03_SOURCE_CHECKS_AND_COMMUNITY_CONTRIBUTIONS.md), [local distribution and career network](growth/04_LOCAL_DISTRIBUTION_AND_CAREER_NETWORK.md), [acceptance cases](quality/02_DISCOVERY_COMPANION_ACCEPTANCE.md) and [detailed delivery plan](planning/03_M0_COMPANION_DELIVERY_PLAN.md). The [idea/claim register](governance/06_DISCOVERY_STRATEGY_TRACEABILITY.md) traces all accepted suggestions and corrections. Scraping, reviewed posting and every category remain; institutional research follows M0.
 
 Launch sequencing update, 13 September 2026: [M0 is the discovery-first public MVP](product/03_DISCOVERY_FIRST_MVP.md), with all six categories, useful discovery shelves, saving/sharing and original-source handoff. The full career workspace follows. Institutional research starts after M0 under an explicit schedule; source accuracy, basic usability and launch controls remain pre-launch work. Earlier references to R2 as the first public MVP are superseded by this plan.
@@ -21,7 +27,7 @@ Business-model update, 12 September 2026: the consumer tier is 100% free. Priori
 5. [Sprint backlog](planning/16_SPRINT_BACKLOG.md): S01-S35 work packages and completion evidence.
 6. [Portfolio traceability](planning/01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md): design, security, operations and commercial work integrated into delivery.
 
-The next implementation step is **S01: reproduce the baseline**. Selective static review found unfinished persistence/authentication, simulated source/verification paths and access-control risks. No application build, live deployment, cloud billing audit or production security test was performed by this documentation refresh.
+The next implementation work is **remaining B01/S01 evidence and the B02 six-category contract**. The baseline has been reproduced and the scoped web foundation now passes its recorded checks. Unfinished persistence/authentication, agent wiring and infrastructure access-control findings remain relevant outside that boundary. No live deployment, cloud billing audit or production security test is established.
 
 ## Document authority and maintenance
 
@@ -52,6 +58,8 @@ Architecture, shared contracts, persistent execution, development and integratio
 - [Skilved architecture and engineering decisions](engineering/06_ARCHITECTURE.md)
 - [Data, ownership and API contracts](engineering/07_DATA_AND_API_CONTRACTS.md)
 - [Agent responsibilities and durable execution](engineering/08_AGENT_EXECUTION.md)
+- [Bounded technical baseline audit](engineering/09_BASELINE_AUDIT_2026-09-24.md)
+- [Public web stabilisation and check results](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md)
 
 ## Data
 

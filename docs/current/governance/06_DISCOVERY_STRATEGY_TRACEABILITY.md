@@ -4,6 +4,8 @@ Updated: 13 September 2026. Status: founder-authorised documentation of the rece
 
 ## 1. Authority and preserved scope
 
+24 September extension: the [operational adoption register](08_OPERATIONAL_REFINEMENTS_2026-09-24.md) records founder-authorised improvements to catalogue usefulness, local-save communication, public-checklist export, practical conditions, truthful next actions and stabilisation. Existing A01–A24 and DCF IDs remain unchanged; detailed acceptance is extended in the linked canonical specifications and delivery estimates must be reconciled.
+
 The founder approved documenting the discussed suggestions and improvements after an ideation-only period. Earlier "no docs changed" statements describe those prior turns, not a prohibition on this update. Preserve the complete career-platform direction, permitted scraping and reviewed posting, all six categories, both internship subtypes, jobs beyond entry-level, free consumer access and later career network/institutional workflows.
 
 The supplied synthesis is a record of ideas and decisions, not independent market research. The Gemini proposals contribute candidate ideas, while corrected unsupported claims do not become accepted facts merely because the founder likes the overall direction. Avoid copying private attachment paths, personal discussions or real applicant records into public-facing documents.

@@ -4,6 +4,8 @@ Updated: 13 September 2026. Status: accepted direction translated into proposed 
 
 ## 1. Experience purpose
 
+24 September operational refinement: the founder approved the useful improvements from the reviewed external critique while retaining the ambition and agreed scope. See the [adoption register](../governance/08_OPERATIONAL_REFINEMENTS_2026-09-24.md). The requirements below remain unimplemented specifications.
+
 Skilved helps people starting their careers in South Africa make sense of work and study opportunities—with clear sources, practical next steps and support that grows with them. This positioning adds value to permitted scraping, reviewed posting and the public feed. Users may browse casually without a profile, preparation plan, public participation or payment.
 
 | Feeling to earn | Observable product behaviour | How to evaluate |
@@ -41,6 +43,8 @@ The detail must answer seven questions:
 
 Suggested reading order: identity/summary → availability → key requirements → practical conditions → preparation → destination → detailed source checks/corrections. Keep check summaries visible near consequential claims; do not bury all evidence at the bottom. A sticky action, if used, must not obstruct text, keyboard focus or small screens.
 
+Practical affordability belongs with these conditions: show source-stated pay/funding period, work/study location, attendance pattern, accommodation and transport support where available. Offer a short preparation prompt to consider travel and other recurring costs. Do not invent taxi fares, infer affordable commuting from distance, predict dropout or hide otherwise relevant listings because compensation is unknown. A user-entered cost comparison is a later experiment, not an M0 calculator or mandatory net-stipend filter.
+
 ## 4. Source-check panel
 
 Call the component "Source and checks" or similarly plain language. Show the original announcement, discovery reference when useful, actual application destination, scope of each check and check time. Distinguish a working URL from issuer attribution and from confirming the intake is open. Reuse the engineering check record; never derive reassuring copy from a generic completeness score.
@@ -67,10 +71,12 @@ Examples:
 | Situation | Helpful wording | Avoid |
 |---|---|---|
 | No experience rule stated | "The announcement does not specify previous experience." | "No experience needed" |
-| Provisional results unclear | "The provider hasn't explained whether provisional results are accepted." | "You're eligible with provisional results" |
+| Provisional results unclear | "The provider has not stated whether provisional results are accepted. Check its official application guidance or ask through its published contact route." | Claiming eligibility, inventing an admissions contact or assuming a payment is required |
 | Required subject gap | "The source requires Mathematics. It does not list Maths Literacy as an alternative." | Automatically rejecting the person from every related route |
 | Missing pay | "Stipend amount not stated." | Zero, a market estimate presented as actual pay, or fabricated employer figures |
 | Closed opportunity | "This intake has closed. Explore current opportunities in this category." | Reset urgency or silently substituting a different intake |
+
+Pair important uncertainty with a truthful available action. For an unknown deadline: "No closing date was stated. Check the official application page for current availability." For unstated pay: "Stipend amount not stated. Check the source or ask the provider before making travel plans." Where no supported destination/contact exists, offer a listing report or other current opportunities. Do not imply that an intake closes at capacity, manufacture urgency, prescribe certification ages or introduce application fees without source evidence. Keep short summaries readable; put supporting detail behind clearly labelled access rather than repeating warnings everywhere.
 
 Do not display unrelated identity or financial-document requirements merely because they appear on a standard template. Explain any genuinely source-stated condition precisely and allow the person to decide what to pursue. Alternative listings are discovery suggestions, not guaranteed eligibility.
 
@@ -86,7 +92,7 @@ Keep receipt access on this browser, with an explicit shared-device notice and c
 
 Device-local progress labels: Interested, Preparing, Applied — marked by you, No longer pursuing. Record "Application route opened" as a separate dated event rather than overwriting user-selected progress. Opening again must not demote Applied. These are personal annotations, not an employer pipeline or official submission evidence.
 
-First save copy: "Saved in this browser. People using this browser may see it. Clear your saved list any time." Provide remove, undo where feasible and clear-all confirmation. No cross-device sync promise. If storage fails, say it did not save and offer copy/share; never show false success.
+First save copy: "Saved in this browser. Clearing this site's data or changing devices can lose your saved list. People using this browser may see it." Provide remove, undo where feasible and clear-all confirmation. Explain that there is no account backup or cross-device sync. Following an application link does not itself erase local progress; distinguish site-data removal from clearing cached page assets. If storage fails, say it did not save and offer copy/export/share; never show false success.
 
 On return, preserve status while displaying current availability and changes since the last viewed revision. Examples: source requirement changed, destination under review, intake closed, record merged. A closure does not erase user work. Browser-only M0 can update on revisit; push/email monitoring arrives later with opt-in controls. Clearing progress and clearing receipt access must be understandable separately or through a clearly scoped clear-all action.
 
@@ -107,6 +113,12 @@ Details as of [date]. Check current details and application route:
 ```
 
 Omit absent optional fields when that improves brevity, but do not replace them with invented facts. No "verified safe", private progress, applicant identity or receipt capability in shared text. A cancelled share is not a completed referral. Messaging clients can cache previews and forwarded text cannot be recalled; current detail pages must communicate changes and closure.
+
+### Source-checklist export
+
+M0 adds a clearly labelled "Copy or save preparation checklist" action using the reviewed public checklist. Preview source-backed requirements, unresolved facts, source-check/as-of time, canonical current Skilved page and separately labelled official application destination when currently permitted. Offer copy-text and plain-text download, with native sharing and WhatsApp compose where supported. The canonical Skilved link is labelled "Current details"; only the actual reviewed destination is labelled "Apply at source". No account, automatic messaging or document upload is required.
+
+This export contains public preparation information only: no completed ticks, personal stages, identity, annotations or receipt access. Personal progress export would need a separate explicit-selection design and acceptance; it is not silently bundled into public sharing. A static checklist is a portable reference, not a recoverable backup of local progress or live source monitoring. Copies can become stale, cannot be recalled, and do not guarantee offline use, permanent storage, delivery or data-free WhatsApp access. Preserve unknown requirements; never supply generic ID/certification rules as issuer facts. If the current record cannot be loaded, offer its canonical link without labelling stale material current. Suppress unsafe/withheld application destinations from newly generated exports.
 
 ## 9. Voice, inclusion and performance
 
