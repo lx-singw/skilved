@@ -1,6 +1,6 @@
 # M0 companion delivery plan, estimates and review gates
 
-Updated: 13 September 2026. Status: proposed inclusive effort estimate, not measured throughput or committed dates. Owner: founder/engineering/product. This is the current detailed first-public-MVP plan under [M0](../product/03_DISCOVERY_FIRST_MVP.md). Existing [S01–S35](16_SPRINT_BACKLOG.md) remain the expanded work-package portfolio; B01–B10 are delivery slices within/revising that work, not ten additional releases to add on top.
+Updated: 24 September 2026. Status: current slice allocation with historical 13 September estimates, not measured throughput or committed dates. Owner: founder/engineering/product. This plan owns B01–B10 and their estimate history under [M0](../product/03_DISCOVERY_FIRST_MVP.md). Follow the [chronological build runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) for phase/sprint/task execution and [delivery status](05_M0_DELIVERY_STATUS.md) for evidence/blockers. Existing [S01–S35](16_SPRINT_BACKLOG.md) remain the expanded work-package portfolio; B01–B10 are delivery slices within/revising that work, not ten additional releases to add on top.
 
 ## 1. Scope and order
 
@@ -22,7 +22,7 @@ Each range includes slice design, implementation, appropriate verification, docu
 | B04 | Feed/filter/detail, source panel, plain explanations and source-specific checklist/handoff | B02, public projection from B03 | S04 and bounded S06 | 20–36 h | DCF-01–06/18; core usability |
 | B05 | Device-local shortlist stages, route-open event, resume/change/clear behaviour | B04 | S04/S06/S10 | 12–20 h | DCF-11–13 |
 | B06 | Public-link intake, private receipt/status, deduplication and reviewed result | B03–B04 | S03/S04/S06 | 16–28 h | DCF-07–10; unsafe/unsupported inputs |
-| B07 | Structured share text, public source-checklist copy/download, native/WhatsApp flows and current public previews | B04 | S04/S10 | 12–24 h, pre-refinement baseline; re-estimate | DCF-14/15 and operational subcriteria; no private data, backup or delivery overclaim |
+| B07 | Structured share text, public source-checklist copy/download, native/WhatsApp flows and current public previews; re-estimate refinements | B04 | S04/S10 | 12–24 h | DCF-14/15 and operational subcriteria; no private data, backup or delivery overclaim |
 | B08 | Issuer pages, new/closing/editorial shelves and simple maintained collections | B03–B04 | S04 | 12–20 h | DCF-20; no fabricated popularity or employer ratings |
 | B09 | Cross-feature accessibility, phone/network, security/data and analytics/cost regression | B05–B08 | S10 and bounded S11 | 16–28 h | DCF-09/10/18/19/21/22/24 |
 | B10 | Six-category real-task review, operations rehearsal, deployment/rollback and first release feedback | B09, actual deployment access | S11 | 16–28 h | All exposed M0 acceptance; source/support owner and limitations |
@@ -49,7 +49,7 @@ No start date is assumed. AI-assisted gains must show in delivered work; calenda
 
 24 September implementation progress: the [public web stabilisation slice](../engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md) records the public route inventory, isolated prototype handlers/data, reproducible scoped web checks and 21 passing production-server tests. B01 remains open for deployment/configuration choices, a usable task prototype, measured budgets and reforecast. The next contract implementation is B02; this partial result does not retire any accepted M0 feature or mark S01 complete.
 
-First iteration: B01, then the highest-risk B02 contracts that fit measured capacity. Demonstrate a source-linked detail prototype, clarify the fetch/publication boundary and record known failures. Following iterations pull ready slices in dependency order; B05/B06/B07/B08 are technically separable after their dependencies but a solo founder schedules their effort sequentially unless real capacity exists.
+The runbook now decomposes each slice into four concrete tasks, with entry conditions, demos and phase exit gates. First finish remaining B01 work and record its evidence; a bounded B02 contract spike may proceed independently but cannot close the B02 gate before its prerequisites. The default sequence is B01 → B02 → B03 → B04 → B05 → B06 → B07 → B08 → B09 → B10. B05–B08 are technically separable after B03/B04, but the single-implementer plan schedules them sequentially. Split oversized objectives across actual two-week sprints; record carry-over instead of promising one whole B slice per sprint.
 
 Use the [bounded audit](../engineering/09_BASELINE_AUDIT_2026-09-24.md) to specify the first repairs. Classify exposed routes/imports, isolate unsupported sensitive functionality, select required workspace dependencies and make lint/typecheck/build reproducible. Package removal is optional engineering judgement after dependency inspection, not a blanket instruction. Record selected vs excluded checks and repair actual diagnostics, including remaining agent imports inside web routes. A build pass is only part of B01 acceptance.
 

@@ -8,6 +8,8 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
+24 September chronological execution: start with the [M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) and [current delivery status](planning/05_M0_DELIVERY_STATUS.md). They turn the agreed scope into six phases, ten ordered sprint objectives and 40 concrete tasks with dependencies, demonstrations, gates and release evidence. The [roadmap](planning/15_BUILD_ROADMAP.md) now leads with this first-MVP sequence; R0–R5 retain the full expanded ambition. Current position is P0/B01 in progress. Actual sprint dates and a revised remaining estimate still require recorded capacity and open decisions.
+
 24 September implementation evidence: the [public web stabilisation record](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md) records passing scoped lint, typecheck, production build and 21 HTTP/regression tests. Prototype personal/action paths and sample listings are isolated; Home/About expose an honest preparation state. This is partial B01/S01 progress, not a completed catalogue, M0 or deployment.
 
 24 September operational adoption: the founder approved [targeted operational refinements](governance/08_OPERATIONAL_REFINEMENTS_2026-09-24.md) while preserving the ambition and six-category M0. Catalogue usefulness, local-save limits, public-checklist export, practical affordability, actionable source-faithful copy and technical stabilisation now have linked design, engineering, operations and acceptance requirements. Institutional development remains behind the existing research gates; estimates require reconciliation and no implementation is implied.
@@ -156,6 +158,9 @@ Phases, conditional timelines, delivery work packages and cross-discipline gates
 
 - [Portfolio traceability and delivery governance](planning/01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md)
 - [Requirement-to-delivery matrix](planning/02_REQUIREMENT_DELIVERY_MATRIX.md)
+- [M0 delivery slices and estimate history](planning/03_M0_COMPANION_DELIVERY_PLAN.md)
+- [Chronological M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
+- [M0 delivery status, decisions and evidence](planning/05_M0_DELIVERY_STATUS.md)
 - [Full build roadmap: prototype to enduring career platform](planning/15_BUILD_ROADMAP.md)
 - [Sprint backlog and delivery work packages](planning/16_SPRINT_BACKLOG.md)
 

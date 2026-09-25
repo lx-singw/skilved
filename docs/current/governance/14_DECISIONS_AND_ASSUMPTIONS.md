@@ -4,6 +4,8 @@ Date: 11 September 2026. Status: current planning baseline; not a claim of imple
 
 ## Authority and interpretation
 
+24 September execution clarification: the founder requested a clear, comprehensive chronological phase/sprint path to a working MVP and authorised documentation fixes. The [M0 runbook](../planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) now specifies P0–P5, B01a–B10d, handoffs and gates; the [status record](../planning/05_M0_DELIVERY_STATUS.md) owns evidence and unresolved decisions. This implements the agreed scope in planning. It does not confirm weekly capacity, budget, source/deployment access or a launch date. R2 remains the expanded consumer release, not the first MVP.
+
 The founder asked for a comprehensive plan covering the full ambition, declined to impose a scope cap, and delegated unanswered product/planning choices to the assistant. This authorises recommendations and documentation work. It does not establish unlimited money, weekly availability, customer demand, external permissions or proven superiority.
 
 Use these labels throughout the documentation:

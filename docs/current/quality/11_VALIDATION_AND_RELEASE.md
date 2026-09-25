@@ -2,6 +2,8 @@
 
 Accepted companion acceptance, 13 September 2026: [DCF-01–24](02_DISCOVERY_COMPANION_ACCEPTANCE.md) specify M0 source/requirement clarity, local continuity, sharing, safe suggestion intake and operating evidence. DCF-23 gates later social release. These cases are NOT RUN; the documentation checker only validates document structure and planning arithmetic.
 
+24 September execution clarification: use the [M0 runbook](../planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) for task-to-gate allocation and the [status record](../planning/05_M0_DELIVERY_STATUS.md) for actual evidence. The [web stabilisation checks](../engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md) provide partial local DCF-22 boundary evidence; they do not complete a full DCF case or REL-M0. Full M0 acceptance remains open.
+
 13 September sequencing: the [M0 acceptance scope](../product/03_DISCOVERY_FIRST_MVP.md) governs the discovery-first public release. Apply checks to all exposed routes/data and disable unfinished sensitive endpoints at the server/deployment boundary. Full private-record, agent, sharing-of-evidence and institutional checks remain mandatory before those capabilities open, but are not requirements to implement those features for M0. No broad institutional study or payment is a discovery-launch gate.
 
 Status: required future evidence, 11 September 2026. No test suite, production deployment or security certification was executed as part of the documentation refresh.
@@ -71,6 +73,8 @@ Test deployed configuration separately with controlled accounts. Never use destr
 External review may be necessary for the enabled data/institutional scope; use a concrete scope/quote rather than historical arbitrary audit prices.
 
 ## 5. Critical browser journeys
+
+For first-release M0, execute the signed-out/local-progress/public-suggestion journeys in DCF-01–22/24 and the runbook, including their operational refinements. The signed-in document/evidence/agent journeys below apply when those later capabilities are enabled; they do not silently require learner accounts at M0. Operator identity and receipt access still require their own negative tests before exposure.
 
 | Journey ID | Procedure | Required result |
 |---|---|---|
@@ -163,6 +167,7 @@ Record release result and observed issues; do not mark a phase complete until re
 
 | Gate | Required outcome | Explicitly insufficient |
 |---|---|---|
+| **REL-M0** | Runbook G0–G5; complete M0-A–G across six categories, source review/correction, local progress, safe suggestions, public sharing/export, measured usability/cost, operable notices/support, tested deployment/recovery and initial operating evidence | Empty catalogue, fixture-only demo, green build, unchecked sprint boxes or a limited release missing accepted M0 functions |
 | **REL-R0** | Honest inventory, unsafe demo paths isolated, ownership/rules fixed or disabled, six-category contracts, reproducible local checks | A new architecture diagram or claimed audit score |
 | **REL-R1** | Invited users complete supervised persisted journey; source provenance, task recovery and support process work | Interest, a waitlist or a staged screenshot |
 | **REL-R2** | Public six-category journey, source maintenance, security negative tests, scoped sharing/export/deletion, monitored deployment and restore drill | A green build without live-configuration checks |
@@ -172,6 +177,8 @@ Record release result and observed issues; do not mark a phase complete until re
 
 R0–R2 delivery estimates in the roadmap include validation, source curation and customer work. Do not add a second copy of engineering estimates.
 Phases are capability/evidence gates. No dates become commitments until capacity, dependencies and observed throughput justify them.
+
+REL-M0 is the first-public-MVP gate; REL-R2 is the expanded consumer release gate. G0–G4 govern progressively integrated local/staging evidence; G5 closes only after the actual release decision, production smoke and initial operating review. A failed critical test blocks affected exposure and full-M0 completion. Restore/rollback must replay deletion and withdrawal safeguards so an older artifact or projection does not restore unsafe data. Full source/privacy/agent checks are allocated to the capabilities actually enabled, with exclusions explicitly recorded.
 
 ## 13. Release evidence checklist IDs
 

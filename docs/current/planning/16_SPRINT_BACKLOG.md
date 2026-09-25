@@ -1,8 +1,14 @@
 # Sprint backlog and delivery work packages
 
-Accepted companion update, 13 September 2026: execute [B01–B10](03_M0_COMPANION_DELIVERY_PLAN.md) for [M0-A–G](../product/03_DISCOVERY_FIRST_MVP.md) before the full career workspace. These detailed slices replace the earlier five-group launch outline and draw from S01–S04/S06/S10/S11. The proposed M0 estimate is 160–288 inclusive hours, subject to B01/S01 audit and overlap reconciliation. Source panels, faithful explanations, local progress, structured sharing and safe public-link intake are accepted M0 work. Later trends, full accounts/agents and the social network retain their separate gates. Existing S-package ranges remain the earlier expanded-portfolio baseline, not an additional M0 bill or first-launch promise.
+## Active MVP sprint execution — 24 September 2026
 
-Date: 11 September 2026. Status: proposed, uncalibrated backlog. All packages start **NOT STARTED / baseline unverified** unless completion evidence is subsequently linked.
+Use the [chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) for the next build: P0–P5, B01a–B10d, ordered sprint objectives, dependencies, demonstrations and gates. Use the [delivery status](05_M0_DELIVERY_STATUS.md) for completed evidence and blockers. The S01–S35 catalogue below remains the expanded portfolio and is credited for any subcriteria M0 completes; it is not a second first-launch sequence.
+
+Current status: B01/S01 have partial local stabilisation evidence; neither is complete. All other B slices lack completion evidence. Full S02 learner authentication, S05 documents and S07–S09 personal agents are later expanded work; M0 still needs protected operator identity, public/private data separation and safe source execution. Follow the runbook's bounded dependencies for those controls.
+
+Accepted companion update, 13 September 2026: execute [B01–B10](03_M0_COMPANION_DELIVERY_PLAN.md) for [M0-A–G](../product/03_DISCOVERY_FIRST_MVP.md) before the full career workspace. These detailed slices replace the earlier five-group launch outline and draw from S01–S04/S06/S10/S11. The 160–288 inclusive-hour estimate is the historical pre-refinement baseline, subject to remaining-task reforecast and overlap reconciliation. Source panels, faithful explanations, local progress, structured sharing and safe public-link intake are accepted M0 work. Later trends, full accounts/agents and the social network retain their separate gates. Existing S-package ranges remain the earlier expanded-portfolio baseline, not an additional M0 bill or first-launch promise.
+
+Updated: 24 September 2026. Status: expanded backlog with partial S01/B01 evidence linked above; no full S package is completed. The 11 September package ranges and 13 September M0 range are historical baselines awaiting remaining-work reforecast, including adopted refinements.
 
 ## Sprint method
 
@@ -10,7 +16,7 @@ Use two-week review iterations. The reference capacity is 20 gross hours/week wi
 
 Every package includes design, implementation, appropriate tests, documentation and feedback work in the stated range. These hours are the same inclusive hours in the roadmap. Do not add AI-agent estimates or separate QA allocations to them again. External waiting time is separately tracked. Owner defaults to founder/implementer; a named reviewer/customer/coordinator is a dependency, not an assumed employee.
 
-For every issue record: package ID, requirement ID, owner, dependency, estimate, acceptance test, evidence link, cost impact and current status. Translate product/engineering IDs from the linked canonical specifications into implementation issues as work begins.
+For every issue record: task/package ID, requirement ID, owner, dependency, remaining estimate, acceptance test, evidence link, actual effort, cost impact and current status. The runbook provides 40 concrete M0 task IDs to use in implementation issues; the status record provides the actual timebox template. Carry over unfinished work explicitly and shift dependent plans when a gate fails.
 
 ## R0: foundation (50–80 hours)
 
@@ -83,7 +89,7 @@ For every issue record: package ID, requirement ID, owner, dependency, estimate,
 - **Exit:** observed preparation, error log, corrected problems and first recipient feedback.
 - **Risk:** enthusiasm hides friction; measure successful tasks rather than only asking whether users like it.
 
-## R2: public MVP (140–220 hours)
+## R2: expanded consumer release (140–220 historical hours)
 
 ### S07 — Durable personal missions (30–45 h)
 

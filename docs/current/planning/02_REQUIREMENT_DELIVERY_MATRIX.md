@@ -10,6 +10,8 @@ A requirement may begin as a small usable capability and mature in a later packa
 
 M0 subcriteria are traced through [24 DCF acceptance cases](../quality/02_DISCOVERY_COMPANION_ACCEPTANCE.md), [24 accepted-idea records](../governance/06_DISCOVERY_STRATEGY_TRACEABILITY.md) and [B01–B10 delivery slices](03_M0_COMPANION_DELIVERY_PLAN.md). These refine the families below without duplicating their canonical allocation. Browser-local stages and anonymous suggestions do not silently enable the signed-in private career workspace.
 
+The [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) maps every M0-A–G scope row to implementing tasks/slices and DCF evidence, including the 24 September operational refinements. The [status record](05_M0_DELIVERY_STATUS.md) separates that coverage from completed acceptance. Use those bounded M0 mappings before the full S-package dependencies in this expanded matrix.
+
 | Requirement | Capability | Packages | Completion evidence focus |
 |---|---|---|---|
 | PRD-001 | Open opportunity browsing | S04 | Public discovery and source detail |

@@ -57,6 +57,8 @@ The minimum observed task covers find/understand/save/handoff, one source uncert
 
 ## 3. Evidence record and stop conditions
 
+Use the [chronological runbook](../planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) for the implementing B task and phase gate, and [delivery status](../planning/05_M0_DELIVERY_STATUS.md) for actual results. DCF-01–22 and DCF-24 are mapped to M0-A–G and responsible slices there. Existing local web boundary tests are partial DCF-22 evidence only; no complete M0 case is declared passed by this planning update.
+
 For each case record build/commit, environment/config, fixture/source version, method, date, result, evidence path, reviewer and unresolved issue. Use synthetic malicious/boundary fixtures; never probe a third party without authorisation. Application/security tests are implementation work; this documentation update does not run them.
 
 Block the affected public release for fabricated material facts, misleading check/submission claims, exposed private data, unsafe fetch paths, inaccessible core actions, broken critical application handoff or lack of operable correction controls. Ordinary noncritical presentation defects can have named follow-up owners and honest limitations. Do not hide a missing accepted slice behind a passing aggregate score.

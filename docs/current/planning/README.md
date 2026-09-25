@@ -1,10 +1,13 @@
 # Planning documentation
 
-Updated: 11 September 2026. Phases, conditional timelines, delivery work packages and cross-discipline gates.
+Updated: 24 September 2026. Phases, chronological M0 tasks, capacity-sized sprints, delivery status and cross-discipline gates.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
 ## Documents
+
+- **Start building:** [Chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
+- **Check progress:** [Current M0 delivery status and blockers](05_M0_DELIVERY_STATUS.md)
 
 - [M0 detailed delivery B01–B10 and estimates](03_M0_COMPANION_DELIVERY_PLAN.md)
 - [Portfolio traceability and delivery governance](01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md)
@@ -14,4 +17,4 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Using this discipline
 
-Apply the relevant specifications within the [delivery work packages](../planning/16_SPRINT_BACKLOG.md), record actual results and update the [decision register](../governance/14_DECISIONS_AND_ASSUMPTIONS.md) when material assumptions change. Return to the [complete index](../00_START_HERE.md).
+Execute P0–P5/B01–B10 through the runbook first, with actual two-week sprint commitments recorded against capacity. Credit completed work to the [expanded work packages](16_SPRINT_BACKLOG.md), record evidence/status and update the [decision register](../governance/14_DECISIONS_AND_ASSUMPTIONS.md) when material assumptions change. The old portfolio estimates are historical baselines, not a competing first-MVP schedule. Return to the [complete index](../00_START_HERE.md).

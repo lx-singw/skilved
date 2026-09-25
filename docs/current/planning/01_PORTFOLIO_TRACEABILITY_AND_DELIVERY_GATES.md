@@ -1,6 +1,6 @@
 # Portfolio traceability and delivery governance
 
-Date: 11 September 2026. Status: planning control. [Roadmap](15_BUILD_ROADMAP.md) is the numerical schedule authority; [sprint backlog](16_SPRINT_BACKLOG.md) contains S01–S35 work packages.
+Updated: 24 September 2026. Status: planning control. [Roadmap](15_BUILD_ROADMAP.md) owns release order/capacity; the [chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) owns first-MVP task order; [delivery status](05_M0_DELIVERY_STATUS.md) owns current evidence. The [sprint backlog](16_SPRINT_BACKLOG.md) retains S01–S35 expanded work packages. Numerical history remains in the roadmap and [B-slice plan](03_M0_COMPANION_DELIVERY_PLAN.md), pending reforecast.
 
 ## Integrated workstreams
 
@@ -22,13 +22,15 @@ These cross-cutting controls are part of the relevant feature acceptance. Do not
 
 ## Phase gates
 
-R0 establishes what runs and who owns data. R1 proves a supervised source-to-preparation journey. R2 releases the public MVP with all six categories and bounded persistent assistance. R3 tests useful collaboration and paying programme workflows. R4 deepens institutional evidence and accepted integrations. R5 is conditional country/sector/platform expansion. Phase completion means its scoped evidence exists; it does not mean national market leadership.
+M0 is the first public MVP. Its phases are P0 foundation, P1 trusted catalogue, P2 useful discovery, P3 local continuity/suggestions/sharing/issuer discovery, P4 candidate qualification and P5 launch/stabilisation, with G0–G5 and REL-M0 evidence gates. Execute B01–B10 under the runbook; all M0-A–G behaviours and six categories remain required.
 
-The full portfolio is 1,290–2,180 estimated effort hours; through R2 is 290–460. At the illustrative 20 gross hours/week and 25% unallocated contingency, 15 hours/week are planned, placing R2 around 20–31 weeks before additional external waits. These are planning judgements, not a founder availability commitment. S01–S35 are work packages reviewed in two-week iterations, not thirty-five guaranteed two-week sprints.
+After crediting completed M0 work, remaining R0 establishes expanded ownership foundations; R1 proves a supervised source-to-personal-preparation journey; R2 delivers the expanded consumer workspace with bounded persistent assistance. R3 tests useful collaboration and paying programme workflows. R4 deepens institutional evidence and accepted integrations. R5 is conditional country/sector/platform expansion. Phase completion means its scoped evidence exists; it does not mean national market leadership.
+
+The historical 11 September expanded portfolio was estimated at 1,290–2,180 hours; through R2 at 290–460. Its 20–31-week reference R2 scenario used 20 gross hours/week and 25% reserve. These are not current first-MVP estimates or founder availability commitments. Reforecast remaining M0 tasks and later overlaps once; do not add them to the old totals. S01–S35 and the ten M0 sprint objectives are work allocations reviewed in two-week timeboxes, not guaranteed counts of completed sprints.
 
 ## Traceability rules
 
-Every implementation ticket links to a PRD identifier, work package, relevant contract/design, acceptance cases and evidence destination. Every new public claim links to evidence. Every material risk links to a mitigation ticket or an explicit residual-risk decision. Every external dependency has a fallback and a gate at which it becomes blocking.
+Every implementation ticket links to its B task (for M0), M0/PRD family, S-package home, relevant contract/design, acceptance cases and evidence destination. The runbook's scope/acceptance table supplies the M0 mapping; the status record assigns unresolved dependency owners and deadlines. Every new public claim links to evidence. Every material risk links to a mitigation ticket or an explicit residual-risk decision. Every external dependency has a fallback and a gate at which it becomes blocking.
 
 Maintain this ticket template: ID/title; user problem; PRD; work package; dependencies; data/permission effects; implementation notes; acceptance; tests; estimate/actual hours; owner; evidence; release; known limitations. Avoid creating tickets solely to mirror every paragraph in a policy.
 

@@ -1,14 +1,33 @@
 # Full build roadmap: prototype to enduring career platform
 
+## Current execution order — 24 September 2026
+
+**Build M0 first using the [chronological build runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md), starting at the [current status and blockers](05_M0_DELIVERY_STATUS.md).** It contains ten ordered sprint objectives, 40 concrete implementation tasks, entry conditions, demonstrations, phase gates and release evidence. The table below is the first-MVP phase map; the R0–R5 sections retain the expanded platform portfolio after the applicable M0 work is credited.
+
+| First-MVP phase | Required order | Working output / exit |
+|---|---|---|
+| P0 Foundation | Finish B01 | Reproducible checks/CI, isolated routes, chosen configuration, prototype and initial budgets; G0 |
+| P1 Trusted catalogue | B02 → B03 | Six-category contract, persistent permitted source/review/publication and protected operator controls; G1 |
+| P2 Useful discovery | B04 | Reviewed feed/filter/detail/checklist/report and original-source handoff; G2 |
+| P3 Continuity and reach | B05 → B06 → B07 → B08 | Local progress, safe public-link suggestions, public exports/sharing, issuer pages and shelves; G3 |
+| P4 Release candidate | B09 | Integrated source/security/browser/device/cost checks, actual notices and rehearsed operations; G4 |
+| P5 Launch and stabilise | B10 | Real-task evidence, authorised production promotion, smoke/rollback and initial operating observation; G5 / REL-M0 |
+
+Current position: **P0/B01 in progress**. Local web checks and 21 boundary tests have [recorded evidence](../engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md); real inventory, full features and deployment are not established. S01 is not complete. Finish the open B01 tasks, then the B02 contract; record partial work honestly rather than resetting completed foundation work.
+
+Use two-week actual sprints sized to confirmed capacity. Sprint objectives may require more than one timebox; task estimates, carry-over and gates determine the schedule. The runbook's ten objectives are not a fixed twenty-week promise. No dated launch is ready until the remaining-task estimate and external access/capacity are recorded. The historical numerical tables below remain comparison baselines, not a current M0 quotation.
+
+Document roles: product M0-A–G owns scope; this roadmap owns release order and capacity method; the B01–B10 delivery plan owns slice/estimate history; the chronological runbook owns implementation sequence; the status record owns current evidence/blockers; DCF/release policy owns acceptance. S01–S35 remain broader work packages, not a competing instruction to implement full accounts before public discovery.
+
 ## 13 September launch sequencing revision
 
 The [discovery-first M0 specification](../product/03_DISCOVERY_FIRST_MVP.md) defines the first public MVP. Launch permitted scraping/reviewed posting, six-category discovery, scoped source checks and faithful explanations, local saved progress, structured sharing, reviewed public-link intake, issuer pages and useful shelves before the full career workspace. Broader institutional research begins after M0. Source, usability and operating checks for exposed features remain launch work.
 
-M0 draws bounded slices from S01–S04/S06/S10/S11. Its critical path is `reproduce and isolate public surface → permitted catalogue/review → browse/details/handoff → saves/shares/issuer shelves → exposed-feature controls and release`. It does not require full profile/document storage, durable agents, a partner contract or a paying institution. Preserve the existing R0–R5 portfolio below, but interpret R2 as the expanded consumer release, not the first public launch.
+M0 draws bounded slices from S01–S04/S06/S10/S11. Its critical path is `public foundation → canonical contracts → persistent permitted catalogue/review → browse/details/report/handoff → local progress/safe suggestions/public exports/issuer shelves → integrated qualification → deployment and operating evidence`. It does not require full profile/document storage, durable personal agents, a partner contract or a paying institution. Protected operator access and bounded source jobs are still required. Preserve the existing R0–R5 portfolio below, but interpret R2 as the expanded consumer release, not the first public launch.
 
-The numerical tables below are the 11 September expanded-portfolio baseline. The [detailed M0 delivery plan](03_M0_COMPANION_DELIVERY_PLAN.md) now provides B01–B10 and a proposed 160–288 inclusive-hour estimate, with conditional calendar scenarios. S01/B01 must reforecast from working code and reconcile overlap with the remaining portfolio before promising a date. Do not add M0 to the old total or claim that total includes every revised feature. The [staged career network](../growth/04_LOCAL_DISTRIBUTION_AND_CAREER_NETWORK.md) remains in R3–R4+ and later conditional work.
+The numerical tables below are the 11 September expanded-portfolio baseline. The [detailed M0 delivery plan](03_M0_COMPANION_DELIVERY_PLAN.md) provides B01–B10 and the 13 September pre-refinement 160–288 inclusive-hour estimate, with historical conditional calendar scenarios. B01 must reforecast remaining tasks from working code and the 24 September refinements, reconciling overlap with the remaining portfolio before promising a date. Do not add M0 to the old total or claim that total includes every revised feature. The [staged career network](../growth/04_LOCAL_DISTRIBUTION_AND_CAREER_NETWORK.md) remains in R3–R4+ and later conditional work.
 
-Date: 11 September 2026. Status: proposed execution baseline under delegated founder judgement.
+Updated: 24 September 2026. Status: chronological M0 execution specification plus retained 11 September expanded-portfolio estimates under delegated founder judgement.
 
 This roadmap preserves the full ambition. Releases are delivery boundaries, not a cap on the eventual product. No release is declared completed by writing this document. Calendar estimates are conditional; no new competition date, weekly capacity, cloud credit balance or customer contract has been supplied.
 
@@ -22,8 +41,9 @@ The full portfolio includes practical logs, team contributions, references, asse
 
 ## How to read the plan
 
-- **R0–R5** are cumulative product releases. A later release includes the earlier useful capabilities.
-- **S01–S35** are ordered delivery work packages, scheduled through iterative sprints. A work package may span more than one two-week iteration.
+- **M0 / P0–P5 / B01–B10** describe the first public release, its phases and delivery slices. Use the runbook for their task order and the status record for evidence.
+- **R0–R5** are cumulative expanded capability releases. Credit completed M0 work and implement the remaining prerequisites; do not rebuild it or require every R0/R1 feature before M0.
+- **S01–S35** are expanded delivery work packages, scheduled through iterative sprints. A work package may span more than one two-week iteration. Their full private-account dependencies apply to the expanded journey; the runbook defines bounded M0 dependencies.
 - Effort includes implementation, tests, source curation, user research, documentation, release work and initial sales/support relevant to the package. Do not add separate agent estimates a second time.
 - External waiting time, partner procurement, seasonal opportunity supply and sustained outcome observation are separate from hands-on effort.
 - Targets are proposed acceptance thresholds or experiments, not evidence of competitor weakness or guaranteed business outcomes.
@@ -39,7 +59,7 @@ Formula: `calendar weeks = ceiling(inclusive effort hours / (gross weekly hours 
 
 The first two iterations establish actual throughput. Reforecast after each release and when scope or capacity changes. No dated schedule is valid until a start date and capacity are chosen.
 
-## Release map and estimated effort
+## Expanded release map and historical estimated effort
 
 | Release | Purpose and user-visible result | Work packages | Additional effort | Cumulative effort |
 |---|---|---|---:|---:|
@@ -54,7 +74,7 @@ These are initial judgement ranges, not measured estimates or a quotation. The l
 
 ATS clarification, 12 September 2026: the [dedicated ATS strategy](../engineering/03_ATS_ADAPTER_STRATEGY.md) places source tracing/detection in S03–S04 and route-aware preparation in S05–S06. Delegated submission remains a bounded conditional S26 investment, with R2 reliability and route-specific readiness as prerequisites. A justified earlier pilot requires explicit reprioritisation and re-estimation; this clarification does not change phase totals or promise platform-wide coverage.
 
-## Calendar scenarios from a chosen start
+## Historical expanded-portfolio calendar scenarios from a chosen start
 
 | Cumulative release | 10 gross h/week (7.5 planned) | 20 gross h/week (15 planned) | 35 gross h/week (26.25 planned) |
 |---|---:|---:|---:|

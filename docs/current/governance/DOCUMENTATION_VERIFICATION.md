@@ -8,11 +8,19 @@ This verification checks current Markdown structure, local link targets, preserv
 
 The current set contains discipline specifications and navigation guides. Legacy files are bridges or explicitly retained dated materials. Historical archive contents are preserved byte-for-byte and are intentionally excluded from current-content link/format expectations; their original defects remain historical evidence.
 
+## 24 September chronological roadmap review
+
+The first-MVP roadmap now leads with P0–P5 and G0–G5/REL-M0. The chronological runbook defines ten ordered sprint objectives and 40 B-task definitions, with dependencies, implementation outputs, demonstrations and acceptance. A separate delivery-status record identifies partial B01 evidence and nine owned decisions/dependencies. The portfolio governance and backlog no longer identify R2 as the first public MVP. R0–R5, all six opportunity categories, seven M0 scope areas and the full future ambition remain preserved.
+
+Validation during this review checked 156 active Markdown files and 1,027 local file links with no missing targets; all 70 archived copies matched their manifest hashes/byte counts. Existing PRD-001–064 definitions/mappings, S01–S35, A01–A24, DCF-01–24 and B01–B10 remained intact. The historical phase/M0 totals and calendar arithmetic passed. Additional checks confirmed six ordered M0 phases, ten sprint objectives, 40 unique ordered task definitions, all seven M0 scope rows, ten status rows and nine dependency records. Changed Markdown passed whitespace checks. These counts describe this review snapshot, not a product-quality score.
+
+The normal PowerShell checker invocation was blocked by the Windows signature policy for the UNC-hosted script; no policy was changed. Equivalent read-only checks ran successfully through a one-off Python process in Ubuntu WSL, including archive hashes, links, identifiers, arithmetic, task coverage and formatting. The existing checker does not yet validate the new runbook task/status structure; those checks were performed separately in this review. The saved September 13 JSON/results below remain historical and were not overwritten. No application code, application tests, provisioning or deployment was part of this documentation-only review.
+
 ## Reproducible checks
 
 Run the documentation checker from the repository using PowerShell 7: `pwsh -NoProfile -File docs/tools/check-documentation.ps1`. It is read-only and returns JSON. It checks local Markdown link file targets, not remote URL availability or every rendered anchor. It also checks the accepted-idea/DCF/slice identifiers and M0 estimate/calendar arithmetic. Also run `git diff --check -- README.md CLAUDE.md docs` for whitespace errors in tracked changes.
 
-## Results
+## Historical results — 13 September 2026
 
 | Check | Result |
 |---|---|
