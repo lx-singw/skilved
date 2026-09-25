@@ -13,6 +13,9 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Skilved architecture and engineering decisions](06_ARCHITECTURE.md)
 - [Data, ownership and API contracts](07_DATA_AND_API_CONTRACTS.md)
 - [Agent responsibilities and durable execution](08_AGENT_EXECUTION.md)
+- [Environment schema and configuration specification](11_ENVIRONMENT_SCHEMA_AND_CONFIGURATION.md)
+- [Deployment and runtime decision record (DEP-02)](12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)
+- [Performance envelopes, numeric budgets, and M0 delivery reforecast (DEP-01, DEP-04, DEP-09)](13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md)
 
 ## Using this discipline
 

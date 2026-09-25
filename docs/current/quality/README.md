@@ -9,6 +9,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Discovery companion acceptance cases DCF-01–24](02_DISCOVERY_COMPANION_ACCEPTANCE.md)
 - [Test case catalogue and evidence templates](01_TEST_CASE_CATALOGUE.md)
 - [Validation, security gates and release evidence](11_VALIDATION_AND_RELEASE.md)
+- [Gate G0 foundation evidence bundle (25 September 2026)](evidence/m0/2026-09-25-b01-foundation/README.md)
 
 ## Using this discipline
 

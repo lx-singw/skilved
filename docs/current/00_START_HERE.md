@@ -62,6 +62,7 @@ Architecture, shared contracts, persistent execution, development and integratio
 - [Agent responsibilities and durable execution](engineering/08_AGENT_EXECUTION.md)
 - [Bounded technical baseline audit](engineering/09_BASELINE_AUDIT_2026-09-24.md)
 - [Public web stabilisation and check results](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md)
+- [Deployment and runtime decision record (DEP-02)](engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)
 
 ## Data
 
