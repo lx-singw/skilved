@@ -1,6 +1,6 @@
 # Performance Envelopes, Numeric Budgets, and M0 Delivery Reforecast
 
-Date: 2026-09-25. Status: CONFIRMED.
+Date: 2026-09-25. Status: PROVISIONAL PLANNING SCENARIO (Subject to formal Founder availability & start date confirmation).
 Authority: Task B01d, M0 Chronological Build Runbook. Resolves DEP-01, DEP-04, and DEP-09.
 
 ## 1. Context and Target Environment
@@ -56,28 +56,35 @@ Usability observation is conducted using the dedicated, self-contained task harn
 - **Visual Safeguard:** Labelled banner `[LABELED TASK PROTOTYPE — FOR USABILITY OBSERVATION ONLY — NOT CONNECTED TO PRODUCTION CATALOGUE]`.
 - **Observed Flow:** Discovery feed scan -> Category & province filtering -> Detail modal inspection (7 questions & preparation checklist) -> Simulated external application handoff with scam-advisory warning.
 
-## 6. Revised M0 Remaining-Effort Capacity Reforecast (DEP-09)
+## 6. Revised M0 Remaining-Effort Capacity Reforecast (DEP-09) — Provisional Planning Scenario
+
+> [!NOTE]
+> **Planning Basis:** Provisional Planning Scenario (Subject to formal Founder availability & start date confirmation).
 
 The historical pre-refinement estimate (160–288h) is reconciled into an evidenced task-level reforecast:
 - **Available Working Capacity:** 20 gross hours/week.
 - **Contingency / Interruption Reserve:** 25% (5 hours/week reserved for uncertainty and external waits).
 - **Net Productive Velocity:** 15 net task hours/week (30 net task hours per 2-week sprint).
-- **Total M0 Remaining Effort:** 196 net task hours across 6.5 sprints (13 calendar weeks).
+- **Total M0 Remaining Effort:** 196 net task hours across 7 two-week sprints (14 calendar weeks = 210 h net capacity; each sprint <= 30 h).
+- **Unallocated Operational Buffer:** 14 net hours reserved across the 14-week delivery window (210h capacity - 196h task effort), accommodating review waits and operational stabilization.
 
-### Remaining Sprint Allocation Breakdown (Sprints 2 to 7.5)
+### Remaining Sprint Allocation Breakdown (Sprints 2 to 8 — Provisional Planning Scenario)
 
 | Sprint | Slice(s) | Calendar Dates | Net Hours | Scope Focus & Deliverables |
 |---|---|---|---|---|
 | **Sprint 2** | B02a–B02d | Oct 09 – Oct 23, 2026 | 24 h | Canonical 6-category schema, requirement logic, whitelist projection, test fixtures |
 | **Sprint 3** | B03a–B03d | Oct 23 – Nov 06, 2026 | 30 h | Source register, bounded crawler adapter, operator review/publish, public read API |
 | **Sprint 4** | B04a–B04d | Nov 06 – Nov 20, 2026 | 28 h | Usable discovery feed, 7-question detail, checklist, handoff, operator report route |
-| **Sprint 5** | B05 & B06 | Nov 20 – Dec 04, 2026 | 34 h | Browser-local shortlist continuity (16h) + Public-link suggestions & receipts (18h) |
-| **Sprint 6** | B07 & B08 | Dec 04 – Dec 18, 2026 | 32 h | Public checklist export & sharing (16h) + Issuer pages & editorial shelves (16h) |
-| **Sprint 7** | B09 & B10a–b | Dec 18 – Jan 01, 2027 | 30 h | Candidate qualification, performance budgets, accessibility + user observation |
-| **Sprint 7.5** | B10c–B10d | Jan 01 – Jan 08, 2027 | 18 h | Production promotion, smoke verification, rollback readiness, initial operating window |
-| **Total** | **B02–B10** | **Oct 09 – Jan 08, 2027** | **196 h** | **Complete M0 MVP Release (Gate G4 & REL-M0)** |
+| **Sprint 5** | B05 & B06 (Part 1) | Nov 20 – Dec 04, 2026 | 30 h | Browser-local shortlist continuity (16h) + Public-link suggestions intake & validation (14h) |
+| **Sprint 6** | B06 (Part 2), B07 & B08 (Part 1) | Dec 04 – Dec 18, 2026 | 30 h | Public-link receipts & review status (4h) + Public checklist export & sharing (16h) + Issuer directory & pages (10h) |
+| **Sprint 7** | B08 (Part 2) & B09 | Dec 18 – Jan 01, 2027 | 30 h | Editorial shelves & task coverage (6h) + Candidate qualification, performance budgets & accessibility observation (24h) |
+| **Sprint 8** | B10a–B10d | Jan 01 – Jan 15, 2027 | 24 h | Production promotion, smoke verification, rollback readiness & 7-day operating observation window (24h task effort + 6h sprint reserve) |
+| **Total** | **B02–B10** | **Oct 09 – Jan 15, 2027** | **196 h** | **Complete M0 MVP Release (Gate G4 & REL-M0) across 14 calendar weeks (210 h net capacity)** |
 
-## 7. Dated Plan for Sprint 2 B02 (DEP-01)
+## 7. Dated Plan for Sprint 2 B02 (DEP-01) — Provisional Planning Scenario
+
+> [!NOTE]
+> **Planning Basis:** Provisional Planning Scenario (Subject to formal Founder availability & start date confirmation).
 
 Sprint 2 establishes the canonical domain schemas and persistence projections:
 - **Timebox:** 9 October 2026 – 23 October 2026 (2 weeks).
@@ -86,7 +93,7 @@ Sprint 2 establishes the canonical domain schemas and persistence projections:
 
 | Task ID | Net Hours | Concrete Task Deliverable |
 |---|---|---|
-| **B02a** | 6 h | Consolidate canonical category enum (`bursary`, `learnership`, `apprenticeship`, `internship`, `graduate-programme`, `job`) and runtime schema validation across web, worker, and store. Add internship subtypes (student/WIL vs graduate). |
+| **B02a** | 6 h | Consolidate canonical category enum (`bursary`, `learnership`, `apprenticeship`, `internship`, `graduate_programme`, `job`) and runtime schema validation across web, worker, and store. Add internship subtypes (student/WIL vs graduate). |
 | **B02b** | 8 h | Implement source-linked facts, requirements with AND/OR/conditional logic, deadline uncertainty, compensation components, and strict whitelist public projection. |
 | **B02c** | 6 h | Specify versioned public read contracts (`/api/v1`), pagination/filter semantics, Firestore document schema, indexes, and upgrade/rollback compatibility. |
 | **B02d** | 4 h | Implement labelled 6-category test fixtures, unknown/conflicting edge cases, validation rejection tests, and projection privacy assertions. |
