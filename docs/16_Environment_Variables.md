@@ -6,7 +6,7 @@ Updated: 11 September 2026. The original hackathon document is preserved in the 
 
 Inventory actual variables and public/server classification; never expose secret values.
 
-Read the [current specification](current/engineering/01_DEVELOPER_WORKFLOW_AND_REPOSITORY.md) for scope, acceptance, operating responsibilities and dependencies. Proposed controls and features require implementation evidence before they are described as working.
+Read the [current specification](current/engineering/11_ENVIRONMENT_SCHEMA_AND_CONFIGURATION.md) for exhaustive variable classification, consuming modules, constraints, and secret handling policies. See also [developer workflow](current/engineering/01_DEVELOPER_WORKFLOW_AND_REPOSITORY.md) and [deployment architecture (DEP-02)](current/engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md).
 
 ## History
 
