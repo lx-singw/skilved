@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+const HOST = process.env.HOST || "127.0.0.1";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -51,8 +52,8 @@ function handleRequest(req, res) {
 
 const server = http.createServer(handleRequest);
 
-server.listen(PORT, () => {
-  console.log(`[Task Prototype Server] Serving on http://localhost:${PORT}/`);
+server.listen(PORT, HOST, () => {
+  console.log(`[Task Prototype Server] Serving on http://${HOST}:${PORT}/`);
   console.log("[Notice] Isolated observation harness — completely outside Next.js routes.");
 });
 
