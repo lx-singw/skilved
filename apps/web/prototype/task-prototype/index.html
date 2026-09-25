@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Skilved — Mobile Usability Task Prototype</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #1e293b; display: flex; justify-content: center; min-height: 100vh; }
+    .viewport { width: 100%; max-width: 375px; background: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; position: relative; box-shadow: 0 0 32px rgba(0,0,0,0.4); }
+    .banner { background: #b45309; color: #fff; font-size: 10px; font-weight: 700; text-align: center; padding: 8px 10px; letter-spacing: 0.3px; line-height: 1.3; }
+    .header { padding: 12px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .header h1 { font-size: 18px; font-weight: 800; color: #0284c7; }
+    .header p { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .filters { display: flex; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .filters select { flex: 1; padding: 6px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; }
+    .feed { flex: 1; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .badge-row { display: flex; justify-content: space-between; align-items: center; }
+    .cat-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 12px; background: #e0f2fe; color: #0369a1; }
+    .stipend-badge { font-size: 11px; font-weight: 600; color: #15803d; background: #dcfce7; padding: 3px 6px; border-radius: 4px; }
+    .card-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .card-sub { font-size: 12px; color: #475569; }
+    .card-meta { font-size: 11px; color: #64748b; display: flex; justify-content: space-between; margin-top: 2px; }
+    .btn-detail { background: #0284c7; color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 4px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.7); display: none; justify-content: center; align-items: flex-end; z-index: 100; }
+    .modal-sheet { width: 100%; max-width: 375px; max-height: 90vh; background: #fff; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; overflow: hidden; }
+    .modal-header { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h2 { font-size: 15px; font-weight: 700; color: #0f172a; flex: 1; padding-right: 8px; }
+    .btn-close { background: #f1f5f9; border: none; font-size: 16px; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #475569; }
+    .modal-body { padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; font-size: 12px; color: #334155; }
+    .q-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; }
+    .q-title { font-size: 11px; font-weight: 700; color: #0369a1; text-transform: uppercase; margin-bottom: 4px; }
+    .checklist-item { display: flex; align-items: flex-start; gap: 8px; margin-top: 6px; }
+    .checklist-item input { margin-top: 2px; }
+    .btn-handoff { background: #16a34a; color: #fff; border: none; border-radius: 6px; padding: 12px; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; }
+    .adv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; justify-content: center; align-items: center; z-index: 200; padding: 16px; }
+    .adv-box { background: #fff; border-radius: 12px; padding: 16px; max-width: 340px; display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+    .adv-title { font-size: 14px; font-weight: 800; color: #b45309; }
+    .btn-row { display: flex; gap: 8px; margin-top: 6px; }
+    .btn-adv-ok { flex: 1; background: #0284c7; color: #fff; border: none; padding: 9px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .btn-adv-cancel { flex: 1; background: #e2e8f0; color: #334155; border: none; padding: 9px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .toast { position: fixed; bottom: 16px; width: 343px; background: #1e293b; color: #f8fafc; padding: 10px 12px; border-radius: 6px; font-size: 11px; display: none; z-index: 300; }
+  </style>
+</head>
+<body>
+  <div class="viewport">
+    <div class="banner">[LABELED TASK PROTOTYPE — FOR USABILITY OBSERVATION ONLY — NOT CONNECTED TO PRODUCTION CATALOGUE]</div>
+    <header class="header">
+      <h1>Skilved Discovery</h1>
+      <p>Mobile Observation Task Prototype (M0-B01d)</p>
+    </header>
+    <section class="filters">
+      <select id="catFilter" onchange="filterOpportunities()" aria-label="Category filter">
+        <option value="all">All Categories</option>
+        <option value="apprenticeship">Apprenticeship</option>
+        <option value="learnership">Learnership</option>
+        <option value="bursary">Bursary</option>
+        <option value="graduate-programme">Graduate Programme</option>
+      </select>
+      <select id="provFilter" onchange="filterOpportunities()" aria-label="Province filter">
+        <option value="all">All Provinces</option>
+        <option value="Gauteng">Gauteng</option>
+        <option value="Mpumalanga">Mpumalanga</option>
+        <option value="National">National</option>
+      </select>
+    </section>
+    <main class="feed" id="feedContainer" role="region" aria-label="Opportunities feed"></main>
+  </div>
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h2 id="modalTitle">Opportunity Details</h2>
+        <button class="btn-close" onclick="closeModal()" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modalContent"></div>
+    </div>
+  </div>
+  <div class="adv-overlay" id="advisoryModal">
+    <div class="adv-box">
+      <div class="adv-title">Advisory: External Application Handoff</div>
+      <p>You are navigating to an external issuer portal: <strong id="advDestHost"></strong></p>
+      <p>&bull; <strong>Skilved is not an application portal.</strong> Opening this link is an external handoff, NOT a completed submission.</p>
+      <p>&bull; <strong>No Application Fees:</strong> Legitimate South African employers and SETAs NEVER charge money, airtime, or gift cards to apply.</p>
+      <p>&bull; Prepare your documents from the checklist before completing their form.</p>
+      <div class="btn-row">
+        <button class="btn-adv-ok" onclick="confirmHandoff()">Proceed to External Site</button>
+        <button class="btn-adv-cancel" onclick="closeAdvisory()">Stay on Skilved</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toastMsg" role="status"></div>
+  <script>
+    const DATA = [
+      {
+        id: "eskom-app-01", title: "Electrical Apprenticeship", issuer: "Eskom Holdings SOC Ltd", category: "apprenticeship",
+        province: "Gauteng", location: "Johannesburg (Megawatt Park)", stipend: "R4,500 / month", deadline: "15 Oct 2026",
+        summary: "Three-year electrical apprenticeship with structured trade-test preparation across Gauteng substations.",
+        url: "https://www.eskom.co.za/careers",
+        q1: "3-year electrical apprenticeship leading to Section 26D Trade Test certification.",
+        q2: "Eskom Holdings SOC Ltd (EWSETA accredited training facility, Ref: EW/APP/2026/08).",
+        q3: "Open intake. Stated deadline: 15 October 2026, 17:00 SAST. Last checked: 24 Sept 2026.",
+        q4: "Grade 12 with Pure Maths (50%+) and Physical Science (50%+), or N2 Electrical Certificate with 4 subjects passed. SA citizen.",
+        q5: "Full-time shift rotation at Gauteng substations. Monthly stipend R4,500. PPE provided. Commute not subsidized.",
+        q6: "Gather certified documents (certified < 3 months). Submit directly via Eskom Careers before closing date.",
+        q7: "Report errors to Skilved: reviews@skilved.co.za. For Eskom intake queries call 08600 37566.",
+        checklist: ["Certified SA ID copy (< 3 months old)", "Certified Matric results (Maths & Science 50%+)", "N2 Certificate / Academic record", "Proof of Gauteng residential address", "2-page CV in PDF format"]
+      },
+      {
+        id: "merseta-learn-02", title: "Welding Learnership (NQF Level 3)", issuer: "MERSETA Accredited Skills Centre", category: "learnership",
+        province: "Gauteng", location: "Ekurhuleni (Wadeville)", stipend: "R3,500 / month", deadline: "22 Oct 2026",
+        summary: "Twelve-month welding learnership covering arc, MIG and TIG welding leading to NQF 3 occupational certificate.",
+        url: "https://www.merseta.org.za/learnerships",
+        q1: "12-month occupational learnership registered under NQF Level 3 Welding qualification.",
+        q2: "MERSETA Accredited Skills Centre in partnership with Ekurhuleni manufacturing consortium.",
+        q3: "Active recruitment. Stated closing date: 22 October 2026. Last rechecked: 23 Sept 2026.",
+        q4: "Grade 10 minimum with Maths or Maths Literacy. Aged 18–35. Medically fit for workshop and fabrication work.",
+        q5: "30% theoretical classroom training, 70% practical workshop placement. R3,500 monthly stipend. Overalls provided.",
+        q6: "Prepare ID, proof of residence, and highest school report. Complete application on MERSETA skills portal.",
+        q7: "Report inaccuracies via Skilved. For MERSETA learnership verification contact info@merseta.org.za.",
+        checklist: ["Certified copy of South African ID", "Certified Grade 10/12 school report", "Proof of residence in Ekurhuleni", "Medical fitness declaration", "Updated CV with any workshop experience"]
+      },
+      {
+        id: "sasol-bursary-03", title: "Engineering & Science Undergraduate Bursary", issuer: "Sasol Corporate Bursary Programme", category: "bursary",
+        province: "Mpumalanga", location: "Secunda / National Public Universities", stipend: "Full tuition + R12,000 allowance", deadline: "31 Oct 2026",
+        summary: "Comprehensive undergraduate university bursary for Chemical, Mechanical and Electrical Engineering degrees.",
+        url: "https://www.sasol.com/careers/bursaries",
+        q1: "Comprehensive 4-year undergraduate university bursary leading to a BSc or BEng engineering qualification.",
+        q2: "Sasol Corporate Bursary Programme (Administered via Sasol Foundation / Career Wise).",
+        q3: "Open intake. Stated deadline: 31 October 2026. Last verified: 24 Sept 2026.",
+        q4: "Matriculants: Level 6 (70%+) Maths and Physical Science, Level 5 (60%+) English. Current university students: 65%+ GPA.",
+        q5: "Full tuition fees, university campus accommodation, meals allowance, and R12,000/yr book allowance. Vacation work required.",
+        q6: "Gather mid-year Grade 12 or current university transcripts. Submit online through the official Sasol portal.",
+        q7: "Discrepancy reports: Skilved feedback button. Sasol bursary desk: bursaries@sasol.com.",
+        checklist: ["Certified SA ID document", "Grade 12 results or University Academic Record", "Provisional university acceptance letter", "Proof of household financial eligibility", "1-page motivational letter"]
+      },
+      {
+        id: "std-bank-grad-04", title: "Technology & Operations Graduate Programme 2027", issuer: "Standard Bank Group", category: "graduate-programme",
+        province: "Gauteng", location: "Johannesburg (Rosebank) / Hybrid", stipend: "Market-related competitive salary", deadline: "15 Nov 2026",
+        summary: "Eighteen-month structured rotational graduate development programme across Cloud, FinTech, and Data engineering.",
+        url: "https://www.standardbank.com/graduates",
+        q1: "18-month full-time paid graduate acceleration programme with rotational tracks in tech and platforms.",
+        q2: "Standard Bank Group (Head Office Operations, Rosebank).",
+        q3: "Intake 2027 recruitment. Closing: 15 November 2026. Rechecked 24 Sept 2026.",
+        q4: "Final-year students or graduates with Degree/Honours in Computer Science, Data Science, or Engineering. 65%+ average.",
+        q5: "Competitive monthly salary, medical aid contribution, pension, laptop and connectivity allowance. Hybrid working policy.",
+        q6: "Review required degree majors, prepare CV and transcripts, complete assessment tests on Standard Bank careers portal.",
+        q7: "Report errors to Skilved. Official recruitment queries: gradrecruitment@standardbank.co.za.",
+        checklist: ["Certified copy of SA ID / permanent residency", "Full tertiary academic transcripts (all years)", "Degree certificate or completion letter", "Professional CV highlighting technical projects", "Online cognitive assessment completion"]
+      }
+    ];
+
+    let activeItem = null;
+
+    function renderCards(items) {
+      const container = document.getElementById("feedContainer");
+      if (items.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:30px 10px;color:#64748b;font-size:13px;">No opportunities match your filter selection.</div>';
+        return;
+      }
+      container.innerHTML = items.map(it => `
+        <article class="card">
+          <div class="badge-row">
+            <span class="cat-badge">${it.category.replace("-", " ")}</span>
+            <span class="stipend-badge">${it.stipend}</span>
+          </div>
+          <h2 class="card-title">${it.title}</h2>
+          <div class="card-sub">${it.issuer} &bull; ${it.location}</div>
+          <p style="font-size:12px;color:#475569;line-height:1.4;">${it.summary}</p>
+          <div class="card-meta">
+            <span>Deadline: <strong>${it.deadline}</strong></span>
+            <span>Prov: <strong>${it.province}</strong></span>
+          </div>
+          <button class="btn-detail" onclick="openModal('${it.id}')">View Details &amp; Checklist</button>
+        </article>
+      `).join("");
+    }
+
+    function filterOpportunities() {
+      const cat = document.getElementById("catFilter").value;
+      const prov = document.getElementById("provFilter").value;
+      const filtered = DATA.filter(it => (cat === "all" || it.category === cat) && (prov === "all" || it.province === prov || it.province === "National"));
+      renderCards(filtered);
+    }
+
+    function openModal(id) {
+      activeItem = DATA.find(it => it.id === id);
+      if (!activeItem) return;
+      document.getElementById("modalTitle").innerText = activeItem.title;
+      const chkHtml = activeItem.checklist.map((c, i) => `<label class="checklist-item"><input type="checkbox" id="chk_${i}"><span>${c}</span></label>`).join("");
+      document.getElementById("modalContent").innerHTML = `
+        <div class="q-block"><div class="q-title">1. What is this?</div><p>${activeItem.q1}</p></div>
+        <div class="q-block"><div class="q-title">2. Who offers it?</div><p>${activeItem.q2}</p></div>
+        <div class="q-block"><div class="q-title">3. Is it available?</div><p>${activeItem.q3}</p></div>
+        <div class="q-block"><div class="q-title">4. Could it suit me?</div><p>${activeItem.q4}</p></div>
+        <div class="q-block"><div class="q-title">5. What is involved?</div><p>${activeItem.q5}</p></div>
+        <div class="q-block"><div class="q-title">6. What next? Preparation Checklist</div><p style="margin-bottom:6px;font-size:11px;color:#64748b;">Public checklist reference. No documents or personal details are uploaded.</p>${chkHtml}</div>
+        <div class="q-block"><div class="q-title">7. What if something is wrong?</div><p>${activeItem.q7}</p></div>
+        <button class="btn-handoff" onclick="triggerHandoff()">Apply on Official Site (External Handoff)</button>
+      `;
+      document.getElementById("detailModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("detailModal").style.display = "none";
+    }
+
+    function triggerHandoff() {
+      if (!activeItem) return;
+      const u = new URL(activeItem.url);
+      document.getElementById("advDestHost").innerText = u.hostname;
+      document.getElementById("advisoryModal").style.display = "flex";
+    }
+
+    function closeAdvisory() {
+      document.getElementById("advisoryModal").style.display = "none";
+    }
+
+    function confirmHandoff() {
+      closeAdvisory();
+      closeModal();
+      showToast(`External handoff simulated: opened ${activeItem.url} at ${new Date().toLocaleTimeString()} SAST`);
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toastMsg");
+      t.innerText = msg;
+      t.style.display = "block";
+      setTimeout(() => { t.style.display = "none"; }, 5000);
+    }
+
+    window.addEventListener("DOMContentLoaded", () => renderCards(DATA));
+  </script>
+</body>
+</html>
