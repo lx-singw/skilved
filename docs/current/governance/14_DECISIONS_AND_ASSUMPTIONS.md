@@ -39,6 +39,7 @@ Current documents supersede contradictory historical plans. The archive preserve
 | F-12 | Founder wants to excel against competitors | Define fair, task-specific benchmarks; do not publish an unsupported overall superiority claim |
 | F-13 | On 12 September the founder specified a 100% free consumer tier and prioritised TVET, SDF and employer-funded value | Remove applicant-paid subscriptions/assistance; validate institutional users, budget owners and procurement separately |
 | F-14 | On 13 September the founder proposed launching opportunity browsing first, useful hot/discovery features and broader strategic research after the MVP | Prioritise discovery-first M0; detailed scope and ranking methods are delegated recommendations. Full career-platform ambition remains, while institutional discovery is no longer on the first-public-release critical path |
+| F-15 | On 25 September the founder confirmed the hard infrastructure cost ceiling ($25 USD/mo) and single-operator review scope (DEP-02) | Enforce 50%/80%/100% budget alerts and kill-switch runbook; no unbudgeted cloud infrastructure or multi-tenant complexity in M0 |
 
 ## Recommended product decisions
 
@@ -69,8 +70,8 @@ Founder acceptance, 13 September 2026: document the complete companion discussio
 | ID | Recommendation | Status / review trigger |
 |---|---|---|
 | T-01 | Retain Next.js, TypeScript, Tailwind and the monorepo | Proposed continuation of existing implementation direction |
-| T-02 | Google is the reference cloud; one web service and a small worker execution setup | No live resource/billing audit has established final deployment cost |
-| T-03 | Firebase Auth, initial Firestore, private object storage | Confirm access/query patterns and operating price before production; SQL checkpoint before institutional complexity |
+| T-02 | Google Cloud Run (africa-south1) for web; Cloud Run Jobs for workers | CONFIRMED / RECOMMENDED baseline in [DEP-02](../engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md); hard $25 USD/mo ceiling |
+| T-03 | Firebase Auth with custom claims; Firestore Native in africa-south1 | CONFIRMED / RECOMMENDED in [DEP-02](../engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md); PostgreSQL evaluation scheduled for R3–R5 |
 | T-04 | Logical agent roles do not require separate services | Split only for demonstrated workload, isolation or ownership needs |
 | T-05 | Routine checks use deterministic code; AI handles bounded interpretation/drafting | Models must pass representative evaluation and preserve unknown values |
 | T-06 | Source access is assessed individually | Public visibility and robots rules are not a reuse licence |
@@ -80,6 +81,7 @@ Founder acceptance, 13 September 2026: document the complete companion discussio
 | T-10 | Use ordinary filters first, add full-text/vector tools after measured need | No advanced search purchase is required solely by the hackathon diagram |
 | T-11 | Retain monitoring, backups and access tests; defer unjustified infrastructure | Simplicity does not remove security responsibilities |
 | T-12 | Preserve container portability, domain contracts and exports | Do not pay to maintain multiple cloud deployments before a business requirement exists |
+| DEP-02 | Official hosting and runtime architecture: Cloud Run in africa-south1, Cloud Run Jobs via Scheduler, Firestore Native Mode, SSRF-bounded egress client, staging/prod isolation, expand-and-contract rollback | CONFIRMED (budget/residency/operator) / RECOMMENDED (topology/egress); full ADR in [12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md](../engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md) |
 
 ## Facts we do not yet know
 
@@ -87,7 +89,7 @@ Founder acceptance, 13 September 2026: document the complete companion discussio
 |---|---|---|---|
 | U-01 | Sustainable weekly hours | Show 10, 20 and 35 gross-hour scenarios; none is founder-confirmed | Two observed iterations |
 | U-02 | New competition deadline | No new deadline assumed | Founder supplies event and rules if one exists |
-| U-03 | Actual deployable budget, credits and expiry | No spending authorised by this document | Account/billing inventory without exposing secrets |
+| U-03 | Actual deployable budget, credits and expiry | Hard $25 USD/mo ceiling under DEP-02 with automated alerts and kill switch; no unbudgeted spend | Account/billing inventory without exposing secrets |
 | U-04 | Committed collaborators | Solo ownership is the reference, staffing is conditional | Named role, availability and agreement |
 | U-05 | First users' languages, devices, data costs and accessibility needs | Responsive, plain-language, low-data design; translation order remains unvalidated | Direct observation of first cohort |
 | U-06 | Which problem users will repeatedly act on | Maintain retention hypotheses, do not force weekly engagement | Diary and task-based trials |
@@ -115,6 +117,10 @@ Founder acceptance, 13 September 2026: document the complete companion discussio
 ### ATS clarification — 12 September 2026
 
 The founder requested a proper current treatment of the archived ATS strategy after reviewing its disposition. The [dedicated successor](../engineering/03_ATS_ADAPTER_STRATEGY.md) restores explicit adapter design, source tracing, platform/tenant capabilities, account boundaries, preflight, receipts, recovery and rollout criteria. Scraping aggregators discovers original issuer sources; application routing is a subsequent distinct step. This expands documentation without claiming implementation or reinstating unsupported coverage percentages, shared candidate accounts, CAPTCHA-bypass dependencies or automatic success labels. S26 remains conditional; an earlier supported slice requires a deliberate reprioritisation with its prerequisites and capacity accounted for.
+
+### Hosting and runtime baseline (DEP-02) — 25 September 2026
+
+Task B01c confirmed the official hosting and runtime decision record ([DEP-02](../engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)). Google Cloud Run in `africa-south1` is confirmed over Vercel due to South African data residency (POPIA), local network latency (10–30 ms vs 140–200 ms), zero intra-region Firestore egress costs, and budget compliance within the hard $25 USD/month ceiling. Private workers run as Cloud Run Jobs with no public ingress. Operational data resides in Firestore Native Mode in `africa-south1`, with Cloud SQL (PostgreSQL) evaluated and scheduled for R3–R5 institutional expansion. Outbound crawling is governed by a bounded HTTP egress client enforcing Source Register allowlisting and strict SSRF defenses. Staging and production are strictly isolated across separate Google Cloud projects.
 
 For each material change, record the decision ID, evidence, trade-off, affected requirements, release and owner. Update the roadmap and contracts together. Keep old experiments and rejected hypotheses dated rather than quietly rewriting their results. A target becomes an observed result only when the supporting evidence is linked.
 
