@@ -1,7 +1,7 @@
 # Performance Envelopes, Numeric Budgets, and M0 Delivery Reforecast
 
 Date: 2026-09-25. Status: PROVISIONAL PLANNING SCENARIO (Subject to formal Founder availability & start date confirmation).
-Authority: Task B01d, M0 Chronological Build Runbook. Resolves DEP-01, DEP-04, and DEP-09.
+Authority: Task B01d, M0 Chronological Build Runbook. Informs DEP-01, DEP-04, and DEP-09; recorded confirmation and evidence are required to resolve them.
 
 ## 1. Context and Target Environment
 
@@ -61,12 +61,14 @@ Usability observation is conducted using the dedicated, self-contained task harn
 > [!NOTE]
 > **Planning Basis:** Provisional Planning Scenario (Subject to formal Founder availability & start date confirmation).
 
-The historical pre-refinement estimate (160–288h) is reconciled into an evidenced task-level reforecast:
+The historical pre-refinement estimate (160–288h) is followed by this provisional allocation scenario; it is not measured throughput or a verified task-level forecast:
 - **Available Working Capacity:** 20 gross hours/week.
 - **Contingency / Interruption Reserve:** 25% (5 hours/week reserved for uncertainty and external waits).
 - **Net Productive Velocity:** 15 net task hours/week (30 net task hours per 2-week sprint).
 - **Total M0 Remaining Effort:** 196 net task hours across 7 two-week sprints (14 calendar weeks = 210 h net capacity; each sprint <= 30 h).
 - **Unallocated Operational Buffer:** 14 net hours reserved across the 14-week delivery window (210h capacity - 196h task effort), accommodating review waits and operational stabilization.
+
+25 September next-iteration refinement: the [detailed implementation plan](../planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) allocates a further 6 task hours to remaining B01 verification/observation/planning within the next iteration's previous 6-hour gap. This yields a combined 202-hour planning point and 8 unallocated net hours in the illustrative 210-hour window, before further re-estimation. The 25% gross-capacity reserve is separate and remains intact. External waiting can still extend the calendar. The table below continues to describe B02–B10 only.
 
 ### Remaining Sprint Allocation Breakdown (Sprints 2 to 8 — Provisional Planning Scenario)
 
@@ -88,8 +90,10 @@ The historical pre-refinement estimate (160–288h) is reconciled into an eviden
 
 Sprint 2 establishes the canonical domain schemas and persistence projections:
 - **Timebox:** 9 October 2026 – 23 October 2026 (2 weeks).
-- **Committed Net Hours:** 24 task hours (leaving 6h contingency within 30h net capacity).
+- **Proposed B02 Task Hours:** 24 hours. The detailed next-iteration plan allocates the other 6 of the scenario's 30 task hours to B01 carry-over; they are no longer an additional free buffer. Total next-iteration point: 30 task hours, range 24–46; split the work if it exceeds confirmed capacity.
 - **Entry Gate:** Gate G0 confirmed (B01 checks reproducible, prototype observed, budgets established).
+
+Execution detail and acceptance authority for this iteration: [B01 carry-over and B02 implementation plan](../planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md). G0 is currently open. Dates and founder availability remain unconfirmed; use relative checkpoints until confirmation. A bounded contract spike before G0 closure cannot close B02 or enable B03.
 
 | Task ID | Net Hours | Concrete Task Deliverable |
 |---|---|---|

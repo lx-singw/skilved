@@ -8,6 +8,7 @@ Status: current planning specifications. Implemented controls, customer results 
 
 - **Start building:** [Chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
 - **Check progress:** [Current M0 delivery status and blockers](05_M0_DELIVERY_STATUS.md)
+- **Execute the next iteration:** [Detailed B01 carry-over and B02 implementation plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) — ordered tasks, capacity, contracts, tests, evidence and handoff.
 
 - [M0 detailed delivery B01–B10 and estimates](03_M0_COMPANION_DELIVERY_PLAN.md)
 - [Portfolio traceability and delivery governance](01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md)

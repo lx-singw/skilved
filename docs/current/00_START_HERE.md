@@ -8,6 +8,8 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
+25 September next-sprint planning: use the [complete next-sprint implementation plan](planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md), based on correction commit `5fd878d`. Verify the corrected B01 candidate and close its remaining observation/confirmation dependencies, then implement B02's canonical six-category contract. The reference iteration allocates 6 hours to B01 carry-over and 24 hours to B02 within a provisional 30-hour task capacity; dates and availability remain unconfirmed. A bounded contract spike may proceed while external G0 evidence is pending, but cannot close B02 or authorize B03. This is a plan, not new runtime verification.
+
 24 September chronological execution: start with the [M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) and [current delivery status](planning/05_M0_DELIVERY_STATUS.md). They turn the agreed scope into six phases, ten ordered sprint objectives and 40 concrete tasks with dependencies, demonstrations, gates and release evidence. The [roadmap](planning/15_BUILD_ROADMAP.md) now leads with this first-MVP sequence; R0–R5 retain the full expanded ambition. Current position is P0/B01 in progress, with Gate G0 status OPEN (engineering foundation evidenced; participant observation and founder confirmation pending). Actual sprint dates and a revised remaining estimate have been drafted in [Doc 13](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md) and await founder confirmation.
 
 24 September implementation evidence: the [public web stabilisation record](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md) records passing scoped lint, typecheck, production build and 21 HTTP/regression tests. Prototype personal/action paths and sample listings are isolated; Home/About expose an honest preparation state. This is partial B01/S01 progress, not a completed catalogue, M0 or deployment.
@@ -164,6 +166,7 @@ Phases, conditional timelines, delivery work packages and cross-discipline gates
 - [M0 delivery slices and estimate history](planning/03_M0_COMPANION_DELIVERY_PLAN.md)
 - [Chronological M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
 - [M0 delivery status, decisions and evidence](planning/05_M0_DELIVERY_STATUS.md)
+- [Next sprint: detailed B01 carry-over and B02 implementation plan](planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md)
 - [Full build roadmap: prototype to enduring career platform](planning/15_BUILD_ROADMAP.md)
 - [Sprint backlog and delivery work packages](planning/16_SPRINT_BACKLOG.md)
 

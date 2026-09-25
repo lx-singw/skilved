@@ -25,6 +25,8 @@ The default single-implementer order is B01 through B10. After B04, B05–B08 ar
 
 ## 3. How phases become actual sprints
 
+For the next iteration after the 25 September correction commits, use the [detailed implementation plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md). It allocates remaining B01 verification/evidence before B02a–d, supplies contract and acceptance details, and keeps dates/capacity provisional. Its task decomposition does not replace the B01–B10 sequence or close a gate.
+
 Use two-week timeboxes. The ten sprint plans below are ordered objectives, **not a guarantee of ten two-week sprints**. At each planning meeting take the next unfinished tasks whose dependencies are satisfied. At the illustrative 20 gross hours/week, the existing 25% reserve leaves at most 30 planned hours per sprint. Confirm real capacity before putting dates on it.
 
 Before a sprint starts, record its actual iteration number, dates, available/planned hours, selected task IDs, estimate per task, owner, dependencies, demonstration and evidence destination in the status record. Split an oversized objective at its listed task boundaries. For example, a B03 estimate above available capacity becomes separate ingestion and review/publication iterations; later work moves, and no gate is marked done just because two weeks passed. Several small completed objectives may share a timebox if dependencies and capacity permit.
