@@ -1,5 +1,7 @@
 # Discovery companion implementation and contract extension
 
+Implementation update, 25 September 2026: B02's schema, public projection, bounded requirements and API/storage/legacy conversion contracts are now implemented. The [canonical contract and B03 handoff](14_CANONICAL_OPPORTUNITY_CONTRACT.md) specifies actual names, imports and behavior and supersedes conflicting illustrative shapes below. Live routes, persistence, review authorization and publication remain later implementation; formal G0/B02 acceptance is open. [Current evidence](../quality/evidence/m0/2026-09-25-b02-contracts/README.md).
+
 Updated: 13 September 2026. Status: proposed implementation specification; no routes, controls or migrations are claimed to exist. Owner: engineering/founder. Extends [canonical data/API contracts](07_DATA_AND_API_CONTRACTS.md), [ATS strategy](03_ATS_ADAPTER_STRATEGY.md) and [M0 scope](../product/03_DISCOVERY_FIRST_MVP.md). Names below are proposed contracts to reconcile with actual repository types during S01; do not create a second competing opportunity model.
 
 ## 1. Implementation boundaries

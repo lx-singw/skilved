@@ -1,5 +1,7 @@
 # Next sprint implementation plan — verify the foundation and build B02
 
+Execution update, 25 September 2026: the user's subsequent instruction to implement was carried through locally across N01 and B02a–d from `f116f4b`. See the [candidate implementation and evidence](../quality/evidence/m0/2026-09-25-b02-contracts/README.md) and [implemented contract](../engineering/14_CANONICAL_OPPORTUNITY_CONTRACT.md). Fresh-candidate checks pass, including 22 contract/inspection and 22 web boundary tests. N02 participant observation and N03 actual capacity/budget decisions remain pending; formal G0/B02 acceptance is open and B03 is not activated. The plan below preserves its original baseline and estimates for comparison, not as a claim of current remaining effort.
+
 Prepared: 25 September 2026. Planning baseline: `5fd878d` (verify HEAD again before execution). Status: **proposed execution plan; no implementation, observation, budget approval or gate closure is claimed by this document**. Owner: founder for product, availability and release decisions; implementer for engineering and evidence. One person may hold several roles. No additional team capacity is assumed.
 
 The next iteration has one outcome: **a verified foundation and one executable, source-faithful six-category opportunity contract that B03 can persist and publish safely**. It starts with the remaining B01 work, then B02a–d. It ends with a working contract demonstration and evidence, not a live catalogue or a complete MVP.

@@ -2,7 +2,7 @@
   "name": "skilved",
   "version": "1.0.0",
   "private": true,
-  "description": "Skilved — AI-powered skills opportunity platform for South Africa",
+  "description": "Skilved \u2014 AI-powered skills opportunity platform for South Africa",
   "workspaces": [
     "apps/*",
     "apps/agents/*",
@@ -17,7 +17,10 @@
     "web:lint": "pnpm --filter @skilved/web lint",
     "web:typecheck": "pnpm --filter @skilved/web typecheck",
     "web:build": "pnpm --filter @skilved/web build",
-    "web:test": "pnpm --filter @skilved/web test:boundary"
+    "web:test": "pnpm --filter @skilved/web test:boundary",
+    "contracts:typecheck": "pnpm --filter @skilved/types typecheck:contracts",
+    "contracts:test": "pnpm --filter @skilved/types test:contracts",
+    "contracts:inspect": "pnpm --filter @skilved/types inspect:contracts"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

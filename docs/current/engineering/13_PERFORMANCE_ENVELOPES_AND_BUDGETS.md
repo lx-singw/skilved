@@ -3,15 +3,17 @@
 Date: 2026-09-25. Status: PROVISIONAL PLANNING SCENARIO (Subject to formal Founder availability & start date confirmation).
 Authority: Task B01d, M0 Chronological Build Runbook. Informs DEP-01, DEP-04, and DEP-09; recorded confirmation and evidence are required to resolve them.
 
+Implementation update, 25 September 2026: [B02 engineering and selected verification](../quality/evidence/m0/2026-09-25-b02-contracts/README.md) are now recorded. [Browser and loopback measurements](../quality/evidence/m0/2026-09-25-b02-contracts/browser-evidence.md) are limited evidence: they do not establish the device/network, Web Vitals, cloud cold-start or cost targets below. Participant observation and funded capacity remain pending. Sections 6–7 retain the pre-implementation planning scenario; re-estimate remaining B01 acceptance and B03–B10 before treating any hours/dates as a current forecast.
+
 ## 1. Context and Target Environment
 
 Skilved's primary demographic is young South Africans accessing public work and study discovery on entry-level mobile devices over metered, prepaid cellular data connections. High data transfer, JavaScript execution bloat, and sluggish UI interactions lead directly to candidate abandonment and failed discovery.
 
-Performance envelopes and operational budgets are hard engineering constraints enforced across all M0 development slices, not post-launch optimisations.
+The following are proposed qualification targets to measure during development. Automated enforcement is not implemented for every metric, and a written target is not evidence of compliance.
 
 ## 2. Reference Mobile Hardware Specification (DEP-04)
 
-All client-side performance measurements, bundle constraints, and usability observations are benchmarked against an entry-level South African market reference device:
+Use an entry-level South African market reference device for qualification. This is a proposed device class; record the actual model, OS, browser and available emulation controls when measuring:
 
 | Hardware Dimension | Specification | Emulation / Testing Baseline |
 |---|---|---|
@@ -27,14 +29,14 @@ Network testing simulates domestic South African cellular conditions (prepaid 3G
 
 | Network Parameter | Value | Rationale |
 |---|---|---|
-| **Downlink Bandwidth** | 1.5 Mbps (187.5 kB/s) | Median South African 3G / congested prepaid LTE throughput |
+| **Downlink Bandwidth** | 1.5 Mbps (187.5 kB/s) | Chosen constrained-network test setting, not a measured population median |
 | **Uplink Bandwidth** | 750 kbps (93.75 kB/s) | Upstream link for search query and receipt lookups |
-| **Round-Trip Time (RTT)** | 150 ms | Mobile radio network latency to `africa-south1` (Johannesburg) |
-| **Packet Loss & Jitter** | 1–2% sporadic loss | Edge cellular tower congestion during commute hours |
+| **Round-Trip Time (RTT)** | 150 ms | Chosen latency setting; measure actual device/service paths separately |
+| **Packet Loss & Jitter** | 1–2% sporadic loss | Proposed degraded-network scenario; record tool support and actual settings |
 
 ## 4. Hard Numeric Performance Budgets
 
-Every public web route and worker service must adhere to the following hard limits:
+Use these proposed limits for their stated qualification conditions. Record acceptance decisions and measurements; the monthly amount is an unconfirmed funding scenario, not a provider-enforced spending cap:
 
 | Metric | Hard Limit | Target | Scope / Condition |
 |---|---|---|---|
@@ -50,11 +52,11 @@ Every public web route and worker service must adhere to the following hard limi
 
 ## 5. Usability Prototype Observation (Task B01d)
 
-Usability observation is conducted using the dedicated, self-contained task harness:
-- **Location:** `apps/web/prototype/task-prototype/index.html` (served via `node:http` on port 3001).
+Usability observation is prepared using the dedicated, self-contained task harness; the participant session remains pending:
+- **Location:** `apps/web/prototype/task-prototype/index.html` (serve at `/prototype` with `pnpm contracts:inspect --serve --port 39202`).
 - **Isolation:** Completely separated from Next.js routing and production build boundaries.
 - **Visual Safeguard:** Labelled banner `[LABELED TASK PROTOTYPE — FOR USABILITY OBSERVATION ONLY — NOT CONNECTED TO PRODUCTION CATALOGUE]`.
-- **Observed Flow:** Discovery feed scan -> Category & province filtering -> Detail modal inspection (7 questions & preparation checklist) -> Simulated external application handoff with scam-advisory warning.
+- **Planned participant flow:** Discovery feed scan -> Category & province filtering -> Detail modal inspection (7 questions & preparation checklist) -> Simulated external application handoff with scam-advisory warning.
 
 ## 6. Revised M0 Remaining-Effort Capacity Reforecast (DEP-09) — Provisional Planning Scenario
 

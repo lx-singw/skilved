@@ -18,6 +18,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Environment schema and configuration specification](11_ENVIRONMENT_SCHEMA_AND_CONFIGURATION.md)
 - [Deployment and runtime decision record (DEP-02)](12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)
 - [Performance envelopes, numeric budgets, and M0 delivery reforecast (DEP-01, DEP-04, DEP-09)](13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md)
+- [Implemented canonical opportunity contract and B03 handoff](14_CANONICAL_OPPORTUNITY_CONTRACT.md)
 
 ## Using this discipline
 

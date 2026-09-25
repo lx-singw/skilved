@@ -83,12 +83,12 @@
     <div class="adv-box">
       <div class="fixture-badge">[SIMULATED TEST FIXTURE — NOT A LIVE OPPORTUNITY]</div>
       <div class="adv-title" id="advTitle">Advisory: External Application Handoff</div>
-      <p>You are navigating to an external issuer portal: <strong id="advDestHost"></strong></p>
+      <p>This simulates a handoff to a fictional issuer portal: <strong id="advDestHost"></strong>. No external site will open.</p>
       <p>&bull; <strong>Skilved is not an application portal.</strong> Opening this link is an external handoff, NOT a completed submission.</p>
-      <p>&bull; <strong>No Application Fees:</strong> Legitimate South African employers and SETAs do not charge application fees. Beware of requests for money, airtime, or gift cards.</p>
+      <p>&bull; <strong>Check payment requests:</strong> Skilved is free. Verify any source-stated costs with the issuer; beware of requests for money, airtime, or gift cards in exchange for a promised placement.</p>
       <p>&bull; Prepare your documents from the checklist before completing their form.</p>
       <div class="btn-row">
-        <button class="btn-adv-ok" id="btnAdvOk" onclick="confirmHandoff()">Proceed to External Site</button>
+        <button class="btn-adv-ok" id="btnAdvOk" onclick="confirmHandoff()">Simulate handoff</button>
         <button class="btn-adv-cancel" id="btnAdvCancel" onclick="closeAdvisory()">Stay on Skilved</button>
       </div>
     </div>
@@ -178,11 +178,13 @@
         <button class="btn-handoff" id="btnHandoff" onclick="triggerHandoff()">Apply on Official Site (External Handoff)</button>
       `;
       document.getElementById("detailModal").style.display = "flex";
+      document.querySelector(".viewport").inert = true;
       document.getElementById("btnModalClose").focus();
     }
 
     function closeModal() {
       document.getElementById("detailModal").style.display = "none";
+      document.querySelector(".viewport").inert = false;
       if (lastActiveElement && typeof lastActiveElement.focus === "function") {
         lastActiveElement.focus();
         lastActiveElement = null;
@@ -194,11 +196,13 @@
       const u = new URL(activeItem.url);
       document.getElementById("advDestHost").innerText = u.hostname;
       document.getElementById("advisoryModal").style.display = "flex";
+      document.getElementById("detailModal").inert = true;
       document.getElementById("btnAdvOk").focus();
     }
 
     function closeAdvisory() {
       document.getElementById("advisoryModal").style.display = "none";
+      document.getElementById("detailModal").inert = false;
       const handoffBtn = document.getElementById("btnHandoff");
       if (handoffBtn) handoffBtn.focus();
     }
@@ -206,7 +210,7 @@
     function confirmHandoff() {
       closeAdvisory();
       closeModal();
-      showToast(`External handoff simulated: opened ${activeItem.url} at ${new Date().toLocaleTimeString()} SAST`);
+      showToast(`Handoff simulated for ${activeItem.url}. No website opened and no application was submitted.`);
     }
 
     function showToast(msg) {

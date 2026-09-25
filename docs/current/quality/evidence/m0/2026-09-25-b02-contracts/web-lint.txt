@@ -1,0 +1,12 @@
+COMMAND: pnpm web:lint
+NODE_ENV: unset
+
+> skilved@1.0.0 web:lint /tmp/skilved-b02-final-shz_33is
+> pnpm --filter @skilved/web lint
+
+
+> @skilved/web@1.0.0 lint /tmp/skilved-b02-final-shz_33is/apps/web
+> eslint . --max-warnings 0
+
+
+EXIT: 0

@@ -6,6 +6,8 @@ Implementation update, 24 September 2026: the [public web stabilisation record](
 
 ## Current selected web checks
 
+25 September implementation update: [current candidate results](../quality/evidence/m0/2026-09-25-b02-contracts/README.md) supersede the earlier selected check counts. Run `pnpm install --frozen-lockfile` with NODE_ENV unset, then `pnpm contracts:typecheck` and `pnpm contracts:test` before the web checks below. Contract/inspection tests and web boundary tests each pass 22 cases. This is selected-package verification, not an all-workspace or deployed-system pass. Use `pnpm contracts:inspect --serve --port 39202` for the fictional local parser/projector demonstration; stop it with Ctrl+C. See the [implemented contract](14_CANONICAL_OPPORTUNITY_CONTRACT.md) for imports and compatibility boundaries.
+
 From the repository root run `pnpm web:lint`, `pnpm web:typecheck`, `pnpm web:build`, then `pnpm web:test`. Set `NEXT_TELEMETRY_DISABLED=1` in the shell for these checks. The test command requires the fresh production build and starts/stops a local loopback server. `apps/web/prototype/` preserves historical code outside routing, lint and typecheck; do not import it into production. The root generic Turbo commands still cover broader workspaces and have separate readiness requirements. Regenerate a build after relevant changes before relying on HTTP results.
 
 ## Observed baseline
@@ -41,7 +43,7 @@ Separate local emulators, test cloud resources and production. Confirm emulator 
 
 ## CI and release policy
 
-The earlier plan described pipelines that static inspection did not find under `.github/workflows`. Implement CI as work, not as an existing fact. Proposed checks: lockfile-consistent install, formatting/lint where configured, type checking, relevant unit/contract tests, owner/tenant rules tests, build, dependency/secret review and selected integration tests in an isolated environment. Production secrets must not be available to untrusted pull-request code.
+The current `.github/workflows/ci.yml` implements selected frozen installation, contract typecheck/tests and web lint/typecheck/build/tests. Equivalent local commands passed; a hosted workflow run has not been observed in this implementation. Future integrations require their own owner/tenant rules, dependency/security and isolated integration checks. Production secrets must not be available to untrusted pull-request code.
 
 Build once where practical and promote a traceable artefact. Keep migration version and rollback compatibility in the release record. Do not rebuild an unreviewed revision during deployment and call it the tested artefact.
 

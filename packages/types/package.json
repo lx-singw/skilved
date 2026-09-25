@@ -7,5 +7,22 @@
   "types": "./src/index.ts",
   "dependencies": {
     "zod": "^3.22.4"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./opportunities": "./src/opportunities/index.ts",
+    "./opportunities/internal": "./src/opportunities/internal.ts",
+    "./opportunities/storage": "./src/opportunities/storage.ts",
+    "./opportunities/migration": "./src/opportunities/migration.ts",
+    "./legacy": "./src/opportunity.ts"
+  },
+  "scripts": {
+    "typecheck:contracts": "tsc -p tsconfig.contracts.json --noEmit",
+    "build:contracts": "tsc -p tsconfig.contracts.json",
+    "test:contracts": "pnpm build:contracts && node --test tests/*.test.mjs",
+    "inspect:contracts": "pnpm build:contracts && node tools/inspect.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
   }
 }

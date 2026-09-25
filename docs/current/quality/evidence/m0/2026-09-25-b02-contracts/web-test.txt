@@ -1,0 +1,154 @@
+COMMAND: pnpm web:test
+NODE_ENV: production
+
+> skilved@1.0.0 web:test /tmp/skilved-b02-final-shz_33is
+> pnpm --filter @skilved/web test:boundary
+
+
+> @skilved/web@1.0.0 test:boundary /tmp/skilved-b02-final-shz_33is/apps/web
+> node --test tests/public-boundary.test.mjs
+
+TAP version 13
+# Subtest: every routed entry is included in the reviewed public boundary
+ok 1 - every routed entry is included in the reviewed public boundary
+  ---
+  duration_ms: 1516.998566
+  type: 'test'
+  ...
+# Subtest: health describes process liveness and the catalogue contains no invented listings
+ok 2 - health describes process liveness and the catalogue contains no invented listings
+  ---
+  duration_ms: 238.548146
+  type: 'test'
+  ...
+# Subtest: /api/profile refuses data access and actions, including malformed input
+ok 3 - /api/profile refuses data access and actions, including malformed input
+  ---
+  duration_ms: 46.161368
+  type: 'test'
+  ...
+# Subtest: /api/documents/verify refuses data access and actions, including malformed input
+ok 4 - /api/documents/verify refuses data access and actions, including malformed input
+  ---
+  duration_ms: 43.606254
+  type: 'test'
+  ...
+# Subtest: /api/applications/pre-flight refuses data access and actions, including malformed input
+ok 5 - /api/applications/pre-flight refuses data access and actions, including malformed input
+  ---
+  duration_ms: 26.386573
+  type: 'test'
+  ...
+# Subtest: /api/passport/upload-cv refuses data access and actions, including malformed input
+ok 6 - /api/passport/upload-cv refuses data access and actions, including malformed input
+  ---
+  duration_ms: 21.449367
+  type: 'test'
+  ...
+# Subtest: /api/save refuses data access and actions, including malformed input
+ok 7 - /api/save refuses data access and actions, including malformed input
+  ---
+  duration_ms: 24.99741
+  type: 'test'
+  ...
+# Subtest: /api/career refuses data access and actions, including malformed input
+ok 8 - /api/career refuses data access and actions, including malformed input
+  ---
+  duration_ms: 20.722808
+  type: 'test'
+  ...
+# Subtest: /api/apply refuses data access and actions, including malformed input
+ok 9 - /api/apply refuses data access and actions, including malformed input
+  ---
+  duration_ms: 25.362203
+  type: 'test'
+  ...
+# Subtest: /api/auth/whatsapp/verify-otp refuses data access and actions, including malformed input
+ok 10 - /api/auth/whatsapp/verify-otp refuses data access and actions, including malformed input
+  ---
+  duration_ms: 21.346647
+  type: 'test'
+  ...
+# Subtest: /api/auth/whatsapp/send-otp refuses data access and actions, including malformed input
+ok 11 - /api/auth/whatsapp/send-otp refuses data access and actions, including malformed input
+  ---
+  duration_ms: 23.085469
+  type: 'test'
+  ...
+# Subtest: /api/auth/[...nextauth] refuses data access and actions, including malformed input
+ok 12 - /api/auth/[...nextauth] refuses data access and actions, including malformed input
+  ---
+  duration_ms: 27.556528
+  type: 'test'
+  ...
+# Subtest: /api/opportunities/[id] refuses data access and actions, including malformed input
+ok 13 - /api/opportunities/[id] refuses data access and actions, including malformed input
+  ---
+  duration_ms: 23.016337
+  type: 'test'
+  ...
+# Subtest: /api/events refuses data access and actions, including malformed input
+ok 14 - /api/events refuses data access and actions, including malformed input
+  ---
+  duration_ms: 23.135071
+  type: 'test'
+  ...
+# Subtest: /api/agent-apply refuses data access and actions, including malformed input
+ok 15 - /api/agent-apply refuses data access and actions, including malformed input
+  ---
+  duration_ms: 18.801394
+  type: 'test'
+  ...
+# Subtest: /api/permissions refuses data access and actions, including malformed input
+ok 16 - /api/permissions refuses data access and actions, including malformed input
+  ---
+  duration_ms: 19.151834
+  type: 'test'
+  ...
+# Subtest: /api/feed refuses data access and actions, including malformed input
+ok 17 - /api/feed refuses data access and actions, including malformed input
+  ---
+  duration_ms: 19.887475
+  type: 'test'
+  ...
+# Subtest: /api/webhooks/whatsapp refuses data access and actions, including malformed input
+ok 18 - /api/webhooks/whatsapp refuses data access and actions, including malformed input
+  ---
+  duration_ms: 18.820142
+  type: 'test'
+  ...
+# Subtest: unfinished pages and fixture opportunity links cannot expose prototype content
+ok 19 - unfinished pages and fixture opportunity links cannot expose prototype content
+  ---
+  duration_ms: 410.572517
+  type: 'test'
+  ...
+# Subtest: public pages state their limits, retain six-category ambition and avoid unavailable calls to action
+ok 20 - public pages state their limits, retain six-category ambition and avoid unavailable calls to action
+  ---
+  duration_ms: 39.469035
+  type: 'test'
+  ...
+# Subtest: shipped page assets do not contain sample records or private prototype screens
+ok 21 - shipped page assets do not contain sample records or private prototype screens
+  ---
+  duration_ms: 259.924087
+  type: 'test'
+  ...
+# Subtest: CT-19: canonical catalogue seam excludes private contracts and fixtures
+ok 22 - CT-19: canonical catalogue seam excludes private contracts and fixtures
+  ---
+  duration_ms: 132.234677
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3159.59445
+
+EXIT: 0

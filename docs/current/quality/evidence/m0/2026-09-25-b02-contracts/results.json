@@ -1,0 +1,30 @@
+[
+  {
+    "step": "install",
+    "exit": 0
+  },
+  {
+    "step": "contracts-typecheck",
+    "exit": 0
+  },
+  {
+    "step": "contracts-test",
+    "exit": 0
+  },
+  {
+    "step": "web-lint",
+    "exit": 0
+  },
+  {
+    "step": "web-typecheck",
+    "exit": 0
+  },
+  {
+    "step": "web-build",
+    "exit": 0
+  },
+  {
+    "step": "web-test",
+    "exit": 0
+  }
+]

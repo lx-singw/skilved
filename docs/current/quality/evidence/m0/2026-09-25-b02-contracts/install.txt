@@ -1,0 +1,17 @@
+COMMAND: pnpm install --frozen-lockfile
+NODE_ENV: unset
+Scope: all 20 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +360
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 360, reused 360, downloaded 0, added 5
+Progress: resolved 360, reused 360, downloaded 0, added 359
+Progress: resolved 360, reused 360, downloaded 0, added 360, done
+
+devDependencies:
++ turbo 2.9.18
+
+Done in 4.6s
+
+EXIT: 0

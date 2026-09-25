@@ -1,0 +1,59 @@
+COMMAND: pnpm web:build
+NODE_ENV: production
+
+> skilved@1.0.0 web:build /tmp/skilved-b02-final-shz_33is
+> pnpm --filter @skilved/web build
+
+
+> @skilved/web@1.0.0 build /tmp/skilved-b02-final-shz_33is/apps/web
+> next build
+
+⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+   ▲ Next.js 15.5.19
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 17.7s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/21) ...
+   Generating static pages (5/21)
+   Generating static pages (10/21)
+   Generating static pages (15/21)
+ ✓ Generating static pages (21/21)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    1.54 kB         114 kB
+├ ○ /_not-found                            166 B         102 kB
+├ ○ /about                               1.54 kB         114 kB
+├ ƒ /api/agent-apply                       166 B         102 kB
+├ ƒ /api/applications/pre-flight           166 B         102 kB
+├ ƒ /api/apply                             166 B         102 kB
+├ ƒ /api/auth/[...nextauth]                166 B         102 kB
+├ ƒ /api/auth/whatsapp/send-otp            166 B         102 kB
+├ ƒ /api/auth/whatsapp/verify-otp          166 B         102 kB
+├ ƒ /api/career                            166 B         102 kB
+├ ƒ /api/documents/verify                  166 B         102 kB
+├ ƒ /api/events                            166 B         102 kB
+├ ƒ /api/feed                              166 B         102 kB
+├ ƒ /api/health                            166 B         102 kB
+├ ƒ /api/opportunities                     166 B         102 kB
+├ ƒ /api/opportunities/[id]                166 B         102 kB
+├ ƒ /api/passport/upload-cv                166 B         102 kB
+├ ƒ /api/permissions                       166 B         102 kB
+├ ƒ /api/profile                           166 B         102 kB
+├ ƒ /api/save                              166 B         102 kB
+├ ƒ /api/webhooks/whatsapp                 166 B         102 kB
+└ ƒ /opportunity/[slug]                    166 B         102 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/4557610a-fefa5be19e77ed4a.js  54.2 kB
+  ├ chunks/785-778584e14f2dca51.js       45.8 kB
+  └ other shared chunks (total)          1.93 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+EXIT: 0

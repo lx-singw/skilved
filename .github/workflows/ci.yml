@@ -40,6 +40,12 @@ jobs:
       - name: Run web lint
         run: pnpm web:lint
 
+      - name: Typecheck canonical opportunity contracts
+        run: pnpm contracts:typecheck
+
+      - name: Test canonical opportunity contracts
+        run: pnpm contracts:test
+
       - name: Run web typecheck
         run: pnpm web:typecheck
 

@@ -1,0 +1,14 @@
+COMMAND: pnpm web:typecheck
+NODE_ENV: unset
+
+> skilved@1.0.0 web:typecheck /tmp/skilved-b02-final-shz_33is
+> pnpm --filter @skilved/web typecheck
+
+
+> @skilved/web@1.0.0 typecheck /tmp/skilved-b02-final-shz_33is/apps/web
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Route types generated successfully
+
+EXIT: 0

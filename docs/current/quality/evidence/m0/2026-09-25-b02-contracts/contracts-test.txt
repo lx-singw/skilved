@@ -1,0 +1,158 @@
+COMMAND: pnpm contracts:test
+NODE_ENV: unset
+
+> skilved@1.0.0 contracts:test /tmp/skilved-b02-final-shz_33is
+> pnpm --filter @skilved/types test:contracts
+
+
+> @skilved/types@1.0.0 test:contracts /tmp/skilved-b02-final-shz_33is/packages/types
+> pnpm build:contracts && node --test tests/*.test.mjs
+
+
+> @skilved/types@1.0.0 build:contracts /tmp/skilved-b02-final-shz_33is/packages/types
+> tsc -p tsconfig.contracts.json
+
+TAP version 13
+# Subtest: CT-01: all six categories and both internship routes round-trip without a trade requirement
+ok 1 - CT-01: all six categories and both internship routes round-trip without a trade requirement
+  ---
+  duration_ms: 125.833302
+  type: 'test'
+  ...
+# Subtest: CT-02: subtype and taxonomy boundaries reject invalid and unsupported combinations
+ok 2 - CT-02: subtype and taxonomy boundaries reject invalid and unsupported combinations
+  ---
+  duration_ms: 7.967018
+  type: 'test'
+  ...
+# Subtest: CT-03: facts require evidence and uncertainty never turns into a definite value
+ok 3 - CT-03: facts require evidence and uncertainty never turns into a definite value
+  ---
+  duration_ms: 55.322625
+  type: 'test'
+  ...
+# Subtest: CT-04: national/remote widening is distinct from residence requirements
+ok 4 - CT-04: national/remote widening is distinct from residence requirements
+  ---
+  duration_ms: 32.439558
+  type: 'test'
+  ...
+# Subtest: CT-05: nested alternatives and conditional branches remain explicit
+ok 5 - CT-05: nested alternatives and conditional branches remain explicit
+  ---
+  duration_ms: 12.873101
+  type: 'test'
+  ...
+# Subtest: CT-06: missing refs, cycles, omitted atoms, empty groups and excessive depth fail safely
+ok 6 - CT-06: missing refs, cycles, omitted atoms, empty groups and excessive depth fail safely
+  ---
+  duration_ms: 11.814828
+  type: 'test'
+  ...
+# Subtest: CT-07: date-only and unknown zones retain precision; instants must match source-local time
+ok 7 - CT-07: date-only and unknown zones retain precision; instants must match source-local time
+  ---
+  duration_ms: 44.778511
+  type: 'test'
+  ...
+# Subtest: CT-08: mixed compensation, unknown currency/amount and stated zero are preserved
+ok 8 - CT-08: mixed compensation, unknown currency/amount and stated zero are preserved
+  ---
+  duration_ms: 4.647853
+  type: 'test'
+  ...
+# Subtest: CT-09: unstated document constraints stay null
+ok 9 - CT-09: unstated document constraints stay null
+  ---
+  duration_ms: 5.610125
+  type: 'test'
+  ...
+# Subtest: CT-10: check failures do not close listings or overwrite check history
+ok 10 - CT-10: check failures do not close listings or overwrite check history
+  ---
+  duration_ms: 3.169906
+  type: 'test'
+  ...
+# Subtest: CT-11: lifecycle and withholding return safe public or non-enumerating outcomes
+ok 11 - CT-11: lifecycle and withholding return safe public or non-enumerating outcomes
+  ---
+  duration_ms: 11.513067
+  type: 'test'
+  ...
+# Subtest: CT-12: private fields and unknown nested/root keys never reach public output or safe errors
+ok 12 - CT-12: private fields and unknown nested/root keys never reach public output or safe errors
+  ---
+  duration_ms: 13.81916
+  type: 'test'
+  ...
+# Subtest: CT-13: route methods require relationship support for the exact revision and destination
+ok 13 - CT-13: route methods require relationship support for the exact revision and destination
+  ---
+  duration_ms: 25.904992
+  type: 'test'
+  ...
+# Subtest: CT-14: stale, unsupported and unreviewed explanations are not public guidance
+ok 14 - CT-14: stale, unsupported and unreviewed explanations are not public guidance
+  ---
+  duration_ms: 7.675869
+  type: 'test'
+  ...
+# Subtest: CT-15: separate intakes retain identity and unresolved/cyclic aliases do not redirect
+ok 15 - CT-15: separate intakes retain identity and unresolved/cyclic aliases do not redirect
+  ---
+  duration_ms: 5.884176
+  type: 'test'
+  ...
+# Subtest: CT-16: bounded queries and filter/revision-bound cursors have explicit safe errors
+ok 16 - CT-16: bounded queries and filter/revision-bound cursors have explicit safe errors
+  ---
+  duration_ms: 2.212155
+  type: 'test'
+  ...
+# Subtest: CT-17: serialization is bounded JSON, versioned and lossless
+ok 17 - CT-17: serialization is bounded JSON, versioned and lossless
+  ---
+  duration_ms: 6.047387
+  type: 'test'
+  ...
+# Subtest: CT-18: legacy conversion is repeatable review work, never automatic publication
+ok 18 - CT-18: legacy conversion is repeatable review work, never automatic publication
+  ---
+  duration_ms: 5.317011
+  type: 'test'
+  ...
+# Subtest: CT-20: read response examples parse with no external configuration or services
+ok 19 - CT-20: read response examples parse with no external configuration or services
+  ---
+  duration_ms: 7.53683
+  type: 'test'
+  ...
+# Subtest: newer negative relationship checks and equal-time contradictions disable handoff
+ok 20 - newer negative relationship checks and equal-time contradictions disable handoff
+  ---
+  duration_ms: 11.405177
+  type: 'test'
+  ...
+# Subtest: public projection accepts no inconsistent state/value, missing citations or closed action
+ok 21 - public projection accepts no inconsistent state/value, missing citations or closed action
+  ---
+  duration_ms: 10.041312
+  type: 'test'
+  ...
+# Subtest: inspection uses validated projections and escapes hostile source wording
+ok 22 - inspection uses validated projections and escapes hostile source wording
+  ---
+  duration_ms: 81.712143
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 615.293861
+
+EXIT: 0

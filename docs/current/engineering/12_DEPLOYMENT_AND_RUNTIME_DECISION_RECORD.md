@@ -1,53 +1,41 @@
-# ADR DEP-02: Deployment, Runtime, and Isolation Architecture
+# ADR DEP-02: proposed deployment and runtime boundaries
 
-Date: 2026-09-25. Status: CONFIRMED (budget ceiling, data residency) / RECOMMENDED (runtime topology, boundaries).
-Authority: Task B01c, M0 Chronological Build Runbook. Replaces historical uncosted deployment models.
+Updated: 25 September 2026. Status: technical recommendation; budget, access, deployment and operational rehearsal remain unconfirmed. This decision is a B01 design artifact, not evidence of provisioned resources. The local B02 contracts do not initialize a cloud SDK.
 
-## 1. Context and Problem Statement
+## 1. Selected direction and limits
 
-Skilved requires an official deployment and runtime architecture for the M0 release. The architecture must satisfy strict cost ceilings ($25 USD/mo), enforce South African data residency under POPIA, isolate untrusted remote source fetching, protect private operator workflows, and guarantee zero-downtime rollbacks without complex multi-cloud overhead.
+Prefer a small public Next.js web service on Cloud Run, Firestore for reviewed records, Firebase operator identity with server-side authorization, and a separate restricted ingestion/review execution boundary. Retain South African regional placement as a preference to verify for each service and data flow. Region choice alone is not a legal compliance conclusion or a guarantee about all logs, backups, builds, identity and support processing.
 
-## 2. Public Web Hosting: Cloud Run vs Vercel
+Vercel remains a technically possible alternative; Cape Town compute exists. Cloud Run is preferred here for integration with the proposed Google store and operator/worker identities, not because Vercel requires exported long-lived keys: [Vercel documents GCP workload identity federation](https://vercel.com/docs/oidc/gcp). Compare actual account terms and complete workloads before deployment. No measured latency or absolute provider-security superiority is established.
 
-Decision: Google Cloud Run (containerized Next.js standalone output) deployed in `africa-south1` (Johannesburg).
+## 2. Public/private implementation boundary
 
-| Evaluation Dimension | Google Cloud Run (`africa-south1`) | Vercel (Hobby / Pro) | Selected Rationale |
-|---|---|---|---|
-| **Data Residency & Geography** | Native compute and storage co-located in Johannesburg (`africa-south1`). In-memory and execution data remain in SA under POPIA. | Supports Cape Town (`cpt1`) for Edge/Serverless functions, but build caching, telemetry, and platform services transit overseas. | Cloud Run guarantees full compute, container execution, and log storage remain strictly within South Africa. |
-| **Firestore Egress & Latency** | Intra-region internal Google network routing in `africa-south1`. Zero egress charges ($0.00/GB) to Firestore. | Cross-cloud calls over public internet incur GCP internet egress fees ($0.12/GB) and extra TLS handshake overhead. | Co-location eliminates cross-cloud egress billing volatility and network latency jitter. |
-| **IAM & Credential Boundary** | Native GCP IAM integration (Workload Identity, service accounts). Zero static API keys or long-lived tokens in code/env. | Requires exporting static GCP Service Account JSON keys to external Vercel environment variables. | Cloud Run eliminates credential theft vectors through platform-managed ephemeral IAM tokens. |
-| **VPC & Network Isolation** | Direct VPC Egress routes container traffic to private subnets without costly Serverless VPC connectors. | Requires Vercel Secure Compute (Enterprise tier only) for private VPC peering into Google Cloud. | Direct VPC Egress enables private database and worker integration without third-party network brokers. |
-| **Pricing & Licensing** | True scale-to-zero (`min-instances: 0`) pay-per-use request pricing. Estimated M0 web compute is < $5.00 USD/mo. | Hobby tier explicitly forbids commercial use; Pro tier ($20/seat/mo) consumes 80% of the entire $25/mo budget on seats alone. | Cloud Run allows commercial operations without per-seat licensing penalties, preserving the $25/mo ceiling. |
+- Public web: signed-out public reads only, through approved projections. Current catalogue is empty. Next standalone output, container image, concurrency, CPU/memory and scale limits are proposed deployment work, not configured/deployed facts.
+- Private jobs: proposed bounded Cloud Run Jobs, with scheduler identity and authorization to execute only the intended job. `apps/worker` is not implemented. An API endpoint protected by IAM is not equivalent to an endpoint unreachable from the internet; verify actual invocation and ingress separately.
+- Store: Firestore is the proposed operational store. Schema/query/index contracts are specified in B02; persistent publication, transactions, rule/IAM tests and restart evidence belong to B03. No cost or free-tier entitlement is assumed from this document.
+- Operator identity: verify signature, project audience, expiry and authorized server-controlled role. Treat source facts and source text as untrusted. Production must reject emulator configuration before SDK initialization. No applicant identity or private documents are needed for M0.
+- Separation: use separate staging/production projects and service identities when provisioned, with no inherited cross-environment access. Names in prior drafts were placeholders, not confirmed project ownership.
 
-Implementation: Next.js configured with `output: "standalone"`. Minimal container image deployed with 80 concurrency, 512MiB RAM, and 1 vCPU. Sub-5-second application rollback via revision traffic switching is established as an unmeasured staging target for work package B09d.
+## 3. Workload and cost model to price before deployment
 
-## 3. Private Worker and Crawler Boundary
+These are **proposed caps for estimating**, not observed traffic or an approved operating commitment:
 
-Decision: Cloud Run Jobs triggered via Cloud Scheduler, restricted to non-public endpoints.
+| Input | Initial scenario | Cost/operating consequence to calculate |
+|---|---:|---|
+| Public page visits | 1,000/month | Measure bytes/response, cache behavior, CPU/request and store reads/visit |
+| New source notices | 20/week | At assumed 10 minutes review each, about 3.3 hands-on hours/week |
+| Source rechecks | 50/week | At assumed 2 minutes triage each, about 1.7 hours/week; failures may take longer |
+| Suggested links | Disabled until B06 limits and review capacity exist | Intake volume must fit actual operator availability |
+| Environments | Staging and production | Price both, including idle/background resources |
+| Monthly operating limit | Proposed USD 25; founder confirmation pending | Not an automatic billing cap or proof the design fits |
 
-- **Execution Model:** Long-running discovery ingestion, content validation, and task queues run as Cloud Run Jobs (`apps/worker`), not always-on daemon containers or public web routes.
-- **Trigger & Identity:** Cloud Scheduler triggers jobs via Google Cloud Run Jobs REST API using a dedicated service account (`worker-scheduler-sa`) holding the minimal `roles/run.invoker` permission.
-- **Ingress Isolation:** Worker containers have no public HTTP endpoints (`--ingress=internal-only` or execution-only jobs). They cannot be invoked from the public internet.
-- **Network Egress:** Outbound network calls use Serverless VPC Access with a connector or Direct VPC Egress, routing database traffic privately to Firestore while filtering egress.
-- **Concurrency & Resource Limits:** Workload is bounded to 1 task per worker instance during M0 to prevent race conditions and memory spikes. Job execution timeout is capped at 15 minutes.
+Compute a dated low/base/high estimate as: request and worker CPU/memory + store operations/storage/backups + egress/NAT/networking + builds/artifacts + logs/monitoring + secrets/scheduler/identity charges where applicable, less only verified account allowances. Retain unit prices, billable units and source dates in the deployment evidence. Choose Direct VPC Egress versus connector deliberately and include its networking costs. Human review/support time is a separate capacity cost, not free AI throughput. No previous `< USD 5` or residual-storage estimate is retained as validated fact.
 
-## 4. Persistent Operational Store: Firestore vs Cloud SQL
+Before B09, set funded workload and queue limits, measure current SKUs and control delay, and rehearse containment. If the scenario does not fit, adjust workload/implementation and dates explicitly; do not charge consumers or remove accepted categories.
 
-Decision: Google Cloud Firestore (Native Mode, `africa-south1`). Cloud SQL (PostgreSQL) is evaluated and scheduled for R3–R5 institutional expansion.
+## 4. Rollback and storage compatibility
 
-- **M0 Evaluation:** M0 data patterns are document-oriented (opportunity catalogs, versioned source snapshots, durable task records). Firestore Native Mode in `africa-south1` provides an included free tier (50k reads/day, 20k writes/day, 1GB storage), resulting in $0.00–$2.00/mo operating cost.
-- **Cloud SQL Comparison:** The smallest managed PostgreSQL instance (`db-f1-micro` or `db-custom-1-3840`) incurs a fixed baseline cost of $10–$35/mo 24/7 before storage, backups, and egress, directly breaching the $25/mo total infrastructure budget.
-- **Institutional Gate (R3–R5):** Re-evaluate PostgreSQL when multi-tenant relational reporting, complex organizational joins (TVET/SDF cohorts), and ACID cross-table operations are implemented. Migration criteria: verified database cost justification, relational schema mapping, and automated export/backfill pipelines.
-
-## 5. Operator Authentication and Access Control
-
-Decision: Firebase Authentication with verified Custom Claims and server-side authorization.
-
-- **Role Claims:** Operator privileges are assigned via Firebase Auth custom claims: `{ "role": "operator" }` or `{ "role": "admin" }`.
-- **Server-Side Validation:** All administrative API routes (`/api/admin/*`, review tools) verify the Firebase ID token using the Firebase Admin SDK:
-  - Token signature, expiration, and project audience are verified.
-  - The decoded token must contain `token.role === 'operator' || token.role === 'admin'`.
-- **Zero Client Trust:** Body or query parameters asserting identity (`userId`, `role`) are rejected. Public users cannot assign custom claims; claims can only be set via an authenticated administrative bootstrap CLI using a local Google Service Account.
+Retain revision/image/configuration identity, old-reader/schema compatibility, publication revision and a tested recovery procedure. Expand before contract; migrate explicitly; never restore an old projection that reactivates withheld destinations. Traffic-switch timing, cold starts and recovery time are unmeasured targets until staging tests. B02's dry-run conversion does not migrate a live store.
 
 ## 6. Approved-Fetch Boundary and SSRF Protection
 
@@ -67,81 +55,26 @@ All outbound HTTP fetches must pass through an isolated fetch adapter enforcing 
 4. **Strict Timeout:** Hard connection and read timeout of 10 seconds.
 5. **Protocol & Redirect Security:** Only HTTPS is permitted. HTTP redirects are re-validated against the hostname allowlist and subject to connection-time socket-level IP validation on every hop (maximum 3 hops).
 
-## 7. Staging versus Production Isolation
+## 7. Spending containment — procedure to rehearse, not executed evidence
 
-Decision: Two dedicated, isolated Google Cloud projects.
+[Cloud Billing budgets provide alerts, not a hard spending cap](https://docs.cloud.google.com/billing/docs/how-to/budgets). Notifications and usage reports may be delayed. Proposed alerts at 50/80/100% of the confirmed operating limit require a real owner and contact configuration; avoid waiting for the final threshold before action.
 
-- **Project Separation:** `skilved-staging` and `skilved-prod`.
-- **IAM Boundary:** Completely separate IAM policies. Service accounts in staging have zero permissions in production. No shared service account keys.
-- **Database Isolation:** Staging runs against an independent Firestore instance. Synthetic data, test crawls, and schema experiments can never touch production user or catalogue data.
-- **Configuration & Secrets:** Google Secret Manager instances are project-scoped (`projects/skilved-staging/secrets/*` vs `projects/skilved-prod/secrets/*`). CI/CD deployment tokens are restricted to project-specific target environments.
+The following placeholders must be replaced with verified resource names and an explicitly selected project in a separately authorized staging rehearsal. First record current scaling, traffic tags, identity/access settings, scheduler triggers and active job executions.
 
-## 8. Rollback Procedures
+1. Pause each actual scheduler/event producer to prevent new ingestion. Confirm the trigger list rather than assuming there is only one.
+2. For the public service, the documented manual scaling mechanism supports disabling it with zero instances:
 
-Decision: Revision traffic switching for compute; expand-and-contract for schemas.
-
-- **Application Rollback:** Cloud Run deployments create immutable revisions. A regression is rolled back via traffic shifting:
-  ```sh
-  gcloud run services update-traffic skilved-web --to-revisions=PREVIOUS_REVISION=100 --region=africa-south1
-  ```
-  *Staging Verification Target:* Sub-5-second rollback is defined as an unmeasured staging target; it must be empirically measured, benchmarked, and verified under simulated load during work package B09d (`apps/web` deployment automation and health validation).
-- **Schema Evolution (Expand-and-Contract):**
-  1. *Expand:* Deploy code that writes new fields while reading both new and old fields. All new fields must be optional.
-  2. *Migrate:* Asynchronous background jobs backfill historical documents.
-  3. *Contract:* Remove support for obsolete fields only after verified cutover and retention window.
-- Backward incompatibility is forbidden: database mutations must allow the previous container revision to operate safely if rolled back.
-
-## 9. Cost Ceilings, Budget Alerts, and Kill-Switch Runbook
-
-Decision: Hard budget ceiling of $25 USD / month (~R450 ZAR) with automated alerts and an operational kill switch.
-
-### Cloud Billing Latency Realities and Budget Status
-- **Billing Ingestion Delay:** Google Cloud Billing budget alerts and programmatic notifications have a multi-hour propagation delay (typically 2 to 12 hours) and do not halt billing or shut down resources automatically.
-- **Operating Limit vs Automated Hard Stop:** The $25.00 USD/mo limit is a founder-funded operational ceiling and manual containment trigger, not an automated GCP billing circuit breaker.
-- **Compute Containment vs Residual Costs:** Executing the emergency kill-switch halts all elastic compute charges (Cloud Run vCPU/RAM allocation, active ingestion workers). It does not eliminate residual static costs: Firestore document storage, Cloud Storage buckets, Artifact Registry image retention, and in-flight network egress. Spending will plateau at static baseline storage costs (~$0.50–$1.50/mo) rather than immediately dropping to zero.
-
-### Alert Escalation Posture
-- **50% ($12.50 USD):** Informational notification sent to founder/operator email.
-- **80% ($20.00 USD):** Operational caution: pause scheduled discovery crawls; audit daily read/write spikes.
-- **100% ($25.00 USD):** Hard budget limit reached; immediate execution of the emergency kill-switch runbook.
-
-### Emergency Kill-Switch Runbook
-If spending approaches or hits $25.00 USD, the operator executes the following containment steps:
-1. **Pause Scheduled Ingestion Triggers:**
    ```sh
-   gcloud scheduler jobs pause crawl-sources --location=africa-south1
-   ```
-2. **Revoke Public Ingress (Immediate 403 Stop):**
-   Cloud Run rejects `--max-instances=0` (minimum value is 1). To immediately prevent public requests from spinning up container instances and incurring compute charges, remove the unauthenticated public invoker binding:
-   ```sh
-   gcloud run services remove-iam-policy-binding skilved-web \
-     --member=allUsers \
-     --role=roles/run.invoker \
-     --region=africa-south1
-   ```
-   The Cloud Run edge proxy immediately rejects all incoming public traffic with HTTP 403 Forbidden without spinning up or billing container instances.
-3. **Cancel Active Cloud Run Jobs Executions:**
-   Abort any currently executing ingestion tasks:
-   ```sh
-   # List active executions for the crawler job
-   gcloud run jobs executions list --job=crawl-sources --region=africa-south1 \
-     --filter="status.conditions.type=Active AND status.conditions.status=True" \
-     --format="value(name)"
-   # Cancel specific running execution
-   gcloud run jobs executions cancel EXECUTION_NAME --region=africa-south1
-   ```
-4. **Billing Audit and Restoration Protocol:**
-   Inspect Cloud Billing reports grouped by SKU (Cloud Run vCPU/RAM, Firestore reads/writes, Egress) to isolate root causes. Once resolved, restore public access:
-   ```sh
-   gcloud run services add-iam-policy-binding skilved-web \
-     --member=allUsers \
-     --role=roles/run.invoker \
-     --region=africa-south1
+   gcloud run services update SERVICE --scaling=0 --project=PROJECT_ID --region=REGION
    ```
 
-## 10. Governance and Review Traceability
+   Inspect tag-only revisions and their minimum instances separately: they can remain active outside the service allocation. Remove or otherwise contain their exposure and verify all intended routes stop serving. This command is not an all-resource billing stop. [Cloud Run manual scaling](https://docs.cloud.google.com/run/docs/configuring/services/manual-scaling).
+3. Enumerate running ingestion executions and cancel each applicable execution with explicit project/region. Verify cancellation rather than treating a list operation as cancellation.
+4. Inspect metrics, running instances, workers and current billing SKUs. Storage, logs, artifacts, network resources and work already in flight may still incur charges. No immediate 403, instantaneous propagation or zero-cost guarantee is made.
+5. Restore the recorded scaling mode/traffic/trigger configuration only after the cause is contained and the recovery decision is recorded; verify smoke tests and spending after restoration. Do not grant `allUsers` blindly as a restoration shortcut.
 
-- **Decision ID:** DEP-02 (Engineering ADR).
-- **Status:** CONFIRMED by founder for cost ceiling ($25/mo), data residency (`africa-south1`), and single-operator review; RECOMMENDED for container runtimes, VPC egress, and SSRF filter parameters.
-- **Review Schedule:** Mandatory review prior to R1 alpha deployment and before R3 institutional expansion.
-- **Related Records:** [Architecture 06](06_ARCHITECTURE.md), [Cost Operations 12](../operations/12_COST_CAPACITY_AND_OPERATIONS.md), [Decisions 14](../governance/14_DECISIONS_AND_ASSUMPTIONS.md), [Performance Envelopes 13](13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md).
+Removing an `allUsers` invoker binding alone is not a reliable universal compute stop: public access can also be configured by disabling the invoker IAM check, and other authenticated traffic/background resources can remain. Review the actual configuration using [Cloud Run public-access guidance](https://docs.cloud.google.com/run/docs/authenticating/public).
+
+## 8. Required future evidence and ownership
+
+Founder: confirm actual budget/access and operating availability. Implementer: versioned deployment configuration, complete cost estimate, identity/egress tests, environment guards and staging rehearsal. Operator: actual review windows, queue pause and incident response. G0 design evidence is limited to this documented boundary; G1/B09/B10 require implemented controls and real test results. No cloud command was run by the B02 implementation task.

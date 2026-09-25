@@ -1,0 +1,45 @@
+{
+  "conditions": "WSL loopback HTTP, unthrottled Python requests, no-store, first and repeat requests in this series; NOT browser cold cache or cellular/device performance",
+  "measurements": [
+    {
+      "path": "/",
+      "request": 1,
+      "status": 200,
+      "body_bytes": 91052,
+      "gzip_estimate_bytes_not_served": 4624,
+      "headers_ms": 161.77,
+      "total_ms": 166.49,
+      "script_elements": 0
+    },
+    {
+      "path": "/",
+      "request": 2,
+      "status": 200,
+      "body_bytes": 91052,
+      "gzip_estimate_bytes_not_served": 4624,
+      "headers_ms": 6.06,
+      "total_ms": 9.86,
+      "script_elements": 0
+    },
+    {
+      "path": "/prototype",
+      "request": 1,
+      "status": 200,
+      "body_bytes": 21526,
+      "gzip_estimate_bytes_not_served": 6633,
+      "headers_ms": 3.19,
+      "total_ms": 5.27,
+      "script_elements": 1
+    },
+    {
+      "path": "/prototype",
+      "request": 2,
+      "status": 200,
+      "body_bytes": 21526,
+      "gzip_estimate_bytes_not_served": 6633,
+      "headers_ms": 2.96,
+      "total_ms": 4.65,
+      "script_elements": 1
+    }
+  ]
+}

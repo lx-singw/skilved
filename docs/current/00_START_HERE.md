@@ -8,7 +8,7 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
-25 September next-sprint planning: use the [complete next-sprint implementation plan](planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md), based on correction commit `5fd878d`. Verify the corrected B01 candidate and close its remaining observation/confirmation dependencies, then implement B02's canonical six-category contract. The reference iteration allocates 6 hours to B01 carry-over and 24 hours to B02 within a provisional 30-hour task capacity; dates and availability remain unconfirmed. A bounded contract spike may proceed while external G0 evidence is pending, but cannot close B02 or authorize B03. This is a plan, not new runtime verification.
+25 September implementation: following the instruction to implement, N01 and B02a–d now have [current candidate evidence](quality/evidence/m0/2026-09-25-b02-contracts/README.md). The [canonical contract](engineering/14_CANONICAL_OPPORTUNITY_CONTRACT.md) implements all six categories, source-faithful requirements, safe public projection and API/storage/migration boundaries. Fresh installation, selected type/lint/build checks, 22 contract/inspection tests and 22 web boundary tests pass. Formal G0/B02 acceptance still needs participant observation and founder operating decisions. The [implementation plan](planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) remains the original task specification; dates, capacity and the remaining-effort reforecast are unconfirmed.
 
 24 September chronological execution: start with the [M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) and [current delivery status](planning/05_M0_DELIVERY_STATUS.md). They turn the agreed scope into six phases, ten ordered sprint objectives and 40 concrete tasks with dependencies, demonstrations, gates and release evidence. The [roadmap](planning/15_BUILD_ROADMAP.md) now leads with this first-MVP sequence; R0–R5 retain the full expanded ambition. Current position is P0/B01 in progress, with Gate G0 status OPEN (engineering foundation evidenced; participant observation and founder confirmation pending). Actual sprint dates and a revised remaining estimate have been drafted in [Doc 13](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md) and await founder confirmation.
 
@@ -31,7 +31,7 @@ Business-model update, 12 September 2026: the consumer tier is 100% free. Priori
 5. [Sprint backlog](planning/16_SPRINT_BACKLOG.md): S01-S35 work packages and completion evidence.
 6. [Portfolio traceability](planning/01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md): design, security, operations and commercial work integrated into delivery.
 
-The next implementation work is **remaining B01/S01 evidence and the B02 six-category contract**. Gate G0 status is OPEN: the baseline has been reproduced, clean-room checks pass, and CI and deployment baselines are established, while participant observation (G0.6) and founder confirmation (G0.7) remain pending. Unfinished persistence/authentication, agent wiring and infrastructure access-control findings remain relevant outside that boundary. No live deployment, cloud billing audit or production security test is established.
+The next acceptance work is **participant observation, operating decisions and any resulting fixes**. B02 engineering is locally verified; G0 and formal B02 acceptance remain open. After acceptance, B03 implements permitted persistent sources, protected review and publication using the new contract. Unfinished persistence/authentication, agent wiring and infrastructure access-control findings remain relevant. No live deployment, cloud billing audit or production security test is established.
 
 ## Document authority and maintenance
 
@@ -67,6 +67,7 @@ Architecture, shared contracts, persistent execution, development and integratio
 - [Environment schema and configuration specification](engineering/11_ENVIRONMENT_SCHEMA_AND_CONFIGURATION.md)
 - [Deployment and runtime decision record (DEP-02)](engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)
 - [Performance envelopes, numeric budgets and delivery reforecast](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md)
+- [Implemented canonical opportunity contract and B03 handoff](engineering/14_CANONICAL_OPPORTUNITY_CONTRACT.md)
 
 ## Data
 
