@@ -1,6 +1,6 @@
 # Skilved — current documentation by discipline
 
-Updated: 11 September 2026. Status: comprehensive planning baseline, not a production-readiness declaration, legal opinion or corporate certification.
+Updated: 25 September 2026. Status: comprehensive planning baseline, not a production-readiness declaration, legal opinion or corporate certification.
 
 Skilved connects a living career record, attributable evidence, opportunities, preparation, selected sharing, progress and persistent assistance. All six opportunity categories belong in the public MVP: **bursaries, learnerships, apprenticeships, internships, graduate programmes and jobs**. Apprentice peers and school leavers are the first reachable users. Expressed interest exists; payment, retention, placements and external partnerships remain to be established.
 
@@ -8,7 +8,7 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
-24 September chronological execution: start with the [M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) and [current delivery status](planning/05_M0_DELIVERY_STATUS.md). They turn the agreed scope into six phases, ten ordered sprint objectives and 40 concrete tasks with dependencies, demonstrations, gates and release evidence. The [roadmap](planning/15_BUILD_ROADMAP.md) now leads with this first-MVP sequence; R0–R5 retain the full expanded ambition. Current position is P0/B01 in progress. Actual sprint dates and a revised remaining estimate still require recorded capacity and open decisions.
+24 September chronological execution: start with the [M0 build runbook](planning/04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md) and [current delivery status](planning/05_M0_DELIVERY_STATUS.md). They turn the agreed scope into six phases, ten ordered sprint objectives and 40 concrete tasks with dependencies, demonstrations, gates and release evidence. The [roadmap](planning/15_BUILD_ROADMAP.md) now leads with this first-MVP sequence; R0–R5 retain the full expanded ambition. Current position is P0/B01 in progress, with Gate G0 status OPEN (engineering foundation evidenced; participant observation and founder confirmation pending). Actual sprint dates and a revised remaining estimate have been drafted in [Doc 13](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md) and await founder confirmation.
 
 24 September implementation evidence: the [public web stabilisation record](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md) records passing scoped lint, typecheck, production build and 21 HTTP/regression tests. Prototype personal/action paths and sample listings are isolated; Home/About expose an honest preparation state. This is partial B01/S01 progress, not a completed catalogue, M0 or deployment.
 
@@ -29,7 +29,7 @@ Business-model update, 12 September 2026: the consumer tier is 100% free. Priori
 5. [Sprint backlog](planning/16_SPRINT_BACKLOG.md): S01-S35 work packages and completion evidence.
 6. [Portfolio traceability](planning/01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md): design, security, operations and commercial work integrated into delivery.
 
-The next implementation work is **remaining B01/S01 evidence and the B02 six-category contract**. The baseline has been reproduced and the scoped web foundation now passes its recorded checks. Unfinished persistence/authentication, agent wiring and infrastructure access-control findings remain relevant outside that boundary. No live deployment, cloud billing audit or production security test is established.
+The next implementation work is **remaining B01/S01 evidence and the B02 six-category contract**. Gate G0 status is OPEN: the baseline has been reproduced, clean-room checks pass, and CI and deployment baselines are established, while participant observation (G0.6) and founder confirmation (G0.7) remain pending. Unfinished persistence/authentication, agent wiring and infrastructure access-control findings remain relevant outside that boundary. No live deployment, cloud billing audit or production security test is established.
 
 ## Document authority and maintenance
 
@@ -62,7 +62,9 @@ Architecture, shared contracts, persistent execution, development and integratio
 - [Agent responsibilities and durable execution](engineering/08_AGENT_EXECUTION.md)
 - [Bounded technical baseline audit](engineering/09_BASELINE_AUDIT_2026-09-24.md)
 - [Public web stabilisation and check results](engineering/10_PUBLIC_WEB_STABILISATION_2026-09-24.md)
+- [Environment schema and configuration specification](engineering/11_ENVIRONMENT_SCHEMA_AND_CONFIGURATION.md)
 - [Deployment and runtime decision record (DEP-02)](engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)
+- [Performance envelopes, numeric budgets and delivery reforecast](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md)
 
 ## Data
 

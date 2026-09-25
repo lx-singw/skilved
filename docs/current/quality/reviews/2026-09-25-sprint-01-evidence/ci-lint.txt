@@ -1,0 +1,13 @@
+
+> skilved@1.0.0 web:lint /tmp/skilved-sprint1-review-3rnaenlh
+> pnpm --filter @skilved/web lint
+
+
+> @skilved/web@1.0.0 lint /tmp/skilved-sprint1-review-3rnaenlh/apps/web
+> eslint . --max-warnings 0
+
+sh: 1: eslint: not found
+/tmp/skilved-sprint1-review-3rnaenlh/apps/web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @skilved/web@1.0.0 lint: `eslint . --max-warnings 0`
+spawn ENOENT
+ ELIFECYCLE  Command failed with exit code 1.

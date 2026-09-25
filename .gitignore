@@ -21,6 +21,8 @@ build/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+!docs/current/quality/evidence/**/*.txt
+!docs/current/quality/evidence/**/*.log
 
 # OS
 .DS_Store

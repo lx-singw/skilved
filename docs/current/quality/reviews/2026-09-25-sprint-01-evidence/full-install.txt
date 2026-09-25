@@ -1,0 +1,11 @@
+Scope: all 20 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +332
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 332, reused 332, downloaded 0, added 332, done
+
+devDependencies:
++ turbo 2.9.18
+
+Done in 2.1s

@@ -1,0 +1,106 @@
+================================================================================
+SKILVED M0 BASELINE VERIFICATION & ROUTE RECONCILIATION LOG
+Date: 2026-09-25
+Task: P0 / B01a — Reconcile Baseline & Route Inventory
+Environment: Ubuntu WSL, Node v22.22.0, pnpm 9.0.0, Next.js 15.5.19, TypeScript 5.9.3
+================================================================================
+
+--- CHECK 1: Web Linting ---
+$ NEXT_TELEMETRY_DISABLED=1 pnpm web:lint
+> skilved@1.0.0 web:lint /home/lx_singw/projects/skilved
+> pnpm --filter @skilved/web lint
+> @skilved/web@1.0.0 lint /home/lx_singw/projects/skilved/apps/web
+> eslint . --max-warnings 0
+EXIT_CODE: 0 (Zero warnings, zero errors)
+
+--- CHECK 2: Web Typecheck ---
+$ NEXT_TELEMETRY_DISABLED=1 pnpm web:typecheck
+> skilved@1.0.0 web:typecheck /home/lx_singw/projects/skilved
+> pnpm --filter @skilved/web typecheck
+> @skilved/web@1.0.0 typecheck /home/lx_singw/projects/skilved/apps/web
+> next typegen && tsc --noEmit
+Generating route types...
+✓ Route types generated successfully
+EXIT_CODE: 0 (tsc clean)
+
+--- CHECK 3: Next.js Production Build ---
+$ NEXT_TELEMETRY_DISABLED=1 pnpm web:build
+> skilved@1.0.0 web:build /home/lx_singw/projects/skilved
+> pnpm --filter @skilved/web build
+> @skilved/web@1.0.0 build /home/lx_singw/projects/skilved/apps/web
+> next build
+   ▲ Next.js 15.5.19
+   - Environments: .env.local
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 2.8s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/21) ...
+   Generating static pages (21/21)
+ ✓ Generating static pages (21/21)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    1.54 kB         114 kB
+├ ○ /_not-found                            165 B         102 kB
+├ ○ /about                               1.54 kB         114 kB
+├ ƒ /api/agent-apply                       165 B         102 kB
+├ ƒ /api/applications/pre-flight           165 B         102 kB
+├ ƒ /api/apply                             165 B         102 kB
+├ ƒ /api/auth/[...nextauth]                165 B         102 kB
+├ ƒ /api/auth/whatsapp/send-otp            165 B         102 kB
+├ ƒ /api/auth/whatsapp/verify-otp          165 B         102 kB
+├ ƒ /api/career                            165 B         102 kB
+├ ƒ /api/documents/verify                  165 B         102 kB
+├ ƒ /api/events                            165 B         102 kB
+├ ƒ /api/feed                              165 B         102 kB
+├ ƒ /api/health                            165 B         102 kB
+├ ƒ /api/opportunities                     165 B         102 kB
+├ ƒ /api/opportunities/[id]                165 B         102 kB
+├ ƒ /api/passport/upload-cv                165 B         102 kB
+├ ƒ /api/permissions                       165 B         102 kB
+├ ƒ /api/profile                           165 B         102 kB
+├ ƒ /api/save                              165 B         102 kB
+├ ƒ /api/webhooks/whatsapp                 165 B         102 kB
+└ ƒ /opportunity/[slug]                  2.58 kB         115 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/4557610a-fefa5be19e77ed4a.js  54.2 kB
+  ├ chunks/785-778584e14f2dca51.js       45.8 kB
+  └ other shared chunks (total)          1.93 kB
+EXIT_CODE: 0
+
+--- CHECK 4: Public Boundary Regression Tests ---
+$ NEXT_TELEMETRY_DISABLED=1 pnpm web:test
+> skilved@1.0.0 web:test /home/lx_singw/projects/skilved
+> pnpm --filter @skilved/web test:boundary
+> @skilved/web@1.0.0 test:boundary /home/lx_singw/projects/skilved/apps/web
+> node --test tests/public-boundary.test.mjs
+
+TAP version 13
+ok 1 - every routed entry is included in the reviewed public boundary
+ok 2 - health describes process liveness and the catalogue contains no invented listings
+ok 3 - /api/profile refuses data access and actions, including malformed input
+ok 4 - /api/documents/verify refuses data access and actions, including malformed input
+ok 5 - /api/applications/pre-flight refuses data access and actions, including malformed input
+ok 6 - /api/passport/upload-cv refuses data access and actions, including malformed input
+ok 7 - /api/save refuses data access and actions, including malformed input
+ok 8 - /api/career refuses data access and actions, including malformed input
+ok 9 - /api/apply refuses data access and actions, including malformed input
+ok 10 - /api/auth/whatsapp/verify-otp refuses data access and actions, including malformed input
+ok 11 - /api/auth/whatsapp/send-otp refuses data access and actions, including malformed input
+ok 12 - /api/auth/[...nextauth] refuses data access and actions, including malformed input
+ok 13 - /api/opportunities/[id] refuses data access and actions, including malformed input
+ok 14 - /api/events refuses data access and actions, including malformed input
+ok 15 - /api/agent-apply refuses data access and actions, including malformed input
+ok 16 - /api/permissions refuses data access and actions, including malformed input
+ok 17 - /api/feed refuses data access and actions, including malformed input
+ok 18 - /api/webhooks/whatsapp refuses data access and actions, including malformed input
+ok 19 - unfinished pages and fixture opportunity links cannot expose prototype content
+ok 20 - public pages state their limits, retain six-category ambition and avoid unavailable calls to action
+ok 21 - shipped page assets do not contain sample records or private prototype screens
+1..21
+# tests 21
+# pass 21
+# fail 0
+EXIT_CODE: 0

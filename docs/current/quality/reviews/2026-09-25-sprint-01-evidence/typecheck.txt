@@ -1,0 +1,10 @@
+
+> skilved@1.0.0 web:typecheck /tmp/skilved-sprint1-review-3rnaenlh
+> pnpm --filter @skilved/web typecheck
+
+
+> @skilved/web@1.0.0 typecheck /tmp/skilved-sprint1-review-3rnaenlh/apps/web
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Route types generated successfully

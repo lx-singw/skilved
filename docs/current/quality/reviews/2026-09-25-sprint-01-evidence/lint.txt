@@ -1,0 +1,7 @@
+
+> skilved@1.0.0 web:lint /tmp/skilved-sprint1-review-3rnaenlh
+> pnpm --filter @skilved/web lint
+
+
+> @skilved/web@1.0.0 lint /tmp/skilved-sprint1-review-3rnaenlh/apps/web
+> eslint . --max-warnings 0

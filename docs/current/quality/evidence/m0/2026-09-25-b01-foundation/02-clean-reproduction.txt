@@ -1,0 +1,170 @@
+================================================================================
+SKILVED M0 CLEAN ISOLATED REPRODUCTION LOG
+Date: 2026-09-25
+Task: P0 / B01b — Clean-Room CI & Foundation Verification
+Environment: Ubuntu WSL (/tmp/skilved-correction-repro), Node v22.22.0, pnpm 9.0.0
+Zero Production Secrets Used (.env.local excluded)
+Toolchain: devDependencies enabled for CI linting/typechecking, NODE_ENV=production scoped to build & test
+================================================================================
+
+--- STAGE 1: Clean Extraction ---
+$ rm -rf /tmp/skilved-correction-repro && mkdir -p /tmp/skilved-correction-repro
+$ rsync -a --exclude node_modules --exclude .next --exclude .turbo --exclude .env.local /home/lx_singw/projects/skilved/ /tmp/skilved-correction-repro/
+EXIT_CODE: 0
+
+--- STAGE 2: Dependency Installation (Unset NODE_ENV to install devDependencies) ---
+$ cd /tmp/skilved-correction-repro
+$ NEXT_TELEMETRY_DISABLED=1 pnpm install --frozen-lockfile
+Scope: all 20 workspace projects
+Lockfile is up to date, resolution step is skipped
+Packages: +360
+Progress: resolved 360, reused 360, downloaded 0, added 360, done
+
+devDependencies:
++ turbo 2.9.18
+
+Done in 6.2s
+EXIT_CODE: 0
+
+Verification of eslint binary presence:
+$ test -x apps/web/node_modules/.bin/eslint && test -x node_modules/.bin/eslint
+EXIT_CODE: 0 (eslint binary confirmed present and executable)
+
+--- STAGE 3: Web Linting ---
+$ NEXT_TELEMETRY_DISABLED=1 pnpm web:lint
+> skilved@1.0.0 web:lint /tmp/skilved-correction-repro
+> pnpm --filter @skilved/web lint
+
+> @skilved/web@1.0.0 lint /tmp/skilved-correction-repro/apps/web
+> eslint . --max-warnings 0
+EXIT_CODE: 0 (Zero warnings, zero errors)
+
+--- STAGE 4: Web Typecheck ---
+$ NEXT_TELEMETRY_DISABLED=1 pnpm web:typecheck
+> skilved@1.0.0 web:typecheck /tmp/skilved-correction-repro
+> pnpm --filter @skilved/web typecheck
+
+> @skilved/web@1.0.0 typecheck /tmp/skilved-correction-repro/apps/web
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Route types generated successfully
+EXIT_CODE: 0 (tsc clean, zero errors)
+
+--- STAGE 5: Web Production Build ---
+$ NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production pnpm web:build
+> skilved@1.0.0 web:build /tmp/skilved-correction-repro
+> pnpm --filter @skilved/web build
+
+> @skilved/web@1.0.0 build /tmp/skilved-correction-repro/apps/web
+> next build
+
+   ▲ Next.js 15.5.19
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 11.9s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/21) ...
+   Generating static pages (5/21)
+   Generating static pages (10/21)
+   Generating static pages (15/21)
+ ✓ Generating static pages (21/21)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    1.54 kB         114 kB
+├ ○ /_not-found                            165 B         102 kB
+├ ○ /about                               1.54 kB         114 kB
+├ ƒ /api/agent-apply                       165 B         102 kB
+├ ƒ /api/applications/pre-flight           165 B         102 kB
+├ ƒ /api/apply                             165 B         102 kB
+├ ƒ /api/auth/[...nextauth]                165 B         102 kB
+├ ƒ /api/auth/whatsapp/send-otp            165 B         102 kB
+├ ƒ /api/auth/whatsapp/verify-otp          165 B         102 kB
+├ ƒ /api/career                            165 B         102 kB
+├ ƒ /api/documents/verify                  165 B         102 kB
+├ ƒ /api/events                            165 B         102 kB
+├ ƒ /api/feed                              165 B         102 kB
+├ ƒ /api/health                            165 B         102 kB
+├ ƒ /api/opportunities                     165 B         102 kB
+├ ƒ /api/opportunities/[id]                165 B         102 kB
+├ ƒ /api/passport/upload-cv                165 B         102 kB
+├ ƒ /api/permissions                       165 B         102 kB
+├ ƒ /api/profile                           165 B         102 kB
+├ ƒ /api/save                              165 B         102 kB
+├ ƒ /api/webhooks/whatsapp                 165 B         102 kB
+└ ƒ /opportunity/[slug]                  2.58 kB         115 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/4557610a-fefa5be19e77ed4a.js  54.2 kB
+  ├ chunks/785-778584e14f2dca51.js       45.8 kB
+  └ other shared chunks (total)          1.93 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+EXIT_CODE: 0
+
+--- STAGE 6: Public Boundary Regression Suite (21 Tests) ---
+$ NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production pnpm web:test
+> skilved@1.0.0 web:test /tmp/skilved-correction-repro
+> pnpm --filter @skilved/web test:boundary
+
+> @skilved/web@1.0.0 test:boundary /tmp/skilved-correction-repro/apps/web
+> node --test tests/public-boundary.test.mjs
+
+TAP version 13
+ok 1 - every routed entry is included in the reviewed public boundary
+ok 2 - health describes process liveness and the catalogue contains no invented listings
+ok 3 - /api/profile refuses data access and actions, including malformed input
+ok 4 - /api/documents/verify refuses data access and actions, including malformed input
+ok 5 - /api/applications/pre-flight refuses data access and actions, including malformed input
+ok 6 - /api/passport/upload-cv refuses data access and actions, including malformed input
+ok 7 - /api/save refuses data access and actions, including malformed input
+ok 8 - /api/career refuses data access and actions, including malformed input
+ok 9 - /api/apply refuses data access and actions, including malformed input
+ok 10 - /api/auth/whatsapp/verify-otp refuses data access and actions, including malformed input
+ok 11 - /api/auth/whatsapp/send-otp refuses data access and actions, including malformed input
+ok 12 - /api/auth/[...nextauth] refuses data access and actions, including malformed input
+ok 13 - /api/opportunities/[id] refuses data access and actions, including malformed input
+ok 14 - /api/events refuses data access and actions, including malformed input
+ok 15 - /api/agent-apply refuses data access and actions, including malformed input
+ok 16 - /api/permissions refuses data access and actions, including malformed input
+ok 17 - /api/feed refuses data access and actions, including malformed input
+ok 18 - /api/webhooks/whatsapp refuses data access and actions, including malformed input
+ok 19 - unfinished pages and fixture opportunity links cannot expose prototype content
+ok 20 - public pages state their limits, retain six-category ambition and avoid unavailable calls to action
+ok 21 - shipped page assets do not contain sample records or private prototype screens
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1822.080783
+EXIT_CODE: 0
+
+--- STAGE 7: Workspace Syntax, Link Integrity, and Whitespace Checks ---
+In workspace: /home/lx_singw/projects/skilved
+
+1. Prototype Syntax Validation:
+$ node --check apps/web/prototype/task-prototype/serve.mjs
+EXIT_CODE: 0 (Syntax valid)
+
+2. Markdown Link Integrity Verification:
+$ python3 /tmp/verify_links.py
+Checked internal markdown links: 871
+Broken links found: 0
+All markdown links in docs/current/ are intact.
+EXIT_CODE: 0 (All 871 internal links verified)
+
+3. Git Diff Hygiene Check:
+$ git diff --check
+EXIT_CODE: 0 (Zero trailing whitespace errors)
+
+================================================================================
+VERIFICATION SUMMARY: CLEAN REPRODUCTION PROVED (EXIT 0 ACROSS ALL GATES)
+All 7 stages passed cleanly in isolated clean-room environment.
+================================================================================
