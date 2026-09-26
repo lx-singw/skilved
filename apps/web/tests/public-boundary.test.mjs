@@ -86,7 +86,7 @@ test("every routed entry is included in the reviewed public boundary", async () 
   assert.deepEqual(files.filter((file) => file.endsWith("/page.tsx") || file === "page.tsx").sort(),
     ["about/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx"])
   assert.deepEqual(files.filter((file) => file.endsWith("/route.ts")).sort(),
-    [...unavailableRoutes.keys(), "/api/health", "/api/opportunities"].map((path) => `${path.slice(1)}/route.ts`).sort())
+    [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports"].map((path) => `${path.slice(1)}/route.ts`).sort())
   assert.deepEqual(files.filter((file) => /(^|\/)(opengraph-image|twitter-image|sitemap|robots|icon|apple-icon|favicon)(\.|\/)/.test(file)), [])
 })
 
@@ -154,12 +154,24 @@ test("CT-19: canonical catalogue seam excludes private contracts and fixtures", 
   const source = await readFile(join(root, "src/lib/opportunities.ts"), "utf8")
   assert.match(source, /import type \{ PublicOpportunity \} from "@skilved\/types\/opportunities"/)
   assert.doesNotMatch(source, /@\/types\/opportunity|\/internal|from.*fixtures|PRIVATE_/)
-  for (const path of ["/opportunity/fixture_job_student_wil", "/api/v1/opportunities", "/public.json", "/.artifacts/contracts/index.html"]) {
+  for (const path of ["/opportunity/fixture_job_student_wil", "/public.json", "/.artifacts/contracts/index.html"]) {
     assert.equal((await fetch(`${base}${path}`)).status, 404, path)
   }
   for (const file of await filesUnder(join(root, ".next/static"))) {
     if (!file.endsWith(".js")) continue
     const body = await readFile(file, "utf8")
-    assert.doesNotMatch(body, /Fictional Learning Workshop|PRIVATE_REVIEW_SENTINEL|PRIVATE_QUEUE_SENTINEL|fixture_explanation/)
+    assert.doesNotMatch(body, /Fictional Learning Workshop|PRIVATE_REVIEW_SENTINEL|PRIVATE_QUEUE_SENTINEL|fixture_explanation|SKILVED_OPERATOR_TOKEN_FILE|m0_operators|PRIVATE_REPORT_SENTINEL/)
   }
+})
+
+test("B03 versioned APIs fail closed without configured publication and expose no operator endpoint", async () => {
+  for (const path of ["/api/v1/opportunities", "/api/v1/opportunities/private-id"]) {
+    const response = await fetch(`${base}${path}`)
+    assert.equal(response.status, 503)
+    assert.equal(response.headers.get("cache-control"), "no-store")
+    assert.deepEqual(await response.json(), { error: { code: "SERVICE_UNAVAILABLE" } })
+  }
+  const report = await fetch(`${base}/api/v1/reports`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+  assert.equal(report.status, 503)
+  assert.equal((await fetch(`${base}/api/v1/operator`)).status, 404)
 })
