@@ -10,10 +10,22 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./opportunities": "./src/opportunities/index.ts",
-    "./opportunities/internal": "./src/opportunities/internal.ts",
-    "./opportunities/storage": "./src/opportunities/storage.ts",
-    "./opportunities/migration": "./src/opportunities/migration.ts",
+    "./opportunities": {
+      "types": "./src/opportunities/index.ts",
+      "default": "./dist/opportunities/index.js"
+    },
+    "./opportunities/internal": {
+      "types": "./src/opportunities/internal.ts",
+      "default": "./dist/opportunities/internal.js"
+    },
+    "./opportunities/storage": {
+      "types": "./src/opportunities/storage.ts",
+      "default": "./dist/opportunities/storage.js"
+    },
+    "./opportunities/migration": {
+      "types": "./src/opportunities/migration.ts",
+      "default": "./dist/opportunities/migration.js"
+    },
     "./legacy": "./src/opportunity.ts"
   },
   "scripts": {

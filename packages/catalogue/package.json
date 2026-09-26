@@ -1,0 +1,22 @@
+{
+  "name": "@skilved/catalogue",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/http.mjs",
+    "./runtime": "./src/runtime.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:adapters": "node --test tests/recentjobs.test.mjs",
+    "operator": "node tools/operator.mjs"
+  },
+  "dependencies": {
+    "@skilved/types": "workspace:*",
+    "firebase-admin": "^13.0.0",
+    "ipaddr.js": "^2.2.0",
+    "parse5": "8.0.0",
+    "zod": "^3.22.4"
+  }
+}

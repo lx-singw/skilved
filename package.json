@@ -16,11 +16,13 @@
     "test": "turbo run test",
     "web:lint": "pnpm --filter @skilved/web lint",
     "web:typecheck": "pnpm --filter @skilved/web typecheck",
-    "web:build": "pnpm --filter @skilved/web build",
+    "web:build": "pnpm --filter @skilved/types build:contracts && pnpm --filter @skilved/web build",
     "web:test": "pnpm --filter @skilved/web test:boundary",
     "contracts:typecheck": "pnpm --filter @skilved/types typecheck:contracts",
     "contracts:test": "pnpm --filter @skilved/types test:contracts",
-    "contracts:inspect": "pnpm --filter @skilved/types inspect:contracts"
+    "contracts:inspect": "pnpm --filter @skilved/types inspect:contracts",
+    "catalogue:test": "pnpm --filter @skilved/types build:contracts && firebase emulators:exec --config packages/catalogue/firebase.test.json --project demo-skilved-b03 --only firestore,auth \"pnpm --filter @skilved/catalogue test\"",
+    "catalogue:operator": "pnpm --filter @skilved/types build:contracts && pnpm --filter @skilved/catalogue operator"
   },
   "devDependencies": {
     "turbo": "^2.0.0"
