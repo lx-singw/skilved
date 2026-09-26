@@ -1,0 +1,11 @@
+Command: pnpm contracts:typecheck
+
+> skilved@1.0.0 contracts:typecheck /tmp/skilved-b03-final-mhk9pyba
+> pnpm --filter @skilved/types typecheck:contracts
+
+
+> @skilved/types@1.0.0 typecheck:contracts /tmp/skilved-b03-final-mhk9pyba/packages/types
+> tsc -p tsconfig.contracts.json --noEmit
+
+
+Exit: 0

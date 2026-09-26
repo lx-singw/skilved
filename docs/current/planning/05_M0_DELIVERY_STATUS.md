@@ -1,8 +1,12 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 25 September 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 26 September 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+26 September founder correction and implementation: **RecentJobs is the first source**, prioritising cross-employer apprenticeships for the first audience. The [initial parser and source observations](../operations/13_RECENTJOBS_FIRST_ADAPTER.md) cover bounded category discovery, inert detail extraction and pending application/date candidates. This pure module is not yet integrated with canonical drafts, guarded retrieval, scheduling or publication. Source conditions, broader extraction qualification and the real-source G1 demonstration remain open. The [earlier Transnet assessment](../operations/11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md) is deferred reference, not current task order.
+
+Subsequent B03 work, 25 September: the founder authorized planning and implementation of the next sprint while existing external acceptance facts remain pending, then requested a proper scraping-source plan. The [B03 runtime](../engineering/15_SOURCE_PUBLICATION_RUNTIME.md) implements local persistent ingestion/review/publication controls and default-disabled public APIs. The [scraping plan](../operations/10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md) separates actual source assessment from the controlled JSON adapter. Source permission, a real HTML/PDF/API adapter demonstration, real catalogue coverage and G1 remain open. See [B03 evidence](../quality/evidence/m0/2026-09-25-b03-publication/README.md) for current candidate results and limitations.
 
 25 September implementation reconciliation: the user's instruction to implement was carried through across N01 and B02a–d, starting from `f116f4b`. The [current candidate evidence](../quality/evidence/m0/2026-09-25-b02-contracts/README.md) identifies tested code by file hashes and records fresh-directory verification. The [next-sprint plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) remains the task specification; its original estimates are not a new remaining-effort forecast.
 
@@ -14,7 +18,7 @@ Statuses: `NOT STARTED`, `IN PROGRESS`, `BLOCKED` (identify dependency and owner
 |---|---|---|---|
 | B01 | P0 | IN PROGRESS | Current candidate reproduced; scoped engineering/browser evidence in the new bundle. Participant observation G0.6 and actual capacity/budget G0.7 remain pending. Runtime environment guards and cloud controls are not active. |
 | B02 | P1 | IN PROGRESS (engineering evidenced; formal acceptance pending G0) | Canonical six-category schema, provenance/projection, bounded requirements, API/storage/alias/legacy conversion contracts, isolated inspection and CT-01–20 implemented; 22 contract/inspection plus 22 web boundary tests pass. Actual persistence and live endpoints remain B03. |
-| B03 | P1 | NOT STARTED | Permitted persistent source/review/publication, protected operator access and correction controls not evidenced |
+| B03 | P1 | IN PROGRESS (local runtime implemented; source acquisition and formal G1 pending) | Firestore/Auth emulator integration, protected CLI, durable jobs/snapshots/versions, review/publication/report/alias controls and versioned reads implemented. Real source assessment/adapter, source coverage, actual operator provisioning and deployed qualification remain open. |
 | B04 | P2 | NOT STARTED | Integrated reviewed feed/detail/checklist/report/handoff and six-category source tasks not evidenced |
 | B05 | P3 | NOT STARTED | Browser-local progress and failure/change recovery not evidenced |
 | B06 | P3 | NOT STARTED | Bounded suggestions, capability receipts, withdrawal and safe-fetch acceptance not evidenced |
@@ -55,7 +59,7 @@ If a dependency is unavailable, record its blocked task, responsible owner, next
 
 ## 3. Next sprint preparation
 
-N01 and B02a–d now have scoped implementation evidence. Complete the [observation and decisions kit](../quality/evidence/m0/2026-09-25-b02-contracts/observation-and-decisions.md), fix material findings and record formal acceptance before starting dependent B03 work. Proposed budgets do not establish confirmed capacity or runtime controls.
+N01 and B02a–d have scoped evidence; the founder subsequently authorized local B03 engineering. Complete the [observation and decisions kit](../quality/evidence/m0/2026-09-25-b02-contracts/observation-and-decisions.md), resolve the [source acquisition decisions](../operations/10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md), implement and demonstrate the selected real adapter, and record formal acceptance. Proposed budgets do not establish confirmed capacity or deployed controls. Do not treat the controlled JSON fixture path as completion of real scraping or start B04 under a falsely closed G1.
 
 The following is the original planning scenario from the [implementation plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md), retained for comparison. It is not current remaining work or a confirmed calendar commitment; actual task disposition is in the evidence bundle.
 

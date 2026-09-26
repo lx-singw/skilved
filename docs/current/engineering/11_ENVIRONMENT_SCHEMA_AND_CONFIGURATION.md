@@ -1,6 +1,8 @@
 # 11 Environment Schema and Configuration Specification
 
-Date: 2026-09-25. Status: CONFIRMED.
+Date: 2026-09-25. Status: configuration specification; deployed settings and reserved consumers are unverified.
+
+B03 implementation update: the [source publication runtime](15_SOURCE_PUBLICATION_RUNTIME.md) defines actual `SKILVED_CATALOGUE_*` variables, lazy SDK initialization, production emulator rejection and explicit demo/loopback requirements. These are implemented for the new catalogue entrypoints. Older reserved services and the example guard below do not establish application-wide enforcement. No Secret Manager configuration or hosted IAM was provisioned in this task.
 Authority: Task B01b, ADR DEP-02 ([12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md](12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)), M0 Runbook, Sprint 1 Review (R2, R10).
 Compatibility Anchor: Supersedes legacy unclassified templates; compatibility alias for [16_Environment_Variables.md](../../16_Environment_Variables.md).
 

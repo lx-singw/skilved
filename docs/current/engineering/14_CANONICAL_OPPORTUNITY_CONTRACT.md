@@ -1,5 +1,7 @@
 # Canonical M0 opportunity contract — B02 implementation
 
+Subsequent B03 update, 25 September 2026: [source publication runtime](15_SOURCE_PUBLICATION_RUNTIME.md) implements a Firestore adapter, protected operator tool and default-disabled versioned read/report APIs. Its `m0_` collections and runtime configuration supersede the proposed adapter names below. B03 source acquisition and formal acceptance remain open. This document preserves the B02 contract baseline and its original verification boundary.
+
 Date: 25 September 2026. Engineering implementation: local, schema version 1. Formal G0/B02 acceptance remains conditional on the missing human observation and founder decisions in the delivery record. This contract does not provide persistence, authorization, source retrieval or a live catalogue.
 
 ## Entry points and compatibility

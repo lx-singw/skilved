@@ -1,12 +1,16 @@
 # Skilved — current documentation by discipline
 
-Updated: 25 September 2026. Status: comprehensive planning baseline, not a production-readiness declaration, legal opinion or corporate certification.
+Updated: 26 September 2026. Status: comprehensive planning baseline, not a production-readiness declaration, legal opinion or corporate certification.
 
 Skilved connects a living career record, attributable evidence, opportunities, preparation, selected sharing, progress and persistent assistance. All six opportunity categories belong in the public MVP: **bursaries, learnerships, apprenticeships, internships, graduate programmes and jobs**. Apprentice peers and school leavers are the first reachable users. Expressed interest exists; payment, retention, placements and external partnerships remain to be established.
 
 The founder requests the full ambition and delegates planning choices. The documentation sequences it into complete releases and evidence gates. It does not impose an arbitrary vision ceiling or assume unlimited money, time or staffing. Discipline owners are roles until real people accept them; the documents are specialist specifications, not claims that external experts have signed off.
 
 ## Start here
+
+26 September founder source decision: [RecentJobs is first](operations/13_RECENTJOBS_FIRST_ADAPTER.md), prioritising cross-employer apprenticeship discovery. Its initial network-free list/detail parser is implemented; canonical draft integration, source conditions, recurring collection and G1 remain open. The [earlier Transnet-first recommendation](operations/11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md) is superseded; other sources and individual employers follow later.
+
+25 September B03 execution: the founder requested the next sprint's plan and implementation, then clarified that scraping source/method selection needs proper planning. Use the [B03 plan](planning/07_B03_IMPLEMENTATION_PLAN.md), [source acquisition and scraping plan](operations/10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md) and [runtime contract](engineering/15_SOURCE_PUBLICATION_RUNTIME.md). The local source/review/publication runtime passes 21 catalogue tests, alongside 22 contract tests and 23 web boundary tests in the [candidate evidence](quality/evidence/m0/2026-09-25-b03-publication/README.md). No real-source permission, live scraper, public catalogue or G1 closure is implied. The scraping plan records that legacy source files are mostly empty and the populated site crawlers return hardcoded examples.
 
 25 September implementation: following the instruction to implement, N01 and B02a–d now have [current candidate evidence](quality/evidence/m0/2026-09-25-b02-contracts/README.md). The [canonical contract](engineering/14_CANONICAL_OPPORTUNITY_CONTRACT.md) implements all six categories, source-faithful requirements, safe public projection and API/storage/migration boundaries. Fresh installation, selected type/lint/build checks, 22 contract/inspection tests and 22 web boundary tests pass. Formal G0/B02 acceptance still needs participant observation and founder operating decisions. The [implementation plan](planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) remains the original task specification; dates, capacity and the remaining-effort reforecast are unconfirmed.
 
@@ -31,7 +35,7 @@ Business-model update, 12 September 2026: the consumer tier is 100% free. Priori
 5. [Sprint backlog](planning/16_SPRINT_BACKLOG.md): S01-S35 work packages and completion evidence.
 6. [Portfolio traceability](planning/01_PORTFOLIO_TRACEABILITY_AND_DELIVERY_GATES.md): design, security, operations and commercial work integrated into delivery.
 
-The next acceptance work is **participant observation, operating decisions and any resulting fixes**. B02 engineering is locally verified; G0 and formal B02 acceptance remain open. After acceptance, B03 implements permitted persistent sources, protected review and publication using the new contract. Unfinished persistence/authentication, agent wiring and infrastructure access-control findings remain relevant. No live deployment, cloud billing audit or production security test is established.
+The next acceptance work includes **participant observation, operating decisions, source acquisition assessment and the real-source demonstration**. The user authorized local B03 engineering while these external facts remain pending. Formal G0/B02/G1 acceptance remains open; current runtime evidence does not establish deployed identity/IAM, cloud billing or production security controls. Use the delivery-status record to distinguish local results from remaining work.
 
 ## Document authority and maintenance
 
@@ -68,6 +72,7 @@ Architecture, shared contracts, persistent execution, development and integratio
 - [Deployment and runtime decision record (DEP-02)](engineering/12_DEPLOYMENT_AND_RUNTIME_DECISION_RECORD.md)
 - [Performance envelopes, numeric budgets and delivery reforecast](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md)
 - [Implemented canonical opportunity contract and B03 handoff](engineering/14_CANONICAL_OPPORTUNITY_CONTRACT.md)
+- [Source review and publication runtime](engineering/15_SOURCE_PUBLICATION_RUNTIME.md)
 
 ## Data
 

@@ -1,0 +1,163 @@
+Command: pnpm catalogue:test
+
+> skilved@1.0.0 catalogue:test /tmp/skilved-b03-final-mhk9pyba
+> pnpm --filter @skilved/types build:contracts && firebase emulators:exec --config packages/catalogue/firebase.test.json --project demo-skilved-b03 --only firestore,auth "pnpm --filter @skilved/catalogue test"
+
+
+> @skilved/types@1.0.0 build:contracts /tmp/skilved-b03-final-mhk9pyba/packages/types
+> tsc -p tsconfig.contracts.json
+
+i  emulators: Starting emulators: auth, firestore
+i  emulators: Detected demo project ID "demo-skilved-b03", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: pnpm --filter @skilved/catalogue test
+
+> @skilved/catalogue@1.0.0 test /tmp/skilved-b03-final-mhk9pyba/packages/catalogue
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: production/emulator guards reject unsafe configuration before SDK creation
+ok 1 - production/emulator guards reject unsafe configuration before SDK creation
+  ---
+  duration_ms: 1958.290186
+  type: 'test'
+  ...
+# Subtest: fetch address and exact allowlist reject private/reserved/mapped/credential routes
+ok 2 - fetch address and exact allowlist reject private/reserved/mapped/credential routes
+  ---
+  duration_ms: 7.646806
+  type: 'test'
+  ...
+# Subtest: verified identity and server-owned current role required; forged token and guest denied
+ok 3 - verified identity and server-owned current role required; forged token and guest denied
+  ---
+  duration_ms: 291.121669
+  type: 'test'
+  ...
+# Subtest: ingestion is idempotent, strips approval/checks, stores snapshot and remains private
+ok 4 - ingestion is idempotent, strips approval/checks, stores snapshot and remains private
+  ---
+  duration_ms: 531.325855
+  type: 'test'
+  ...
+# Subtest: review publication persists across client recreation and excludes private content
+ok 5 - review publication persists across client recreation and excludes private content
+  ---
+  duration_ms: 165.72196
+  type: 'test'
+  ...
+# Subtest: stale and concurrent reviewer actions conflict and retain atomic audit/version history
+ok 6 - stale and concurrent reviewer actions conflict and retain atomic audit/version history
+  ---
+  duration_ms: 2825.097652
+  type: 'test'
+  ...
+# Subtest: restore is explicit; serious reports restrict immediately and report bodies stay private
+ok 7 - restore is explicit; serious reports restrict immediately and report bodies stay private
+  ---
+  duration_ms: 203.060199
+  type: 'test'
+  ...
+# Subtest: source correction invalidates old public output; withdrawn records cannot be revived by ingestion
+ok 8 - source correction invalidates old public output; withdrawn records cannot be revived by ingestion
+  ---
+  duration_ms: 471.742167
+  type: 'test'
+  ...
+# Subtest: separate intake identities, filter completeness, stable pagination and stale cursors
+ok 9 - separate intake identities, filter completeness, stable pagination and stale cursors
+  ---
+  duration_ms: 769.893455
+  type: 'test'
+  ...
+# Subtest: reviewed destination needs exact revision check; editing draft immediately restricts publication
+ok 10 - reviewed destination needs exact revision check; editing draft immediately restricts publication
+  ---
+  duration_ms: 393.468526
+  type: 'test'
+  ...
+# Subtest: confirmed aliases hide duplicate, cycle is rejected, reversal retains original withdrawal
+ok 11 - confirmed aliases hide duplicate, cycle is rejected, reversal retains original withdrawal
+  ---
+  duration_ms: 197.442725
+  type: 'test'
+  ...
+# Subtest: failure retains last success; retries bounded; lease recovery and pause prevent completion
+ok 12 - failure retains last success; retries bounded; lease recovery and pause prevent completion
+  ---
+  duration_ms: 396.3797
+  type: 'test'
+  ...
+# Subtest: source pause during retrieval fences completion and source lease bounds concurrent work
+ok 13 - source pause during retrieval fences completion and source lease bounds concurrent work
+  ---
+  duration_ms: 268.450574
+  type: 'test'
+  ...
+# Subtest: public HTTP uses safe status, no-store, bounded report validation and disabled mode
+ok 14 - public HTTP uses safe status, no-store, bounded report validation and disabled mode
+  ---
+  duration_ms: 19.933205
+  type: 'test'
+  ...
+# Subtest: direct unauthenticated Firestore client access denied by emulator rules
+ok 15 - direct unauthenticated Firestore client access denied by emulator rules
+  ---
+  duration_ms: 513.604279
+  type: 'test'
+  ...
+# Subtest: new operator process reads persistent history through real token verification
+ok 16 - new operator process reads persistent history through real token verification
+  ---
+  duration_ms: 3958.120076
+  type: 'test'
+  ...
+# Subtest: report quota survives service recreation; disabled authenticated user rejected
+ok 17 - report quota survives service recreation; disabled authenticated user rejected
+  ---
+  duration_ms: 44.375874
+  type: 'test'
+  ...
+# Subtest: transport pins a public address with hostname TLS verification
+ok 18 - transport pins a public address with hostname TLS verification
+  ---
+  duration_ms: 10.095093
+  type: 'test'
+  ...
+# Subtest: mixed DNS answers and changed socket address rejected
+ok 19 - mixed DNS answers and changed socket address rejected
+  ---
+  duration_ms: 3.862297
+  type: 'test'
+  ...
+# Subtest: every redirect is revalidated and repeated redirects are bounded
+ok 20 - every redirect is revalidated and repeated redirects are bounded
+  ---
+  duration_ms: 3.712244
+  type: 'test'
+  ...
+# Subtest: oversized, compressed, wrong-MIME and blocked-status responses rejected
+ok 21 - oversized, compressed, wrong-MIME and blocked-status responses rejected
+  ---
+  duration_ms: 2.038044
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13207.748063
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
+
+Exit: 0

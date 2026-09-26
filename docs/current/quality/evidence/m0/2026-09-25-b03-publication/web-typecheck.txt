@@ -1,0 +1,13 @@
+Command: pnpm web:typecheck
+
+> skilved@1.0.0 web:typecheck /tmp/skilved-b03-final-mhk9pyba
+> pnpm --filter @skilved/web typecheck
+
+
+> @skilved/web@1.0.0 typecheck /tmp/skilved-b03-final-mhk9pyba/apps/web
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Route types generated successfully
+
+Exit: 0
