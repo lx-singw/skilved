@@ -6,6 +6,8 @@ Updated: 11 September 2026. The original hackathon document is preserved in the 
 
 Maintain source-specific rights, provenance, freshness and review records.
 
+25 September 2026: use the [source acquisition and scraping plan](current/operations/10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md) for the current crawler audit, acquisition mix, candidate assessment and adapter rollout. The old source classes are placeholders or hardcoded examples, not live scraping coverage.
+
 Read the [current specification](current/operations/09_OPPORTUNITY_OPERATIONS.md) for scope, acceptance, operating responsibilities and dependencies. Proposed controls and features require implementation evidence before they are described as working.
 
 ## History
