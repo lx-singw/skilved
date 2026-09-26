@@ -46,6 +46,18 @@ jobs:
       - name: Test canonical opportunity contracts
         run: pnpm contracts:test
 
+      - name: Set up Java for Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install pinned Firebase emulator CLI
+        run: npm install --global firebase-tools@15.22.3
+
+      - name: Test source publication with isolated emulators
+        run: pnpm catalogue:test
+
       - name: Run web typecheck
         run: pnpm web:typecheck
 
