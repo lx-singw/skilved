@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { DateSchema, HttpsSchema, InstantSchema, ProvinceSchema, TextSchema } from './primitives';
 
-export const PlaceSchema = z.object({ country: z.string().regex(/^[A-Z]{2}$/), province: ProvinceSchema.nullable(), city: TextSchema.nullable() }).strict();
+export const PlaceSchema = z.object({ country: z.string().regex(/^[A-Z]{2}$/).nullable(), province: ProvinceSchema.nullable(), city: TextSchema.nullable() }).strict();
 export const LocationSchema = z.object({ places: z.array(PlaceSchema).max(20),
   coverage: z.enum(['local', 'national', 'international', 'not_stated']),
   attendance: z.enum(['in_person', 'hybrid', 'remote', 'not_stated']),

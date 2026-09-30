@@ -1,0 +1,41 @@
+{
+  "id": "recentjobs_local_shadow",
+  "revision": 2,
+  "name": "RecentJobs private local evaluation",
+  "urls": ["https://recentjobs.co.za/category/apprenticeships/"],
+  "permission": {
+    "reference": "User-authorized private evaluation; current robots rules are checked by the worker.",
+    "method": "recentjobs_html",
+    "reuse": "Private evidence and drafts only. This evaluation configuration does not establish production source qualification.",
+    "reviewedAt": "2026-09-27T00:00:00.000Z"
+  },
+  "categories": ["apprenticeship"],
+  "owner": "local_evaluation",
+  "paused": false,
+  "cadenceHours": 24,
+  "maxBytes": 500000,
+  "automation": {
+    "mode": "shadow",
+    "employerCrawl": false,
+    "qualificationRef": "Private local evaluation only; see docs/current/operations/17_RECENTJOBS_LIVE_SHADOW_2026-09-27.md",
+    "maxArticles": 10,
+    "maxModelCallsPerDay": 4,
+    "minRequestIntervalMs": 3000,
+    "checkTtlHours": 24,
+    "issuers": [
+      {
+        "name": "Feltex Connacher",
+        "host": "feltex.erecruit.co",
+        "pathPrefix": "/candidateapp/Jobs/View",
+        "evidence": "Original application anchor observed in the Feltex RecentJobs notice; scoped for private evaluation, not production qualification."
+      },
+      {
+        "name": "Alpla Plastics",
+        "aliases": ["ALPLA"],
+        "host": "alpla.mcidirecthire.com",
+        "pathPrefix": "/",
+        "evidence": "The notice title names Alpla Plastics and its body uses ALPLA, with this original application anchor. Both labels are scoped to this route for private evaluation, not production qualification."
+      }
+    ]
+  }
+}

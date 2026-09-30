@@ -4,7 +4,12 @@ import { ApplicationRouteSchema, CompensationSchema, DeadlineSchema, LocationSch
 import { RequirementSetSchema } from './requirements';
 import { CheckOutcomeSchema, CheckScopeSchema, CitationSchema, Projection, ProjectionSchema } from './public';
 
+// Server extraction adapters share the canonical value schemas without importing legacy types.
+export { LocationSchema, OrganisationSchema } from './values';
+export { RequirementValueSchema, RequirementSetSchema } from './requirements';
+
 const CheckSchema = z.object({ id: IdSchema, scope: CheckScopeSchema, outcome: CheckOutcomeSchema,
+  method: z.enum(['human', 'automatic']).optional(),
   checkedAt: InstantSchema, nextCheckAt: InstantSchema.nullable(), reviewerId: IdSchema,
   citationIds: z.array(IdSchema).min(1).max(20), recordRevision: RevisionSchema,
   // Application checks must be bound to the exact destination, not just the issuer.
@@ -102,7 +107,8 @@ export function projectOpportunity(input: unknown): Projection {
     requirements: { id: o.requirements.id, revision: o.requirements.revision, expression: o.requirements.expression,
       requirements: o.requirements.requirements.map(r => ({ id: r.id, kind: r.kind, level: r.level, fact: publicFact(r.fact) })) },
     explanation, lifecycle: o.lifecycle, application,
-    checks: visibleChecks.map(c => ({ scope: c.scope, outcome: c.outcome, checkedAt: c.checkedAt, nextCheckAt: c.nextCheckAt, citations: c.citationIds })),
+    checks: visibleChecks.map(c => ({ scope: c.scope, outcome: c.outcome, checkedAt: c.checkedAt, nextCheckAt: c.nextCheckAt, citations: c.citationIds,
+      ...(c.method ? { method: c.method } : {}) })),
     citations: citations.map(c => ({ id: c.id, label: c.label, url: c.url })), createdAt: o.createdAt, updatedAt: o.updatedAt,
   } });
   return result.success ? result.data : { kind: 'invalid', code: 'INVALID_RECORD' };

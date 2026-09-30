@@ -4,7 +4,7 @@ Updated: 13 September 2026. Status: operating specification; coverage and actual
 
 ## 1. Service boundaries and responsibilities
 
-Permitted scraping, direct issuer monitoring and reviewed suggestions feed the same publication process. Scraping remains central; clarification and preparation add value around it. Collecting a lead is not publishing an opportunity. Review all first publications and material changes at M0. Later automation requires parser-specific evidence, bounded permissions and ongoing samples.
+Permitted scraping, direct issuer monitoring and reviewed suggestions feed the same publication process. Scraping remains central; clarification and preparation add value around it. Collecting a lead is not publishing an opportunity. The 26 September founder decision requires [autonomous processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md), starting with RecentJobs. Qualified maintained sources use automated checks for routine first publication and material changes, with humans handling exceptions and sampled quality checks. This supersedes the earlier every-record manual-review requirement; parser/model-specific evidence, bounded permissions and ongoing samples still apply. Public suggestions do not acquire automatic publication authority.
 
 Founder initially holds source operator, reviewer and support roles; a separate reviewer is a resource to obtain, not a fictitious employee. Log review actor, method, time, evidence, decision and unresolved questions. Publicly describe actual coverage and response availability. Pause intake or reduce collection scope when backlog exceeds safe capacity; preserve all six category support and disclose real inventory limitations.
 
@@ -21,6 +21,8 @@ Before launch, record a representative task matrix: category/subtype, audience s
 Publish concise attribution and source links with only permitted necessary excerpts. Store original/discovery source and destination separately. When an aggregator reveals the issuer, move ongoing checks to the permitted primary route where practical while preserving discovery provenance. Remove content or change collection when rights/access conditions require it; no rotating-identity evasion.
 
 ## 3. Review workflow
+
+For qualified maintained sources, these are validation responsibilities that the planned worker performs automatically when supported by its source policy. The same steps guide human exception review. Until that worker is implemented, the existing operator workflow remains the available execution path.
 
 1. Validate public-link/source scope and isolate unsafe or sensitive submissions. Use the approved retrieval environment, not a credentialed personal session.
 2. Identify issuer and candidate duplicate/intake. Preserve separate references, locations and intakes where appropriate.

@@ -4,6 +4,8 @@ Date: 11 September 2026. Status: target evaluation programme; no model is certif
 
 ## Permitted initial AI tasks
 
+26 September current direction: [autonomous acquisition through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md) uses Groq openai/gpt-oss-120b after the founder supplied a private Groq key. Live synthetic extraction and semantic validation pass; real-source held-out accuracy remains unmeasured. Employer crawling is optional/off by default: validation uses discovery evidence, original application candidates and registered issuer relationships, with no invented employer-page checks. Source/model qualification, exception review and sampled monitoring remain necessary. A separate model pass is not independent issuer evidence. The legacy Analyst must not feed production.
+
 Use models for bounded extraction, plain-language explanation, draft preparation and next-step suggestions based on attributable inputs. Use deterministic code for authentication, permissions, deadline arithmetic, exact filters, task state transitions, financial effects and execution authorisation. An agent is a persistent authorised workflow; its value is not the number of models or separate services.
 
 ## Task-specific evaluation

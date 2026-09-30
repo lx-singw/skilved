@@ -1,8 +1,20 @@
 import Link from "next/link"
 import { ArrowRight, Search } from "lucide-react"
 import { Header } from "@/components/layout/Header"
+import { PublicCatalogue } from "@/components/catalogue/PublicCatalogue"
 
-export default function HomePage() {
+export const dynamic = "force-dynamic"
+
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  if (process.env.SKILVED_CATALOGUE_READS === "true") {
+    const params = await searchParams
+    const query = new URLSearchParams()
+    for (const key of ["q", "category", "cursor"]) {
+      const values = params[key]
+      for (const value of Array.isArray(values) ? values : values ? [values] : []) if (value) query.append(key, value)
+    }
+    return <PublicCatalogue query={query} />
+  }
   return (
     <>
       <Header />

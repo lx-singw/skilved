@@ -14,8 +14,12 @@ export function approvedUrl(input, source) {
   return url;
 }
 /** Pinned DNS lookup, TLS verification and socket-address check on every hop. No proxy or cookies. */
-export async function retrieve(source, initialUrl, io = { lookup, request: https.request }) {
+export async function retrieve(source, initialUrl, io = { lookup, request: https.request }, format = 'json') {
   if (source.paused) throw new DomainError('SOURCE_PAUSED');
+  const formats = { json: ['application/json', /^application\/(?:[a-z0-9.+-]+\+)?json(?:;|$)/i],
+    html: ['text/html', /^text\/html(?:;|$)/i], text: ['text/plain', /^text\/plain(?:;|$)/i] };
+  if (!formats[format]) throw new DomainError('UNSUPPORTED_FORMAT');
+  const [accept, mime] = formats[format];
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
   try {
@@ -30,7 +34,7 @@ export async function retrieve(source, initialUrl, io = { lookup, request: https
       const response = await new Promise((resolve, reject) => {
         const req = io.request(url, { method: 'GET', agent: false, signal: controller.signal,
           servername: url.hostname, rejectUnauthorized: true,
-          headers: { Accept: 'application/json', 'Accept-Encoding': 'identity', 'User-Agent': 'SkilvedSourceReview/1.0' },
+          headers: { Accept: accept, 'Accept-Encoding': 'identity', 'User-Agent': 'SkilvedSourceReview/1.0' },
           lookup: (_host, options, callback) => options.all ? callback(null, [selected]) : callback(null, selected.address, selected.family),
         }, res => {
           const chunks = []; let size = 0;
@@ -38,7 +42,7 @@ export async function retrieve(source, initialUrl, io = { lookup, request: https
           if ([301,302,303,307,308].includes(res.statusCode)) {
             res.destroy(); resolve({ redirect: res.headers.location }); return;
           }
-          if (res.statusCode !== 200 || !/^application\/(?:[a-z0-9.+-]+\+)?json(?:;|$)/i.test(res.headers['content-type'] ?? '') ||
+          if (res.statusCode !== 200 || !mime.test(res.headers['content-type'] ?? '') ||
             !['identity', undefined].includes(res.headers['content-encoding']) || Number(res.headers['content-length'] ?? 0) > source.maxBytes) {
             res.destroy(); reject(new DomainError('UNSUPPORTED_RESPONSE')); return;
           }

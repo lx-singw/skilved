@@ -6,6 +6,7 @@ import { PublicRequirementSetSchema } from './requirements';
 export const CheckScopeSchema = z.enum(['issuer_attribution', 'announcement', 'application_relationship', 'destination_reachability', 'availability', 'requirements']);
 export const CheckOutcomeSchema = z.enum(['supported', 'unresolved', 'failed', 'contradicted']);
 export const PublicCheckSchema = z.object({ scope: CheckScopeSchema, outcome: CheckOutcomeSchema,
+  method: z.enum(['human', 'automatic']).optional(),
   checkedAt: InstantSchema, nextCheckAt: InstantSchema.nullable(), citations: z.array(IdSchema).min(1).max(20),
 }).strict();
 export const CitationSchema = z.object({ id: IdSchema, label: TextSchema, url: HttpsSchema }).strict();

@@ -84,9 +84,9 @@ test("every routed entry is included in the reviewed public boundary", async () 
   const appRoot = join(root, "src/app")
   const files = (await filesUnder(appRoot)).map((file) => relative(appRoot, file).split(sep).join("/"))
   assert.deepEqual(files.filter((file) => file.endsWith("/page.tsx") || file === "page.tsx").sort(),
-    ["about/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx"])
+    ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx"])
   assert.deepEqual(files.filter((file) => file.endsWith("/route.ts")).sort(),
-    [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports"].map((path) => `${path.slice(1)}/route.ts`).sort())
+    [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports", "/opportunities/[id]/apply"].map((path) => `${path.slice(1)}/route.ts`).sort())
   assert.deepEqual(files.filter((file) => /(^|\/)(opengraph-image|twitter-image|sitemap|robots|icon|apple-icon|favicon)(\.|\/)/.test(file)), [])
 })
 
@@ -174,4 +174,15 @@ test("B03 versioned APIs fail closed without configured publication and expose n
   const report = await fetch(`${base}/api/v1/reports`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
   assert.equal(report.status, 503)
   assert.equal((await fetch(`${base}/api/v1/operator`)).status, 404)
+})
+
+test("unconfigured catalogue detail and application handoff never expose a destination", async () => {
+  assert.equal((await fetch(`${base}/opportunities/unknown-record`)).status, 404)
+  for (const suffix of ["?revision=1", "?revision=1&destination=https://evil.example", "?revision=not-a-number"]) {
+    const response = await fetch(`${base}/opportunities/unknown-record/apply${suffix}`, { redirect: "manual" })
+    assert.equal(response.status, 409)
+    assert.equal(response.headers.get("location"), null)
+    assert.equal(response.headers.get("cache-control"), "no-store")
+    assert.doesNotMatch(await response.text(), /evil\.example|m0_|stack|secret/i)
+  }
 })

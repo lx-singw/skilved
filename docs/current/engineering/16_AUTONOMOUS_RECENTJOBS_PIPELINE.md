@@ -1,0 +1,111 @@
+# Autonomous RecentJobs ingestion and feed publication
+
+Updated: 27 September 2026. **Current provider: Groq**, using `openai/gpt-oss-120b`, low extraction reasoning and medium validation reasoning. The founder explicitly selected Groq and supplied its key privately. The worker, extraction CLI and semantic validator now use Groq; Gemini remains an unused earlier adapter, with no automatic fallback. The local source-to-feed loop is implemented. A prior Feltex extraction/validation pair passed, but the latest live worker batch produced no accepted drafts from ten notices. Real-source qualification remains open and production scheduling/publication is not enabled. See the [live shadow report](../operations/17_RECENTJOBS_LIVE_SHADOW_2026-09-27.md).
+
+## Founder clarification: discovery source versus application destination
+
+RecentJobs and later StudentRoom are discovery/extraction sources. Skilved publishes its own listing and sends applicants directly to the original application portal, designated recruitment platform or stated application email. Discovery-source citations remain separate attribution. An ATS can be the original destination even when hosted outside the employer's own domain. Aggregator articles and unresolved short links cannot become application destinations.
+
+Employer crawling is **optional and off by default**: `automation.employerCrawl` defaults to `false`. Default validation checks extracted facts, requirement logic and the original application candidate against the discovery notice and registered issuer route. It neither requests employer robots/pages nor claims employer-page availability, destination reachability or independent employer corroboration. A destination robots restriction therefore does not block this workflow.
+
+Setting `employerCrawl: true` opts a source into additional employer-page retrieval for portal routes. This explicitly selected mode obeys destination robots and scoped fetch rules, requires one supported JSON-LD JobPosting, and checks issuer/date/content corroboration. Failure becomes an exception; it does not silently downgrade the selected policy. Email routes do not cause HTTP or mail-server probes even with that option enabled. No worker sends application emails.
+
+## Implemented loop
+
+```text
+Scheduled source tick
+  -> scoped RecentJobs discovery and guarded HTML retrieval
+  -> immutable source snapshot and cheap date/route checks
+  -> Groq extraction with quoted evidence
+  -> deterministic material-fact and issuer checks
+  -> optional employer-page corroboration
+  -> separate Groq semantic validation
+  -> transactional publication to the public feed
+  -> periodic maintenance and read-time expiry
+```
+
+Failed stages enter bounded retry or a private exception queue. Qualified passing records publish without an operator click. Source qualification, exception handling and sampled evaluation remain human responsibilities. The legacy Analyst's fabricated defaults are not used.
+
+## Groq integration and configuration
+
+The [Groq client](../../../packages/catalogue/src/ai/groq.mjs) uses the fixed HTTPS chat-completions endpoint, strict JSON Schema output, no tools, no redirects and no provider fallback. It permits the selected 120B model or an explicit `openai/gpt-oss-20b` evaluation override, and low/medium reasoning. Defaults: 3,072 maximum completion tokens, 45-second timeout, 96 KB payload/output bound and 256 KB response bound. Truncated/refused/malformed output never becomes a publishable record. Raw provider errors and keys are not logged.
+
+The [compact wire schema](../../../packages/catalogue/src/ai/groq-schema.mjs) uses numbered source-line spans and a bounded logic string such as `all(r1,any(r2,r3))`, reconstructed into the canonical ALL/ANY/IF tree without executing code. It rejects malformed syntax, missing/duplicate/unused items, unsupported operators and excessive depth. Requirement descriptions retain exact wording; optional qualification/document subobjects stay null, so this adapter does not supply structured eligibility attributes. Canonical evidence/date/reference checks and explicit requirement-section coverage checks still run. Versions and request hashes accompany output; worker cache keys include provider, selected model, reasoning, source revision and content hash. Validation reasoning has its own cache discriminator.
+
+[Groq structured-output documentation](https://console.groq.com/docs/structured-outputs) lists strict mode for both GPT-OSS models. The [published free-tier limits](https://console.groq.com/docs/rate-limits) currently list 30 requests/minute, 1,000/day, 8,000 tokens/minute and 200,000/day for each; account-specific limits are authoritative. These are not 1,000 usable listings/day: extraction and validation both consume tokens and calls. No cross-provider claim that Groq has the most free calls has been established.
+
+Effective local AI settings (validation defaults to medium when unset):
+
+```dotenv
+SKILVED_AI_MODE=groq
+SKILVED_AI_MODEL=openai/gpt-oss-120b
+SKILVED_AI_THINKING=low
+SKILVED_AI_VALIDATION_THINKING=medium
+# GROQ_API_KEY is supplied privately; never paste or commit it.
+```
+
+The root `.env.local` and `apps/web/.env.local` retain their supplied keys and the previously configured provider/model/extraction settings. Validation uses the new medium default unless overridden. `.env` remains the user's symlink. Git ignore checks pass for all three paths. The committed `.env.example` keeps AI disabled and contains an empty Groq key field. No browser/public-prefixed variable contains the key.
+
+From the repository root with Node 22:
+
+```sh
+pnpm --filter @skilved/types build:contracts
+node --env-file=.env.local packages/catalogue/tools/extract-recentjobs.mjs packages/catalogue/tests/fixtures/recentjobs-synthetic.json
+node --env-file=.env.local packages/catalogue/tools/run-recentjobs.mjs <registered-source-id>
+```
+
+The extraction CLI reads bounded local HTML and prints a private report; it does not fetch sites, initialize Firestore or publish. The worker additionally requires catalogue configuration, a registered source and an authenticated machine grant. Keep private reports in ignored `.artifacts/`.
+
+## Evidence and limits
+
+Latest: [V7 additional evidence extraction](../operations/25_ADDITIONAL_REQUIREMENT_EVIDENCE_2026-09-29.md) selects skills/profile/audience and secondary education evidence and disallows null coverage. Its fresh trial retained ALPLA's exclusion and Hytec's uncertain secondary education claim. One case matched the strict broader audit; two need taxonomy/source-interpretation review, and Unique Personnel failed provider JSON validation. All 147 catalogue tests passed. Eight requests across V6/V7 reported 22,531 tokens with one request's usage unavailable. Production remains disabled.
+
+Follow-up: [provider diagnostics and classification review](../operations/26_PROVIDER_OUTPUT_DIAGNOSIS_2026-09-29.md) reproduced Unique Personnel's failure in one additional request: valid JSON omitted seven mandatory coverage entries. Usage was unavailable. The adapter now exposes bounded missing-field diagnostics without retaining rejected output. Reviewing the saved ALPLA response corrected an earlier reporting error: its exclusion kind is `other`, not `subjects`. A separately recorded expectation revision uses `subjects`; the mismatch remains. No extraction contract or publication setting changed.
+
+The preceding [source inventory](../operations/24_REQUIREMENT_SOURCE_INVENTORY_2026-09-28.md) reviewed all 195 lines and replayed V5 without new calls. Its broader result was two matches and two mismatches, while the original four targeted checks still passed. Kind checks and complete inventories distinguish those scopes; agent-authored expectations remain development evidence.
+
+The [V5 layout and alternatives experiment](../operations/23_REQUIREMENT_LAYOUT_AND_ALTERNATIVES_2026-09-28.md) preserves complete explicit ANY branches, covers decorated/desired-qualification headings and selects the group format for notices without recognised sections. Its four targeted matches and 134 passing tests remain historical implementation evidence, not production qualification. Eight requests across V4/V5 used 19,498 tokens.
+
+The earlier [V3 coverage checklist](../operations/22_REQUIREMENT_COVERAGE_CHECKLIST_2026-09-28.md) retained ALPLA's four conditions in two fresh extractions, with one fresh semantic assessment using saved metadata. Its broader one-of-four result is preserved as historical evidence, not a current passing score.
+
+The [split shadow pipeline](../operations/21_SPLIT_SHADOW_PIPELINE_2026-09-28.md) runs metadata, requirements and validation as separately budgeted/cached stages, with an enforced shadow-only opt-in. Its earlier fresh discovery failed requirement coverage; a saved-response replay completed one private ALPLA draft after explicit issuer-alias registration. Neither that replay nor the V3 development trials establish production qualification.
+
+Latest (28 September): [requirement groups V2](../operations/20_REQUIREMENT_GROUP_COMPILER_2026-09-28.md) moves item IDs and references into code. Three of four frozen cases matched; Hytec retained an additional source education statement missing from the expected answer and remains under review. Four requests used 7,386 tokens, and 113 catalogue tests passed. V2 remains an explicit development experiment, not a worker default or a production qualification result.
+
+The [requirements-only experiment](../operations/19_REQUIREMENTS_STAGE_EXPERIMENT_2026-09-27.md) is available through an explicit development CLI flag, not enabled in the worker. Four calls used 7,661 tokens; ALPLA matched its frozen requirements once, while the other cases required rejection or structural review. The full catalogue suite passed 111 tests. The experiment has not demonstrated an end-to-end cost or reliability improvement.
+
+Follow-up: the [offline regression evaluator](../operations/18_RECENTJOBS_REGRESSION_EVALUATION_2026-09-27.md) freezes four development cases and distinguishes old responses from the current prompt version. A single fresh ALPLA extraction still duplicated document requirements and was rejected (4,704 tokens). Requirement extraction remains the immediate development priority; four agent-authored cases are not source qualification.
+
+Latest: the [live worker shadow run](../operations/17_RECENTJOBS_LIVE_SHADOW_2026-09-27.md) discovered ten notices, made three model calls (8,700 reported tokens plus one request without usage), and produced no accepted drafts. Date, layout, fetch and extraction/material-fact gates stopped the notices. A reusable local-only shadow runner and evaluation source configuration now exist. Promotional instructions and indistinguishable duplicate requirement passages are rejected; unresolved material facts stop before validation spend. Explicit provider-generated schema failures can retry within the existing attempt/day budgets. This result supersedes any inference of readiness from a single manually evaluated passing pair.
+
+The successful live synthetic extraction preserved the explicitly named issuer, date-only deadline and Grade 12 OR N3 alternatives. A separate live Groq validation accepted that record with discovery evidence only. The final successful pair used 6,950 reported tokens: 4,822 for extraction and 2,128 for validation. Completion counts include reasoning; it is not added a second time. Earlier qualification calls incurred additional usage and surfaced schema, date-format, missing-field and over-restrictive validation problems before the final passing pair. This is a smoke check, not a held-out accuracy benchmark or evidence that all real notices are supported. A subsequent bounded Groq extraction of the public Feltex RecentJobs notice returned an unsupported evidence quote and was rejected by the mapper (5,895 reported tokens). One diagnostic follow-up was rejected by the provider without usage metadata. No real record passed the full loop or was published; real-source qualification remains open.
+
+The 27 September diagnostic identified a paraphrased multi-line quote, a missing location-country representation and a validator quoting an invisible href. Prompts now preserve exact source text and distinguish anchor labels from destinations; country may remain null. An intermediate model-accepted result omitted an explicit reference. A new deterministic reference check rejects that saved response. The next low-reasoning output left requirements logic unresolved; a medium-reasoning trial exceeded the existing completion budget. No real record is qualified by this work. Nine requests reported 33,112 tokens across seven responses, with usage unknown for two HTTP 400 responses. Details and samples are in the evaluation linked above.
+
+The compact-format follow-up passes the full catalogue emulator suite (93), including provider/parser/coverage tests, default-off employer crawling, opt-in corroboration, automatic email publication, fresh portal/email handoff, persistent rate-limit delays and independent validation-reasoning cache invalidation. The earlier contract tests (22), web production build and public-boundary tests (24) passed; this follow-up changes backend extraction only. Provider-boundary unit tests use simulated responses; live results are reported separately.
+
+The final compact Feltex extraction used 4,282 tokens; medium validation used 3,870, a passing pair of 8,152. Final low-reasoning ALPLA extraction omitted an explicit exclusion and was blocked by the coverage guard. A medium-extraction comparison still had material quality problems and was not adopted. The follow-up reported 64,882 tokens across 15 responses, plus six requests without usage. See the compact evaluation for failures, limits and the source sample; these are development observations, not a production accuracy benchmark.
+
+Groq HTTP 429 delays are preserved through worker restart. Calls reserve a source/day allowance before requests; failed/crashed calls are not refunded. A persisted source cooldown prevents another queued job immediately retrying the same rate limit. Usage records retain received token counts; absent usage stays unknown. These controls are **not a global organization-wide token or monetary cap**. Other processes/sources can share the account limits. Oversized notices that exceed provider capacity become exceptions; they are not silently truncated or sent to a paid fallback.
+
+## Source and publication policy
+
+A source records actual access/retention/excerpt policy, categories, owner and cadence. Its automation configuration contains publication mode (`disabled`, `shadow`, `automatic`), qualification reference, optional `employerCrawl`, maximum articles/model calls, request pacing, check TTL and issuer relationships. Each issuer entry has its name, exact portal host/path prefix and evidence reference; optional `emailAddresses` lists exact qualified application addresses. A model cannot invent or approve destinations. New unresolved issuer relationships remain exceptions.
+
+The first automatic pilot accepts supported apprenticeships, attributable issuer/requirements, one original application route and a future date-only deadline. Repeated equivalent dates are allowed; conflicts, unknown dates, unsupported precision and unclear requirement logic are exceptions. Missing optional pay, location or intake stay explicitly unknown. It disables actions at the beginning of the source closing date in South Africa without claiming this is an exact issuer closing time. Fetch failure alone does not prove closure.
+
+When employer crawling is disabled, published checks are limited to announcement, application relationship and requirements. Employer reachability/availability/attribution checks and the primary citation are added only in the selected employer-crawl path. Source text, extraction results, evidence, decisions and model usage remain private; public projection is allowlisted. Operator withdrawal/withholding remains sticky, and publication rechecks source pause/revision, worker grant, lease and expected draft revision.
+
+Portal and labelled mailto application candidates are supported end to end. Email handoff rechecks publication/revision/freshness, then opens the exact original address in the user's email app; it does not send anything. The detail page can show already-approved in-person/post routes, but automatic extraction of those methods and unlabelled email instructions still needs qualification. StudentRoom remains a future adapter.
+
+## Worker and feed operation
+
+Cloud execution verifies an ADC workload ID token and requires an active server-owned machine grant for the source with `ingest` and, for automatic publication, `publish`. No public endpoint bootstraps roles. Emulator identity is confined to demo projects and rejected in production. Deployed identity/IAM/egress controls remain unverified.
+
+Each source has a ten-minute lease, at most three attempts per job and at most 11 jobs per tick. Discovery reads the first category page and queues up to ten articles. Up to 50 published notices are maintained independently of their presence on that page. Scheduler frequency must drain discovery/maintenance work before check TTL expiry; source cadence cannot exceed the automatic TTL of at most 24 hours. No cloud scheduler has been provisioned.
+
+With catalogue reads explicitly enabled, `/` renders published records, `/opportunities/[id]` shows requirements and sources, and `/opportunities/[id]/apply?revision=...` checks current state before opening the original portal or mailto address. Expired automatic checks suppress listings and application actions even if the worker stops. Disabled reads retain the preparation homepage. No live read flag or production catalogue was enabled.
+
+Next: qualify the compact extraction format on fresh notices and repeated runs, particularly exclusions, document alternatives and promotional boilerplate. Qualify source policy and original application methods, then run scheduled shadow ingestion and measure correctness, exception rates and cost. Configure actual workload grants and funded limits before automatic publication. Current results do not close the real-source or six-category acceptance gates.
+
+See [RecentJobs source observations](../operations/13_RECENTJOBS_FIRST_ADAPTER.md), [earlier pilot assessment and its superseded crawl assumption](../operations/14_RECENTJOBS_PILOT_READINESS_2026-09-26.md), [runtime](15_SOURCE_PUBLICATION_RUNTIME.md) and [model evaluation](../data/02_AI_EVALUATION_AND_MODEL_GOVERNANCE.md).

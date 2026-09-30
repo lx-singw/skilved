@@ -38,3 +38,12 @@ test('oversized, compressed, wrong-MIME and blocked-status responses rejected',a
     await assert.rejects(retrieve(source,source.urls[0],transport({responses:[response]}).io));
   await assert.rejects(retrieve({...source,paused:true},source.urls[0],transport().io),/SOURCE_PAUSED/);
 });
+
+test('HTML and robots formats are explicit and retain exact redirect and MIME guards', async () => {
+  const html = transport({ responses: [{ status: 200, headers: { 'content-type': 'text/html; charset=utf-8' }, body: '<p>Notice</p>' }] });
+  assert.equal((await retrieve(source, source.urls[0], html.io, 'html')).text, '<p>Notice</p>');
+  const robots = transport({ responses: [{ status: 200, headers: { 'content-type': 'text/plain' }, body: 'User-agent: *\nAllow: /' }] });
+  assert.match((await retrieve(source, source.urls[0], robots.io, 'text')).text, /Allow/);
+  await assert.rejects(retrieve(source, source.urls[0], transport().io, 'html'), /UNSUPPORTED_RESPONSE/);
+  await assert.rejects(retrieve(source, source.urls[0], transport().io, 'pdf'), /UNSUPPORTED_FORMAT/);
+});

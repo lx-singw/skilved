@@ -8,6 +8,8 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
+26 September current implementation: [Groq extraction through automatic feed publication](engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md) uses openai/gpt-oss-120b with strict output and evidence validation. The supplied private key works in live synthetic extraction/validation tests. Employer crawling is optional and off by default; discovery-notice validation does not claim employer reachability. Portal and qualified email routes lead directly to the original method. All 79 catalogue tests, web lint/build and 24 web boundary tests pass. Real-source evaluation, source qualification, cloud identity/grants and scheduled production publication remain open.
+
 26 September founder source decision: [RecentJobs is first](operations/13_RECENTJOBS_FIRST_ADAPTER.md), prioritising cross-employer apprenticeship discovery. Its initial network-free list/detail parser is implemented; canonical draft integration, source conditions, recurring collection and G1 remain open. The [earlier Transnet-first recommendation](operations/11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md) is superseded; other sources and individual employers follow later.
 
 25 September B03 execution: the founder requested the next sprint's plan and implementation, then clarified that scraping source/method selection needs proper planning. Use the [B03 plan](planning/07_B03_IMPLEMENTATION_PLAN.md), [source acquisition and scraping plan](operations/10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md) and [runtime contract](engineering/15_SOURCE_PUBLICATION_RUNTIME.md). The local source/review/publication runtime passes 21 catalogue tests, alongside 22 contract tests and 23 web boundary tests in the [candidate evidence](quality/evidence/m0/2026-09-25-b03-publication/README.md). No real-source permission, live scraper, public catalogue or G1 closure is implied. The scraping plan records that legacy source files are mostly empty and the populated site crawlers return hardcoded examples.
@@ -73,6 +75,7 @@ Architecture, shared contracts, persistent execution, development and integratio
 - [Performance envelopes, numeric budgets and delivery reforecast](engineering/13_PERFORMANCE_ENVELOPES_AND_BUDGETS.md)
 - [Implemented canonical opportunity contract and B03 handoff](engineering/14_CANONICAL_OPPORTUNITY_CONTRACT.md)
 - [Source review and publication runtime](engineering/15_SOURCE_PUBLICATION_RUNTIME.md)
+- [Autonomous RecentJobs ingestion and feed publication](engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 
 ## Data
 

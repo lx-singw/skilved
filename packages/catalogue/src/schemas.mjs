@@ -2,12 +2,27 @@ import { z } from 'zod';
 import { CategorySchema, IdSchema, InstantSchema } from '@skilved/types/opportunities';
 export const Source = z.object({ id: IdSchema, revision: z.number().int().positive(),
   name: z.string().min(1).max(200), urls: z.array(z.string().url().max(2048)).min(1).max(20),
-  permission: z.object({ reference: z.string().min(1).max(2000), method: z.literal('structured_json'),
+  permission: z.object({ reference: z.string().min(1).max(2000), method: z.enum(['structured_json', 'recentjobs_html']),
     reuse: z.string().min(1).max(2000), reviewedAt: InstantSchema }).strict(),
   categories: z.array(CategorySchema).min(1).max(6), owner: IdSchema,
   paused: z.boolean(), cadenceHours: z.number().int().min(1).max(720),
   maxBytes: z.number().int().min(100).max(500000),
-}).strict();
+  automation: z.object({ mode: z.enum(['disabled', 'shadow', 'automatic']),
+    employerCrawl: z.boolean().default(false),
+    qualificationRef: z.string().min(1).max(2000), maxArticles: z.number().int().min(1).max(10),
+    maxModelCallsPerDay: z.number().int().min(1).max(100),
+    minRequestIntervalMs: z.number().int().min(2000).max(60000), checkTtlHours: z.number().int().min(1).max(24),
+    issuers: z.array(z.object({ name: z.string().trim().min(1).max(200),
+      aliases: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
+      host: z.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*\.[a-z]{2,}$/),
+      pathPrefix: z.string().regex(/^\/[^?#]*$/).max(500),
+      emailAddresses: z.array(z.string().max(254).email()).max(30).default([]),
+      evidence: z.string().min(1).max(2000),
+    }).strict()).max(30),
+  }).strict().optional(),
+}).strict().refine(source => source.automation?.mode !== 'automatic' ||
+  (source.permission.method === 'recentjobs_html' && source.cadenceHours <= source.automation.checkTtlHours),
+  'Automatic source cadence must fit the freshness window');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();

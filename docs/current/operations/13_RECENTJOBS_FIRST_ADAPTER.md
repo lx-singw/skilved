@@ -2,7 +2,9 @@
 
 Date: 26 September 2026. **Founder decision: start with RecentJobs, then expand to other sources and individual employers such as Transnet.** Its cross-employer apprenticeship coverage fits the first audience better than beginning with a single company. This supersedes the earlier [Transnet-first recommendation](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md).
 
-The apprenticeship category is the first acquisition slice, not a restriction of Skilved's six-category product. Primary employer/ATS links are reviewed for attribution and application handoff within this workflow. Building a separate adapter for each employer is not a prerequisite for RecentJobs development.
+The apprenticeship category is the first acquisition slice, not a restriction of Skilved's six-category product. Primary employer/ATS links are checked for attribution and application handoff within this workflow. Building a separate adapter for each employer is not a prerequisite for RecentJobs development.
+
+Later 26 September implementation: the [autonomous pipeline](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md) now uses Groq for extraction and semantic validation, with working private credentials and passing live synthetic smoke checks. Employer crawling is optional and off by default. The feed uses original portal/email methods; aggregator citations are attribution. All 79 catalogue tests pass. Production publication and representative real-source qualification remain open.
 
 ## Observed source behaviour
 
@@ -36,15 +38,17 @@ The old `sa-search-engine/scraping-engine/spiders/portals/recentjobs_spider.py` 
 - Do not overwrite the discovery URL with the application URL, guess an issuer by stripping the title or default missing geography to South Africa.
 - Do not select the first external link, merge opportunities by title alone, flatten qualification alternatives or reuse the old queue's retry behaviour.
 
-## Next integration work
+## Next qualification work
+
+The [live pilot-readiness assessment](14_RECENTJOBS_PILOT_READINESS_2026-09-26.md) covers the first five current cards and the Feltex destination's robots policy. None met the current automatic-publication policy; that finding is a narrow sample, not a conclusion about all RecentJobs supply. Deterministic date/scope/robots checks now run before AI to avoid spending calls on these failures.
 
 1. Expand qualification across independent layouts, multi-trade notices, amended dates, missing links, email/in-person routes and category ambiguity. Keep one notice's multiple trades together unless source references establish distinct intakes.
-2. Map candidates into canonical private drafts with retained permitted evidence. Preserve AND/OR/conditional requirements or mark the relationship unknown; distinguish aggregator claims from issuer corroboration. Source article, primary notice and application route stay separately attributable.
-3. Extend the JSON-only transport and source schema explicitly for HTML and discovery jobs. Retain exact URL/DNS/TLS/redirect/size guards, leases and source pause; add robots evaluation and pacing. Validate discovered URLs against a constrained source policy before queueing. Never automatically follow arbitrary application destinations.
-4. Exercise review/publication in the emulator: private draft, explicit review, no duplicates on repeats, restricted old actions on material changes, failed-fetch recovery and durable withdrawal.
-5. Qualify a permitted pilot. Proposed initial ceiling: one category page plus ten detail pages/run, one concurrent request, at least two seconds between requests and one run/day, subject to stricter source conditions and actual capacity. Measure accuracy, stale supply and human review time before expanding RecentJobs categories, other sources and individual employers.
+2. Supply a usable provider key and qualify extraction/semantic validation against permitted held-out source cases. Durable snapshots, usage records and daily call reservations exist; shape/quote checks and simulated model results do not establish interpretation accuracy. Distinguish aggregator claims from independently qualified issuer evidence. Do not reuse the legacy Analyst's invented defaults.
+3. Verify source-specific access/reuse and issuer-to-ATS relationships for the implemented guarded HTML/robots path. The first primary adapter supports one JSON-LD JobPosting, an exact qualified issuer and a matching future date-only deadline. Unsupported primary layouts and application methods remain exceptions.
+4. Qualify cloud workload identity, grants, egress/rules and monetary limits. Emulator demonstrations already cover autonomous publication, private exceptions, restart/cache reuse, changed evidence, failed checks and sticky withdrawal. These tests do not establish deployed security or funded capacity.
+5. Run the permitted pilot in shadow mode, then configure automatic publication for passing records. Current bounds: first category page, at most ten discovered notices, 11 jobs per tick, one source lease, at least two seconds between requests and 50 maintained listings per source. Configure frequent ticks to drain discovery and maintenance queues before their TTL expires. Measure accuracy, stale supply, model cost and exception-review time before expanding categories, other sources and individual employers.
 
-The parser is not wired into `store.mjs`, the operator command or public APIs. No scheduled crawler or publication was enabled. The [acquisition plan](10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md) and [publication runtime](../engineering/15_SOURCE_PUBLICATION_RUNTIME.md) govern the remaining work. This sample does not replace the six-category held-out benchmark or close G1.
+The worker uses the existing store's transactional publication primitive and public read projections. No cloud scheduler or live publication was enabled. The [acquisition plan](10_SOURCE_ACQUISITION_AND_SCRAPING_PLAN.md) and [publication runtime](../engineering/15_SOURCE_PUBLICATION_RUNTIME.md) govern the remaining work. This sample does not replace the six-category held-out benchmark or close G1.
 
 ## Evidence and validation
 
@@ -59,4 +63,4 @@ Ordinary unauthenticated probes used `SkilvedSourceAssessment/0.1`, identity enc
 
 The actual parser was exercised in memory on the category and both details. Results: ten unique article URLs plus page-two navigation; Feltex date-only deadline and employer-host application candidate; Hytec date-only deadline, employer-host application candidate and `source_deadline_before_observation`. No second category page or employer destination was fetched by this check. All detail outputs retained pending review and unverified availability.
 
-Final local checks: `pnpm --filter @skilved/catalogue exec node --test tests/recentjobs.test.mjs tests/fetch.test.mjs` passed all 15 tests (11 adapter cases and four existing transport cases). A scoped document check passed seven documents and 145 local link targets; WSL `git diff --check` passed. The full emulator suite and web build were not rerun for this isolated parser addition. No production deployment or real-source end-to-end qualification is implied.
+Initial parser checks passed 15 adapter/transport tests. Subsequent worker/feed integration passed 67 catalogue tests (including enabled web rendering and application handoff), 22 canonical tests, web lint/build and 24 public boundary tests. No production deployment or real-source end-to-end qualification is implied.

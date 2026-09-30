@@ -40,6 +40,8 @@ Current documents supersede contradictory historical plans. The archive preserve
 | F-13 | On 12 September the founder specified a 100% free consumer tier and prioritised TVET, SDF and employer-funded value | Remove applicant-paid subscriptions/assistance; validate institutional users, budget owners and procurement separately |
 | F-14 | On 13 September the founder proposed launching opportunity browsing first, useful hot/discovery features and broader strategic research after the MVP | Prioritise discovery-first M0; detailed scope and ranking methods are delegated recommendations. Full career-platform ambition remains, while institutional discovery is no longer on the first-public-release critical path |
 | F-15 | On 25 September the founder confirmed the hard infrastructure cost ceiling ($25 USD/mo) and single-operator review scope (DEP-02) | Enforce 50%/80%/100% budget alerts and kill-switch runbook; no unbudgeted cloud infrastructure or multi-tenant complexity in M0 |
+| F-16 | On 26 September the founder selected RecentJobs first for cross-employer apprenticeships, followed by other sources and employers such as Transnet | Prioritise the [RecentJobs adapter](../operations/13_RECENTJOBS_FIRST_ADAPTER.md); preserve the six-category product scope |
+| F-17 | On 26 September the founder required autonomous acquisition, AI extraction and publication all the way to the feed | Implement the [complete pipeline](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md); passing qualified records publish automatically, with human exception review and sampled checks. Supersedes blanket every-record manual review; source/model qualification and actual implementation remain required |
 
 ## Recommended product decisions
 

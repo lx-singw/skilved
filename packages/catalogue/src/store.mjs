@@ -5,6 +5,7 @@ import { AliasSchema, resolveAlias } from '@skilved/types/opportunities/storage'
 import { Source, Report, Reason, JobInput } from './schemas.mjs';
 import { DomainError } from './config.mjs';
 import { approvedUrl, retrieve } from './fetch.mjs';
+import { enforceAutomaticFreshness } from './worker-policy.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -44,12 +45,14 @@ export class Catalogue {
     });
   }
   async inspect(token, collection, id) {
-    if (!['sources','source_versions','drafts','reports','jobs','snapshots','versions'].includes(collection)) fail('INVALID_COMMAND');
+    if (!['sources','source_versions','drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
+      'worker_decisions','worker_exceptions','worker_health','model_calls','model_budgets','model_cache'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     return this.db.runTransaction(async tx => { await this.operator(tx, uid); return value(await tx.get(this.ref(collection, id))); });
   }
   async queue(token, collection, after) {
-    if (!['sources','drafts','reports','jobs','outbox','audit'].includes(collection)) fail('INVALID_COMMAND');
+    if (!['sources','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
+      'worker_exceptions','worker_health','model_calls','model_budgets'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     if (after!==undefined) IdSchema.parse(after);
     return this.db.runTransaction(async tx => { await this.operator(tx, uid); let query=this.db.collection(`m0_${collection}`).orderBy('__name__');if(after)query=query.startAfter(after); const rows = await tx.get(query.limit(101));
@@ -97,7 +100,7 @@ export class Catalogue {
         for (const fact of facts(record)) { fact.reviewedBy = uid; fact.review = 'approved'; }
         for (const c of record.citations) c.approved = true;
         // Checks must have been reviewed for this exact draft, never silently retarget a stale check.
-        for (const c of record.checks) if (c.recordRevision === expected) { c.recordRevision = record.revision; c.reviewerId = uid; }
+        for (const c of record.checks) if (c.recordRevision === expected) { c.recordRevision = record.revision; c.reviewerId = uid; c.method = 'human'; }
         if (record.explanation?.review === 'approved') record.explanation.reviewedBy = uid;
       }
       OpportunityRecordSchema.parse(record);
@@ -127,7 +130,7 @@ export class Catalogue {
       const aliases = await tx.get(this.db.collection('m0_aliases').limit(101));
       if (aliases.size > 100) fail('CATALOGUE_CAPACITY');
       const hidden = new Set(aliases.docs.map(value).filter(a => a.decision === 'confirmed').map(a => a.fromId));
-      const all = rows.docs.map(value).filter(p => p.kind === 'opportunity' && !hidden.has(p.opportunity.id) && matchesQuery(p.opportunity,q))
+      const all = rows.docs.map(value).map(p => enforceAutomaticFreshness(p, this.now())).filter(p => p.kind === 'opportunity' && !hidden.has(p.opportunity.id) && matchesQuery(p.opportunity,q))
         .map(p => p.opportunity).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
         .filter(o => !after || o.updatedAt < after.updatedAt || (o.updatedAt === after.updatedAt && o.id > after.id));
       const items = all.slice(0,q.limit), last = items.at(-1);
@@ -145,7 +148,7 @@ export class Catalogue {
       if (!resolved) fail('NOT_FOUND');
       const projection = value(await tx.get(this.ref('public',resolved)));
       if (!projection || !['opportunity','status'].includes(projection.kind)) fail('NOT_FOUND');
-      return projection;
+      return enforceAutomaticFreshness(projection, this.now());
     });
   }
   async alias(token, input, expected, reason) {
@@ -211,6 +214,7 @@ export class Catalogue {
       if (!job || job.state==='done' || job.attempts>=3 || job.nextAt>this.now() || (job.leaseUntil && job.leaseUntil>this.now())) fail('JOB_UNAVAILABLE');
       const source=value(await tx.get(this.ref('sources',job.sourceId)));
       if (!source || source.paused) fail('SOURCE_PAUSED');
+      if (source.permission.method !== 'structured_json') fail('UNSUPPORTED_ADAPTER');
       const sourceLeaseRef=this.ref('source_leases',job.sourceId), sourceLease=value(await tx.get(sourceLeaseRef));
       if(sourceLease?.until>this.now())fail('SOURCE_BUSY');
       const lease=randomUUID(); const claimed={ ...job,state:'running',attempts:job.attempts+1,lease,leaseUntil:new Date(Date.parse(this.now())+30000).toISOString() };
@@ -264,7 +268,7 @@ export class Catalogue {
     for(const source of page.items) {
       const uid=await this.identity(token);
       const health=await this.db.runTransaction(async tx=>{await this.operator(tx,uid,'source');return value(await tx.get(this.ref('source_health',source.id)));});
-      if(source.paused || health?.nextDue>this.now())continue;
+      if(source.paused || source.permission.method !== 'structured_json' || health?.nextDue>this.now())continue;
       for(const url of source.urls)jobs.push(await this.enqueue(token,{sourceId:source.id,url,key:`due_${Math.floor(Date.parse(this.now())/(source.cadenceHours*3600000))}`},'Scheduled due source check'));
     }
     return {jobs,next:page.next};

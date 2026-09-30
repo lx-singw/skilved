@@ -1,6 +1,6 @@
 # Opportunity supply, provenance and maintenance
 
-13 September accepted M0 operations: [source checks and contribution handling](03_SOURCE_CHECKS_AND_COMMUNITY_CONTRIBUTIONS.md) specify publication review, precise check records, social-link investigation, source changes and severity-based report triage. Permitted scraping and posting remain central. M0 uses reviewed publication; later automated normalization/publishing remains separately gated.
+26 September founder direction: [autonomous processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md), starting with RecentJobs, supersedes the earlier blanket requirement for human review of every M0 listing. Qualified source records should publish through automated checks; humans handle exceptions, source qualification, samples and corrections. The [source checks and contribution handling](03_SOURCE_CHECKS_AND_COMMUNITY_CONTRIBUTIONS.md) still require precise check records, source-change handling and severity-based report triage. The current runtime has not yet implemented automated publishing.
 
 Status: proposed operating specification, 11 September 2026. No source permission, working crawler, partner feed or catalogue coverage is certified here.
 Owner: founder/source operations. Interfaces: [data contracts](../engineering/07_DATA_AND_API_CONTRACTS.md), [worker execution](../engineering/08_AGENT_EXECUTION.md), [release quality](../quality/11_VALIDATION_AND_RELEASE.md).
@@ -90,7 +90,7 @@ Required versus preferred criteria stay distinct. Alternative qualifications and
 Model extraction produces a draft; validation checks structure and consistency, then a reviewer resolves material ambiguity.
 An official-looking domain or familiar company name does not alone establish that a specific announcement is authentic.
 Check destination consistency and issuer identity signals without claiming fraud detection is perfect.
-In R1, a human reviews every new public record and every material change. R2 may automate clearly established low-risk normalization while preserving review of high-impact facts.
+For qualified maintained sources, automate new publication and material changes when fresh evidence checks pass. Unresolved material ambiguity enters human review; routine success does not require an operator click. This is the accepted M0 target, not deferred to R2.
 Automated publishing requires parser-specific evidence and sampled monitoring; it is a separate switch, not the consequence of adding a crawler.
 
 ## 7. Deduplication and publication
