@@ -52,6 +52,8 @@ export function evaluateSourceAudit(candidate,input,expectations) {
     if(entry.treatment==='unresolved') {
       issue('SOURCE_AUDIT_REVIEW_REQUIRED');
       if(!retained)issue('SOURCE_AUDIT_PASSAGE_MISSING');
+      else if(!unknown.some(quote=>quote.includes(passage))&&!matches.some(item=>['ambiguous','conflicting'].includes(item.fact.state)))
+        issue('SOURCE_AUDIT_UNCERTAINTY_LOST');
     } else if(entry.treatment==='preserve') {
       if(!retained){issue('SOURCE_AUDIT_PASSAGE_MISSING');continue;}
       const stated=matches.filter(item=>item.fact.state==='stated'&&item.fact.value?.description.includes(passage));
@@ -59,9 +61,9 @@ export function evaluateSourceAudit(candidate,input,expectations) {
       const classified=entry.kind===undefined?stated:stated.filter(item=>item.kind===entry.kind);
       if(!classified.length)issue('SOURCE_AUDIT_KIND_MISMATCH');
       if(entry.level!==undefined&&classified.length&&!classified.some(item=>item.level===entry.level))issue('SOURCE_AUDIT_LEVEL_MISMATCH');
-    } else if(entry.treatment==='exclude') {
+    } else if(['exclude','context'].includes(entry.treatment)) {
       if(passage.split('\n').some(line=>line.trim()&&quotes.some(quote=>(`\n${quote}\n`).includes(`\n${line}\n`))))
-        issue('SOURCE_AUDIT_EXCLUDED_CONTENT');
+        issue(entry.treatment==='exclude'?'SOURCE_AUDIT_EXCLUDED_CONTENT':'SOURCE_AUDIT_CONTEXT_AS_REQUIREMENT');
     }
   }
   return {matched:issues.length===0,issues};

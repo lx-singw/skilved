@@ -5,7 +5,7 @@ import { mapExtraction, ExtractionSchema } from './extraction.mjs';
 import { assertMaterialFacts } from '../worker-policy.mjs';
 import {SourceAuditSchema,evaluateSourceAudit} from './source-audit.mjs';
 
-export const EVALUATION_VERSION='recentjobs_evaluation_v2';
+export const EVALUATION_VERSION='recentjobs_evaluation_v3';
 
 const wording = z.string().min(1).max(4000);
 export const RequirementExpectations = z.object({

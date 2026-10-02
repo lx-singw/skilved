@@ -6,6 +6,13 @@ import {generateStructured} from '../src/ai/groq.mjs';
 const descriptor={type:'object',properties:{state:{type:'string'}},required:['state'],additionalProperties:false};
 const schema={type:'object',properties:{coverage:{type:'object',properties:{L2:descriptor,L10:{$ref:'#/properties/coverage/properties/L2'}},required:['L2','L10'],additionalProperties:false}},required:['coverage'],additionalProperties:false};
 
+test('array cardinality diagnostics retain only schema-owned paths and counts',()=>{
+  const shape={type:'object',properties:{roles:{type:'array',items:{type:'string'},minItems:3,maxItems:3}},required:['roles']};
+  const report=rejectedOutputDiagnostic('{"roles":["PRIVATE_VALUE"]}',shape);
+  assert.deepEqual(report,{state:'parsed_json',missingRequired:[],arrayLengthErrors:[{path:'/roles',minItems:3,maxItems:3,actualItems:1}],truncated:false});
+  assert.doesNotMatch(JSON.stringify(report),/PRIVATE/);
+});
+
 test('diagnostics identify missing schema-owned paths through references without input leakage',()=>{
   const report=rejectedOutputDiagnostic(JSON.stringify({coverage:{L10:{PRIVATE_KEY:'PRIVATE_VALUE'}},PRIVATE_ROOT:'PRIVATE_TEXT'}),schema);
   assert.deepEqual(report,{state:'parsed_json',missingRequired:['/coverage/L2','/coverage/L10/state'],truncated:false});

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {requirementEvidence} from '../src/ai/requirement-evidence.mjs';
-import {decodeRequirements,requirementsSchema,requirementsPayload} from '../src/ai/requirements.mjs';
+import {decodeRequirementsV7 as decodeRequirements,requirementsSchemaV7 as requirementsSchema,requirementsPayloadV7 as requirementsPayload} from '../src/ai/requirements.mjs';
 import {assertMaterialFacts} from '../src/worker-policy.mjs';
 
 const candidate=text=>({title:'Fictional apprenticeship',sourceText:text,applicationCandidates:[]});

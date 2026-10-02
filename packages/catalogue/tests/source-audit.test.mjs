@@ -48,9 +48,30 @@ test('exclusion ranges catch an individual duty or promotional line, not just an
 
 test('preserving an unresolved table does not silently choose its relationship to the main requirements',()=>{
   const result=evaluateSourceAudit(candidate,extraction([condition('r1',3),condition('r2',5,'other','unclear'),condition('r3',7)]),audit());
-  assert.deepEqual(result.issues.map(i=>i.code),['SOURCE_AUDIT_REVIEW_REQUIRED']);
+  assert.deepEqual(result.issues.map(i=>i.code),['SOURCE_AUDIT_REVIEW_REQUIRED','SOURCE_AUDIT_UNCERTAINTY_LOST']);
   const resolved=audit();resolved.entries.find(i=>i.id==='table_education').treatment='context';
   assert.equal(evaluateSourceAudit(candidate,extraction([condition('r1',3),condition('r2',5,'other','unclear')]),resolved).matched,true);
+});
+
+test('unresolved evidence must retain uncertainty, not merely its words in a stated condition',()=>{
+  const items=[condition('r1',3),condition('r2',5,'other','unclear')];
+  for(const state of ['ambiguous','conflicting']) {
+    const result=evaluateSourceAudit(candidate,extraction([...items,{...condition('r3',7),state}]),audit());
+    assert.deepEqual(result.issues.map(issue=>issue.code),['SOURCE_AUDIT_REVIEW_REQUIRED']);
+  }
+  const unknown=decodeGroqRequirements({items,expression:'all(r1,r2,unknown(7,7))'},candidate);
+  assert.deepEqual(evaluateSourceAudit(candidate,unknown,audit()).issues.map(issue=>issue.code),['SOURCE_AUDIT_REVIEW_REQUIRED']);
+  const stated=evaluateSourceAudit(candidate,extraction([...items,condition('r3',7)]),audit());
+  assert.ok(stated.issues.some(issue=>issue.code==='SOURCE_AUDIT_UNCERTAINTY_LOST'));
+});
+
+test('context inventories reject a single heading or contextual line promoted into eligibility or uncertainty',()=>{
+  for(const line of [1,2,4,6,8,11]) {
+    const result=evaluateSourceAudit(candidate,extraction([condition('r1',3),condition('context',line,'other')]),audit());
+    assert.ok(result.issues.some(issue=>issue.code==='SOURCE_AUDIT_CONTEXT_AS_REQUIREMENT'));
+    const unknown=decodeGroqRequirements({items:[condition('r1',3)],expression:`all(r1,unknown(${line},${line}))`},candidate);
+    assert.ok(evaluateSourceAudit(candidate,unknown,audit()).issues.some(issue=>issue.code==='SOURCE_AUDIT_CONTEXT_AS_REQUIREMENT'));
+  }
 });
 
 test('kind and level checks detect document misclassification and invented mandatory eligibility',()=>{

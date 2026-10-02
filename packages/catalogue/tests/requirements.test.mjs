@@ -16,9 +16,9 @@ const wire = () => ({groups:[{relation:'all',items:[
   {kind:'document',level:'required',state:'stated',span:[5,5]},
   {kind:'experience',level:'preferred',state:'stated',span:[6,6]},
 ]}],unresolvedSpan:null});
-const currentWire = () => ({coverage:Object.fromEntries(wire().groups[0].items.map(item=>[
-  `L${item.span[0]}`,{...item,group:1,relation:'all'},
-])),additional:[],unresolvedSpan:null});
+const currentWire = () => ({passages:[{span:[1,2],role:'context',condition:null},
+  ...wire().groups[0].items.map(({span,state,...metadata})=>({span,role:'condition',condition:{...metadata,group:1,relation:'all'}})),
+  {span:[7,7],role:'context',condition:null},{span:[8,8],role:'promotion',condition:null},{span:[9,9],role:'context',condition:null}]});
 const env = {SKILVED_AI_MODE:'groq',GROQ_API_KEY:'synthetic_requirements_test_key'};
 const response = value => Response.json({model:'openai/gpt-oss-120b',choices:[{finish_reason:'stop',message:{content:JSON.stringify(value)}}],
   usage:{prompt_tokens:900,completion_tokens:400,total_tokens:1300}});
@@ -27,8 +27,8 @@ test('requirement stage sends the complete source with a small schema and no app
   let calls = 0;
   const result = await extractRequirements(candidate,{env,fetchImpl:async (_url,init) => {
     calls++; const request = JSON.parse(init.body), payload = JSON.parse(request.messages[1].content);
-    assert.deepEqual(Object.keys(request.response_format.json_schema.schema.properties),['coverage','additional','unresolvedSpan']);
-    assert.deepEqual(request.response_format.json_schema.schema.properties.coverage.required,['L3','L4','L5','L6']);
+    assert.deepEqual(Object.keys(request.response_format.json_schema.schema.properties),['passages']);
+    assert.equal(payload.lineCount,9);
     assert.equal(request.response_format.json_schema.name,REQUIREMENTS_VERSION);
     assert.equal(request.max_completion_tokens,3072); assert.equal(request.reasoning_effort,'low');
     assert.match(payload.sourceLines,/Technical Mathematics is not accepted/);
@@ -42,10 +42,10 @@ test('requirement stage sends the complete source with a small schema and no app
   assert.equal(result.provenance.usage.totalTokens,1300); assert.equal('record' in result,false);
 });
 test('requirement stage rejects duplicate spans and retains usage without retry', async () => {
-  const data = currentWire(); data.additional.push({...data.coverage.L5});
+  const data = currentWire(); data.passages.splice(4,0,{...data.passages[3]});
   let calls = 0;
   await assert.rejects(extractRequirements(candidate,{env,fetchImpl:async () => {calls++;return response(data);}}),
-    error => error.code === 'AI_DUPLICATE_REQUIREMENT_PASSAGE' && error.usage.totalTokens === 1300);
+    error => error.code === 'AI_SOURCE_PARTITION_INVALID' && error.usage.totalTokens === 1300);
   assert.equal(calls,1);
 });
 test('requirement stage keeps coverage, promotion and bounded logic checks', () => {

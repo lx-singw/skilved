@@ -9,7 +9,12 @@ import { REQUIREMENTS_VERSION, REQUIREMENTS_INSTRUCTION, requirementsInstruction
   decodeRequirementsV3,requirementsSchemaV3,REQUIREMENTS_V3_INSTRUCTION,
   decodeRequirementsV4,requirementsSchemaV4,requirementsInstructionV4,
   decodeRequirementsV5,requirementsSchemaV5,requirementsInstructionV5,
-  decodeRequirementsV6,requirementsSchemaV6,requirementsInstructionV6 } from '../src/ai/requirements.mjs';
+  decodeRequirementsV6,requirementsSchemaV6,requirementsInstructionV6,
+  decodeRequirementsV7,requirementsSchemaV7,requirementsInstructionV7,
+  decodeRequirementsV8,requirementsSchemaV8,requirementsInstructionV8,
+  decodeRequirementsV9,requirementsSchemaV9,requirementsInstructionV9,
+  decodeRequirementsV10,requirementsSchemaV10,requirementsInstructionV10,
+  decodeRequirementsV11,requirementsSchemaV11,requirementsInstructionV11 } from '../src/ai/requirements.mjs';
 
 const Manifest = z.object({version:z.literal(1), purpose:z.literal('development_regression'),
   observedAt:z.string().datetime(), cases:z.array(z.object({id:z.string().regex(/^[a-z][a-z0-9_-]*$/),
@@ -52,7 +57,7 @@ else {
         if (!item.response) { cases.push({id:item.id, status:'not_run', issues:[]}); continue; }
         const responseBytes = await boundedFile(resolve(dirname(path), item.response)); responseHash = digest(responseBytes);
         const response = JSON.parse(responseBytes), candidate = JSON.parse(input); provenance = response.provenance;
-        if (requirementsOnly && ![REQUIREMENTS_VERSION,'recentjobs_requirements_v1','recentjobs_requirements_v2','recentjobs_requirements_v3','recentjobs_requirements_v4','recentjobs_requirements_v5','recentjobs_requirements_v6'].includes(provenance?.extractionVersion)) throw new Error('EVALUATION_VERSION_UNSUPPORTED');
+        if (requirementsOnly && ![REQUIREMENTS_VERSION,'recentjobs_requirements_v1','recentjobs_requirements_v2','recentjobs_requirements_v3','recentjobs_requirements_v4','recentjobs_requirements_v5','recentjobs_requirements_v6','recentjobs_requirements_v7','recentjobs_requirements_v8','recentjobs_requirements_v9','recentjobs_requirements_v10','recentjobs_requirements_v11'].includes(provenance?.extractionVersion)) throw new Error('EVALUATION_VERSION_UNSUPPORTED');
         const historical = provenance?.extractionVersion === 'recentjobs_requirements_v1'
           ? [decodeRequirementsV1,REQUIREMENTS_V1_INSTRUCTION,REQUIREMENTS_V1_SCHEMA]
           : provenance?.extractionVersion === 'recentjobs_requirements_v2'
@@ -64,7 +69,17 @@ else {
                 : provenance?.extractionVersion === 'recentjobs_requirements_v5'
                   ? [decodeRequirementsV5,requirementsInstructionV5(candidate),requirementsSchemaV5(candidate)]
                   : provenance?.extractionVersion === 'recentjobs_requirements_v6'
-                    ? [decodeRequirementsV6,requirementsInstructionV6(candidate),requirementsSchemaV6(candidate)] : null;
+                    ? [decodeRequirementsV6,requirementsInstructionV6(candidate),requirementsSchemaV6(candidate)]
+                    : provenance?.extractionVersion === 'recentjobs_requirements_v7'
+                      ? [decodeRequirementsV7,requirementsInstructionV7(candidate),requirementsSchemaV7(candidate)]
+                      : provenance?.extractionVersion === 'recentjobs_requirements_v8'
+                        ? [decodeRequirementsV8,requirementsInstructionV8(candidate),requirementsSchemaV8(candidate)]
+                        : provenance?.extractionVersion === 'recentjobs_requirements_v9'
+                          ? [decodeRequirementsV9,requirementsInstructionV9(candidate),requirementsSchemaV9(candidate)]
+                          : provenance?.extractionVersion === 'recentjobs_requirements_v10'
+                            ? [decodeRequirementsV10,requirementsInstructionV10(candidate),requirementsSchemaV10(candidate)]
+                            : provenance?.extractionVersion === 'recentjobs_requirements_v11'
+                              ? [decodeRequirementsV11,requirementsInstructionV11(candidate),requirementsSchemaV11(candidate)] : null;
         const requirementsDecoder = historical?.[0] ?? decodeRequirements;
         promptSchemaHash = digest(JSON.stringify(requirementsOnly
           ? historical ? historical.slice(1) : [requirementsInstruction(candidate),requirementsSchema(candidate)] : [instruction,schema]));

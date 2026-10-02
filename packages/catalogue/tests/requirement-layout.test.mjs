@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {requirementLayout} from '../src/ai/requirement-layout.mjs';
-import {decodeRequirements,requirementsSchema,requirementsInstruction,REQUIREMENTS_V2_INSTRUCTION,extractRequirements} from '../src/ai/requirements.mjs';
+import {decodeRequirementsV7 as decodeRequirements,requirementsSchemaV7 as requirementsSchema,requirementsInstructionV8,REQUIREMENTS_V2_INSTRUCTION,extractRequirements,REQUIREMENTS_VERSION} from '../src/ai/requirements.mjs';
 
 const notice=text=>({title:'Fictional apprenticeship',sourceText:text,applicationCandidates:[]});
 const alternatives=notice('Minimum requirements\nYou need one of the following:\nGrade 12 with Mathematics and Science\nN3 with:\nElectrical Trade Theory\nMathematics\nEngineering Science\nNCV Level 3 or 4 Electrical\nMain responsibilities\nMaintain equipment');
@@ -59,19 +59,20 @@ test('separate explicit lists receive separate reserved group numbers',()=>{
   assert.deepEqual(requirementLayout(input).alternativeGroups.map(g=>g.group),[1,2]);
 });
 
-test('notices without bounded sections use group format before the single provider call',async()=>{
+test('V8 group fallback remains replayable; current extraction accounts for unbounded notices in one call',async()=>{
   const candidate=notice('Applicants need Grade 12.\nWorkshop experience is advantageous.');
-  assert.equal(requirementsInstruction(candidate),REQUIREMENTS_V2_INSTRUCTION);
+  assert.equal(requirementsInstructionV8(candidate),REQUIREMENTS_V2_INSTRUCTION);
   assert.deepEqual(Object.keys(requirementsSchema(candidate).properties),['groups','unresolvedSpan']);
   let calls=0;
   const result=await extractRequirements(candidate,{env:{SKILVED_AI_MODE:'groq',GROQ_API_KEY:'synthetic_requirements_test_key'},fetchImpl:async(_url,init)=>{
     calls++;const request=JSON.parse(init.body);
-    assert.deepEqual(Object.keys(request.response_format.json_schema.schema.properties),['groups','unresolvedSpan']);
-    return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({groups:[{relation:'all',items:[
-      {kind:'education',level:'required',state:'stated',span:[2,2]},
-      {kind:'experience',level:'preferred',state:'stated',span:[3,3]},
-    ]}],unresolvedSpan:null})}}]});
+    assert.deepEqual(Object.keys(request.response_format.json_schema.schema.properties),['passages']);
+    return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({passages:[
+      {span:[1,1],role:'context',condition:null},
+      {span:[2,2],role:'condition',condition:{kind:'education',level:'required',group:1,relation:'all'}},
+      {span:[3,3],role:'condition',condition:{kind:'experience',level:'preferred',group:1,relation:'all'}},
+    ]})}}]});
   }});
   assert.equal(calls,1);assert.equal(result.requirements.items.length,2);
-  assert.equal(result.provenance.extractionVersion,'recentjobs_requirements_v7');
+  assert.equal(result.provenance.extractionVersion,REQUIREMENTS_VERSION);
 });

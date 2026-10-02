@@ -10,7 +10,9 @@ import {digest, evaluateExtraction} from '../src/ai/evaluation.mjs';
 import {requirementsSchema, REQUIREMENTS_INSTRUCTION, REQUIREMENTS_V1_INSTRUCTION, REQUIREMENTS_V1_SCHEMA,
   REQUIREMENTS_V2_INSTRUCTION, REQUIREMENTS_V2_SCHEMA, requirementsSchemaV3, REQUIREMENTS_V3_INSTRUCTION,
   requirementsSchemaV4,requirementsInstructionV4,requirementsSchemaV5,requirementsInstructionV5,
-  requirementsSchemaV6,requirementsInstructionV6} from '../src/ai/requirements.mjs';
+  requirementsSchemaV6,requirementsInstructionV6,requirementsSchemaV7,requirementsInstructionV7,
+  requirementsSchemaV8,requirementsInstructionV8,requirementsSchemaV9,requirementsInstructionV9,
+  requirementsSchemaV10,requirementsInstructionV10,requirementsSchemaV11,requirementsInstructionV11} from '../src/ai/requirements.mjs';
 
 const now = '2026-09-27T10:00:00.000Z';
 const candidate = parseRecentJobsDetail({html:await readFile(new URL('./fixtures/recentjobs-synthetic.html', import.meta.url), 'utf8'),
@@ -76,7 +78,12 @@ test('requirements replay preserves earlier versions and fingerprints the candid
       ['v4',{coverage:{L3:{...condition,group:1,relation:'all'}},additional:[],unresolvedSpan:null},requirementsInstructionV4(input),requirementsSchemaV4(input)],
       ['v5',{coverage:{L3:{...condition,group:1,relation:'all'}},additional:[],unresolvedSpan:null},requirementsInstructionV5(input),requirementsSchemaV5(input)],
       ['v6',{coverage:{L3:{...condition,group:1,relation:'all'}},additional:[],unresolvedSpan:null},requirementsInstructionV6(input),requirementsSchemaV6(input)],
-      ['v7',{coverage:{L3:{...condition,group:1,relation:'all'}},additional:[],unresolvedSpan:null},REQUIREMENTS_INSTRUCTION,requirementsSchema(input)],
+      ['v7',{coverage:{L3:{...condition,group:1,relation:'all'}},additional:[],unresolvedSpan:null},requirementsInstructionV7(input),requirementsSchemaV7(input)],
+      ['v8',{evidence:{},coverage:{L3:{...condition,group:1,relation:'all'}},additional:[],unresolvedSpan:null},requirementsInstructionV8(input),requirementsSchemaV8(input)],
+      ['v9',{lineRoles:['context','context','condition','context'],groups:[{relation:'all',items:[{kind:'education',level:'required',span:[3,3]}]}],unresolvedSpans:[]},requirementsInstructionV9(input),requirementsSchemaV9(input)],
+      ['v10',{passages:[{span:[1,2],role:'context'},{span:[3,3],role:'condition'},{span:[4,4],role:'context'}],groups:[{relation:'all',items:[{kind:'education',level:'required',span:[3,3]}]}],unresolvedSpans:[]},requirementsInstructionV10(input),requirementsSchemaV10(input)],
+      ['v11',{passages:[{span:[1,2],role:'context',condition:null},{span:[3,3],role:'condition',condition:{kind:'education',level:'required',group:1,relation:'all'}},{span:[4,4],role:'context',condition:null}]},requirementsInstructionV11(input),requirementsSchemaV11(input)],
+      ['v12',{passages:[{span:[1,2],role:'context',condition:null},{span:[3,3],role:'condition',condition:{kind:'education',level:'required',group:1,relation:'all'}},{span:[4,4],role:'context',condition:null}]},REQUIREMENTS_INSTRUCTION,requirementsSchema(input)],
     ];
     await writeFile(join(dir,'candidate.json'),bytes);
     for(const [version,extraction] of variants) await writeFile(join(dir,version+'.json'),JSON.stringify({
@@ -88,8 +95,8 @@ test('requirements replay preserves earlier versions and fingerprints the candid
     const run=spawnSync(process.execPath,['tools/evaluate-recentjobs.mjs','--requirements',join(dir,'manifest.json')],
       {cwd:new URL('..',import.meta.url),env:{},encoding:'utf8',timeout:10000});
     assert.equal(run.status,0,run.stderr);const report=JSON.parse(run.stdout);
-    assert.equal(report.counts.matched,7);assert.equal(report.newModelCalls,0);
-    assert.deepEqual(report.cases.map(c=>c.currentExtractionVersion),[false,false,false,false,false,false,true]);
+    assert.equal(report.counts.matched,12);assert.equal(report.newModelCalls,0);
+    assert.deepEqual(report.cases.map(c=>c.currentExtractionVersion),[false,false,false,false,false,false,false,false,false,false,false,true]);
     assert.deepEqual(report.cases.map(c=>c.promptSchemaHash),variants.map(([, ,instruction,schema])=>digest(JSON.stringify([instruction,schema]))));
   } finally {await rm(dir,{recursive:true,force:true});}
 });
@@ -116,7 +123,7 @@ test('CLI reports a separate inventory mismatch and refuses a gapped inventory e
     const file=join(dir,'manifest.json');await writeFile(file,JSON.stringify(manifest));
     const run=()=>spawnSync(process.execPath,['tools/evaluate-recentjobs.mjs','--requirements',file],{cwd:new URL('..',import.meta.url),env:{},encoding:'utf8',timeout:10000});
     const result=run();assert.equal(result.status,1);const report=JSON.parse(result.stdout);
-    assert.equal(report.evaluationVersion,'recentjobs_evaluation_v2');assert.equal(report.newModelCalls,0);assert.equal(report.qualification,false);
+    assert.equal(report.evaluationVersion,'recentjobs_evaluation_v3');assert.equal(report.newModelCalls,0);assert.equal(report.qualification,false);
     assert.equal(report.cases[0].targetedMatched,true);assert.equal(report.cases[0].sourceAuditMatched,false);
     assert.equal(report.cases[0].issues[0].code,'SOURCE_AUDIT_PASSAGE_MISSING');
     item.response=null;sourceAudit.entries.splice(3,1);await writeFile(file,JSON.stringify(manifest));

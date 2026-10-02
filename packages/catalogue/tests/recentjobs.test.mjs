@@ -33,6 +33,11 @@ test('unexpected layouts and source URL confusion fail explicitly', () => {
   }
 });
 
+test('a nested second article body is rejected rather than mixed into the primary notice',()=>{
+  const embedded='<p>Outer notice</p><article class="blog-post"><div class="entry-content"><p>A different notice</p><a href="https://employer.example/wrong-job">Apply now</a></div></article>';
+  assert.throws(()=>parseRecentJobsDetail({html:detail(embedded),url:detailUrl}),/RECENTJOBS_LAYOUT_CHANGED/);
+});
+
 test('keeps alternatives and nested subject requirements intact without inferred eligibility', () => {
   const result = parseDetail('<p>One of the following:</p><ul><li>Grade 12 with Mathematics AND Science</li><li>N3 with:<ul><li>Trade Theory</li><li>Mathematics</li></ul></li><li>NCV Level 4</li></ul>');
   for (const wording of ['One of the following:', 'Grade 12 with Mathematics AND Science', 'N3 with:', 'Trade Theory', 'NCV Level 4']) assert.ok(result.sourceText.includes(wording));
