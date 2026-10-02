@@ -48,8 +48,13 @@ export function validateAssessment(input, recentjobsText, primary = null) {
   return result;
 }
 
-export async function validateExtraction({ record, recentjobsText, primary = null, applicationCandidates = [] }, options = {}) {
-  const env = options.env ?? process.env, config = extractionConfiguration(env);
+export function validationContract(primary = null) {
+  const extra = primary ? '\nA primary employer notice is also supplied: verify the same issuer, role, intake, deadline and material requirements against it. Conflicts or missing corroboration fail. Include evidence from both notices.'
+    : '\nOnly the discovery notice is supplied. Use recentjobs evidence only; primary evidence must not be invented.';
+  return { instruction: instruction + extra, schema: structuredClone(schema), version: VALIDATION_VERSION };
+}
+
+export function validationPayload({ record, recentjobsText, primary = null, applicationCandidates = [] }) {
   // Storage IDs, snapshot hashes and review flags are not semantic evidence.
   // Keep every fact/value/quote and the complete requirement tree in the audit.
   const fact = f => ({ state: f.state, value: f.value, originalText: f.originalText });
@@ -58,10 +63,13 @@ export async function validateExtraction({ record, recentjobsText, primary = nul
   facts.compensation = record.compensation.map(fact);
   facts.requirements = { expression: record.requirements.expression,
     requirements: record.requirements.requirements.map(r => ({ id: r.id, kind: r.kind, level: r.level, fact: fact(r.fact) })) };
-  const extra = primary ? '\nA primary employer notice is also supplied: verify the same issuer, role, intake, deadline and material requirements against it. Conflicts or missing corroboration fail. Include evidence from both notices.'
-    : '\nOnly the discovery notice is supplied. Use recentjobs evidence only; primary evidence must not be invented.';
-  const response = await generateStructured({ extracted: facts, recentjobsText, primary, applicationCandidates },
-    { instruction: instruction + extra, schema, version: VALIDATION_VERSION },
+  return { extracted: facts, recentjobsText, primary, applicationCandidates };
+}
+
+export async function validateExtraction(input, options = {}) {
+  const {recentjobsText,primary=null}=input;
+  const env = options.env ?? process.env, config = extractionConfiguration(env);
+  const response = await generateStructured(validationPayload(input), validationContract(primary),
     { ...options, env: { ...env, SKILVED_AI_THINKING: config.validationThinking } });
   try {
     const result = validateAssessment(response.extraction, recentjobsText, primary);
