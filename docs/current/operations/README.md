@@ -30,6 +30,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Requirements attached to passages: simpler compilation and remaining semantic errors](29_ATTACHED_REQUIREMENT_PASSAGES_2026-10-03.md)
 - [Scoped evidence and stricter source audits: guardrails, fresh notices and repeatability failures](30_SCOPED_REQUIREMENT_EVIDENCE_2026-10-03.md)
 - [Whole-source validator challenges: false acceptance, partial rejections and offline replay](31_WHOLE_SOURCE_VALIDATOR_CHALLENGES_2026-10-03.md)
+- [Blind source inventories and deterministic claim comparison: results and remaining review failures](32_STRUCTURED_REQUIREMENT_REVIEW_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
