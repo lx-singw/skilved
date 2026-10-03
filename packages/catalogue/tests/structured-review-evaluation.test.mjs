@@ -13,6 +13,7 @@ import {bindBoundedInventory,BOUNDED_LINE_REVIEW_VERSION} from '../src/ai/bounde
 import {bindGuardedInventory,GUARDED_LINE_REVIEW_VERSION} from '../src/ai/guarded-line-review.mjs';
 import {bindLocalInventory,LOCAL_LINE_REVIEW_VERSION} from '../src/ai/local-line-review.mjs';
 import {bindCompactInventory,COMPACT_LINE_REVIEW_VERSION} from '../src/ai/compact-line-review.mjs';
+import {bindAnchoredInventory,ANCHORED_LINE_REVIEW_VERSION} from '../src/ai/anchored-line-review.mjs';
 
 async function fixture(run){
   const dir=await mkdtemp(join(tmpdir(),'skilved-structured-review-'));
@@ -106,4 +107,13 @@ test('offline replay dispatches V8 compact-prompt inventories with exact local c
   assert.equal(report.cases[0].inventoryVersion,COMPACT_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
   assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
   delete inventory.inventory.lines.L2;await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_INVALID_REVIEW_INVENTORY');
+}));
+
+test('offline replay dispatches V9 anchored alternatives and retains invalid pointer failures',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const lines={L1:'context',L2:'context',L3:{kind:'education',strength:'mandatory',alternative:null},L4:{kind:'document',strength:'mandatory',alternative:null},L5:'context'};
+  Object.assign(inventory,bindAnchoredInventory(input.candidate,{lines}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,ANCHORED_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
+  assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
+  inventory.inventory.lines.L3.alternative=3;await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_REVIEW_ALTERNATIVE_INVALID');
 }));
