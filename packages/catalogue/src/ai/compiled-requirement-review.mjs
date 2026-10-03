@@ -19,8 +19,8 @@ const strength={required:'mandatory',preferred:'advantage',unclear:'unstated'};
 const roles={current:'condition',post_selection:'duties',employer:'context',preparation:'unresolved',conditional:'unresolved',uncertain:'unresolved',context:'context',promotion:'promotion'};
 const levels={mandatory:'required',advantage:'preferred',unstated:'unclear'};
 
-function planFor(candidate) {
-  const evidence=requirementReviewPolicy(sourceOnly(candidate)),fixedPassages=[];
+function planFor(candidate,evidence=requirementReviewPolicy(sourceOnly(candidate))) {
+  const fixedPassages=[];
   const occupied=new Map(),covered=line=>occupied.has(line);
   const add=row=>{
     const [first,last]=row.span;
@@ -65,15 +65,18 @@ function planFor(candidate) {
 }
 
 export function compiledReviewPayload(candidate) {
-  const {evidence,fixedPassages,remainingSegments}=planFor(candidate);
+  return compiledReviewPayloadWithEvidence(candidate,requirementReviewPolicy(sourceOnly(candidate)));
+}
+export function compiledReviewPayloadWithEvidence(candidate,evidence) {
+  const {fixedPassages,remainingSegments}=planFor(candidate,evidence);
   const fixed=line=>fixedPassages.some(({span:[first,last]})=>first<=line&&line<=last);
   return {sourceLines:evidence.sourceLines,lineCount:evidence.lineCount,policyVersion:evidence.reviewPolicy.version,
     fixedPassages,remainingSegments,requiredLineNumbers:evidence.requiredLineNumbers.filter(line=>!fixed(line)),
     evidenceHints:evidence.evidenceHints.filter(hint=>!fixed(hint.line)),alternativeGroups:evidence.alternativeGroups,
     fixedRoles:Object.fromEntries(Object.entries(evidence.fixedRoles).filter(([key])=>!fixed(Number(key.slice(1)))))};
 }
-function wireSchema(candidate) {
-  const {remainingSegments}=planFor(candidate);
+function wireSchema(candidate,evidence) {
+  const {remainingSegments}=planFor(candidate,evidence);
   const segments=Object.fromEntries(Object.entries(remainingSegments).map(([key,[first,last]])=>{
     const span=z.array(z.number().int().min(first).max(last)).length(2);
     const current=z.object({span,applicability:z.literal('current'),kind:ExtractionSchema.shape.requirements.shape.items.element.shape.kind,
@@ -103,9 +106,12 @@ export function decodeCompiledInventory(candidate,review) {
   const expected=binding(candidate);
   if(review?.version!==COMPILED_REQUIREMENT_REVIEW_VERSION||review.sourceSha256!==expected.sourceSha256||review.contractSha256!==expected.contractSha256)
     fail('AI_REVIEW_BINDING_MISMATCH');
-  let data;try{if(Buffer.byteLength(JSON.stringify(review.inventory))>96000)fail('AI_OUTPUT_LIMIT');data=wireSchema(candidate).parse(review.inventory);}
+  return decodeCompiledSegments(candidate,review.inventory);
+}
+export function decodeCompiledSegments(candidate,inventory,evidence=requirementReviewPolicy(sourceOnly(candidate))) {
+  let data;try{if(Buffer.byteLength(JSON.stringify(inventory))>96000)fail('AI_OUTPUT_LIMIT');data=wireSchema(candidate,evidence).parse(inventory);}
   catch(error){if(error instanceof DomainError)throw error;fail('AI_INVALID_REVIEW_INVENTORY');}
-  const {evidence,fixedPassages,remainingSegments}=planFor(candidate),rows=[];
+  const {fixedPassages,remainingSegments}=planFor(candidate,evidence),rows=[];
   for(const [key,[first,last]] of Object.entries(remainingSegments)) {
     let next=first;
     for(const row of data.segments[key]){if(row.span[0]!==next||row.span[1]<next)fail('AI_REVIEW_SEGMENT_PARTITION');next=row.span[1]+1;rows.push(row);}

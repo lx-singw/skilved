@@ -9,6 +9,7 @@ import {bindRequirementInventory,decodeRequirementInventory} from '../src/ai/str
 import {bindApplicabilityInventory,APPLICABILITY_REQUIREMENT_REVIEW_VERSION} from '../src/ai/applicability-requirement-review.mjs';
 import {bindCompiledInventory,COMPILED_REQUIREMENT_REVIEW_VERSION} from '../src/ai/compiled-requirement-review.mjs';
 import {bindLineInventory,LINE_REQUIREMENT_REVIEW_VERSION} from '../src/ai/line-requirement-review.mjs';
+import {bindBoundedInventory,BOUNDED_LINE_REVIEW_VERSION} from '../src/ai/bounded-line-review.mjs';
 
 async function fixture(run){
   const dir=await mkdtemp(join(tmpdir(),'skilved-structured-review-'));
@@ -69,4 +70,12 @@ test('offline replay dispatches V4 line inventories without credentials and dist
   assert.equal(report.cases[0].inventoryVersion,LINE_REQUIREMENT_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);
   assert.deepEqual(report.cases[0].ownership,{codePassages:0,modelLines:5,modelPassages:4});assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
   delete inventory.inventory.lines.L2;await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_INVALID_REVIEW_INVENTORY');
+}));
+
+test('offline replay dispatches V5 bounded-policy inventories without a model call or source text',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const lines={L1:'context',L2:'context',L3:{kind:'education',strength:'mandatory',group:1,relation:'all'},L4:{kind:'document',strength:'mandatory',group:1,relation:'all'},L5:'context'};
+  Object.assign(inventory,bindBoundedInventory(input.candidate,{lines}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,BOUNDED_LINE_REVIEW_VERSION);assert.equal(report.newModelCalls,0);assert.equal(report.counts.decision_match,1);
+  assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
 }));

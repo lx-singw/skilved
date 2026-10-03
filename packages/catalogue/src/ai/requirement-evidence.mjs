@@ -9,15 +9,15 @@ const labels=/^(?:education|company|position|positions|location|reference|job ty
 
 // V6 adds explicit evidence outside the main requirements section. Unclear
 // applicability is preserved as uncertainty, never promoted to hard eligibility.
-export function requirementEvidence(candidate) {
-  const layout=requirementLayout(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+export function requirementEvidence(candidate,layout=requirementLayout(candidate),sectionEnd=null) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   const hints=new Map(),primary=new Set(layout.requiredLineNumbers);
   const add=(line,reason,constraints)=>{if(!hints.has(line))hints.set(line,{line,reason,...constraints});};
   let start=null,sectionLevel='unclear';
   for(let index=0;index<lines.length;index++) {
     const text=label(lines[index]);
     if(skills.test(text)){start=index+1;sectionLevel=/^required skills/i.test(text)?'required':'unclear';continue;}
-    if(start!==null&&(boundary.test(text)||invitation.test(text)||isPromotionalLine(text))) {
+    if(start!==null&&(boundary.test(text)||sectionEnd?.(text)||invitation.test(text)||isPromotionalLine(text))) {
       let level=sectionLevel;
       for(let at=start;at<index;at++)if(lines[at].trim()&&!primary.has(at+1)) {
         if(/^(?:preferred|advantageous)\s*:?$/i.test(label(lines[at]))){level='preferred';continue;}

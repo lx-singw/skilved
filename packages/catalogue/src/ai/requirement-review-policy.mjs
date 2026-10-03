@@ -21,14 +21,17 @@ const profileEnd=line=>boundary.test(line)||/^applications? for .+\bintake\s+clo
 
 export function requirementReviewPolicy(candidate) {
   const source={title:candidate?.title,sourceText:candidate?.sourceText,applicationCandidates:[]};
-  const payload=wholeSourcePayload(source),lines=`${source.title}\n${source.sourceText}`.split('\n');
+  return requirementReviewPolicyWithEvidence(source,wholeSourcePayload(source),REQUIREMENT_REVIEW_POLICY_VERSION);
+}
+export function requirementReviewPolicyWithEvidence(source,payload,version,sectionEnd=null) {
+  const lines=`${source.title}\n${source.sourceText}`.split('\n');
   const scopes=payload.unresolvedEvidenceSpans.map(span=>({span,applicability:'preparation'})),conditions=[];
   const originalRequired=new Set(payload.requiredLineNumbers);
   const inside=line=>scopes.some(({span:[first,last]})=>first<=line&&line<=last);
   for(let index=0;index<lines.length;index++) {
     const number=index+1,text=label(lines[index]);if(inside(number))continue;
     if(profileHeading.test(text)) {
-      let end=index+1;while(end<lines.length&&!profileEnd(label(lines[end])))end++;
+      let end=index+1;while(end<lines.length&&!profileEnd(label(lines[end]))&&!sectionEnd?.(label(lines[end])))end++;
       if(end===lines.length)fail('AI_REVIEW_POLICY_SCOPE_UNBOUNDED');
       // A list introduction is a heading, not a standalone applicant fact.
       payload.evidenceHints=payload.evidenceHints.filter(hint=>hint.line!==number);
@@ -45,7 +48,7 @@ export function requirementReviewPolicy(candidate) {
       }
     } else if(postSelection(text)) {
       let end=index+1;
-      while(end<lines.length&&!boundary.test(label(lines[end]))&&!isPromotionalLine(lines[end]))end++;
+      while(end<lines.length&&!boundary.test(label(lines[end]))&&!sectionEnd?.(label(lines[end]))&&!isPromotionalLine(lines[end]))end++;
       if(end===lines.length)fail('AI_REVIEW_POLICY_SCOPE_UNBOUNDED');
       const span=[number,end];
       if(scopes.some(({span:[first,last]})=>first<=span[1]&&last>=span[0])||
@@ -64,5 +67,5 @@ export function requirementReviewPolicy(candidate) {
   scopes.sort((a,b)=>a.span[0]-b.span[0]);
   payload.requiredLineNumbers=[...new Set(payload.requiredLineNumbers)].sort((a,b)=>a-b);
   payload.evidenceHints.sort((a,b)=>a.line-b.line);
-  return {...payload,reviewPolicy:{version:REQUIREMENT_REVIEW_POLICY_VERSION,scopes,conditions}};
+  return {...payload,reviewPolicy:{version,scopes,conditions}};
 }

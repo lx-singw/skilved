@@ -14,8 +14,8 @@ const completion=/\bapplication is only complete (?:after|once|when)\b.*\b(?:cli
 
 // Versioned supplements: earlier evidence selectors/replay remain unchanged.
 // These are narrow source constraints, not a complete semantic classifier.
-export function requirementContext(candidate) {
-  const base=requirementEvidence(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+export function requirementContext(candidate,base=requirementEvidence(candidate),sectionEnd=null) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   const hints=new Map(base.evidenceHints.map(hint=>[hint.line,{...hint}])),primary=new Set(base.requiredLineNumbers);
   const add=(line,reason,constraints)=>{
     const previous=hints.get(line);
@@ -28,7 +28,7 @@ export function requirementContext(candidate) {
     // Scope only to an explicit following boundary or confirmed current rule.
     // Unknown scope stops extraction before spending, rather than guessing.
     let end=index+1;
-    while(end<lines.length&&!section.test(label(lines[end]))&&!confirmed.test(lines[end])&&!isPromotionalLine(lines[end]))end++;
+    while(end<lines.length&&!section.test(label(lines[end]))&&!sectionEnd?.(label(lines[end]))&&!confirmed.test(lines[end])&&!isPromotionalLine(lines[end]))end++;
     if(end===lines.length)throw new DomainError('AI_APPLICABILITY_SCOPE_UNBOUNDED');
     unresolvedEvidenceSpans.push([index+1,end]);index=end-1;
   }
@@ -46,7 +46,7 @@ export function requirementContext(candidate) {
       add(number,'Explicit final submission condition for a complete application.',{kind:'document',level:'required',state:'stated'});
     if(!behavioral.test(text))continue;
     let end=index+1;
-    while(end<lines.length&&!boundary.test(label(lines[end]))&&!isPromotionalLine(lines[end]))end++;
+    while(end<lines.length&&!boundary.test(label(lines[end]))&&!sectionEnd?.(label(lines[end]))&&!isPromotionalLine(lines[end]))end++;
     if(end===lines.length)continue; // An unbounded list must not absorb a footer.
     let level='unclear';
     for(let at=index+1;at<end;at++) {

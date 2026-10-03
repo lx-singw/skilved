@@ -78,12 +78,19 @@ export async function extractWithGroq(candidate, options) {
   catch (error) { error.usage = result.provenance.usage; throw error; }
 }
 
-/** Fixed provider, strict schema, one bounded request, no tools or automatic fallback. */
-export async function generateStructured(payload, { instruction, schema, version }, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
+/** Fixed provider, explicit output mode, one bounded request, no automatic fallback.
+ * JSON-object callers must validate their own schema before using the result.
+ */
+export async function generateStructured(payload, { instruction, schema, version, outputMode = 'json_schema' }, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const config = extractionConfiguration(env), input = JSON.stringify(payload);
   if (Buffer.byteLength(input) > 96000) failure('AI_INPUT_LIMIT');
-  const request = { model: config.model, messages: [{ role: 'system', content: instruction }, { role: 'user', content: input }],
-    response_format: { type: 'json_schema', json_schema: { name: version, strict: true, schema: groqSchema(schema) } },
+  if(!['json_schema','json_object'].includes(outputMode))failure('AI_CONFIGURATION_REQUIRED');
+  const normalizedSchema=groqSchema(schema),systemInstruction=outputMode==='json_object'?
+    `${instruction}\nReturn valid JSON matching this schema. All required keys must be present:\n${JSON.stringify(normalizedSchema)}`:instruction;
+  if(outputMode==='json_object'&&Buffer.byteLength(systemInstruction)>96000)failure('AI_INPUT_LIMIT');
+  const request = { model: config.model, messages: [{ role: 'system', content: systemInstruction }, { role: 'user', content: input }],
+    response_format: outputMode==='json_object'?{type:'json_object'}:
+      { type: 'json_schema', json_schema: { name: version, strict: true, schema: normalizedSchema } },
     max_completion_tokens: config.maxOutputTokens, reasoning_effort: config.thinking, include_reasoning: false, stream: false };
   const requestHash = createHash('sha256').update(JSON.stringify(request)).digest('hex');
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), config.timeoutMs);
@@ -96,11 +103,11 @@ export async function generateStructured(payload, { instruction, schema, version
       if (response.status === 400) {
         // A generated document that failed the provider's schema check may
         // succeed on a later bounded worker attempt. Invalid configuration does not.
-        // Inspect rejected JSON transiently; retain only schema-owned missing-field
-        // paths. Never retain messages, failed_generation or arbitrary provider codes.
+        // Inspect rejected JSON transiently; retain only bounded schema diagnostics.
+        // Never retain messages, failed_generation or arbitrary provider codes.
         try { const body = await boundedBody(response);
           invalidGeneration = body.error?.code === 'json_validate_failed'; usage = usageOf(body.usage);
-          if (invalidGeneration) outputDiagnostic = rejectedOutputDiagnostic(body.error.failed_generation, request.response_format.json_schema.schema);
+          if (invalidGeneration) outputDiagnostic = rejectedOutputDiagnostic(body.error.failed_generation, normalizedSchema);
         } catch { /* Malformed/oversized errors remain ordinary provider rejections. */ }
       } else await response.body?.cancel();
       failure(invalidGeneration ? 'AI_INVALID_PROVIDER_OUTPUT' : response.status === 429 ? 'AI_RATE_LIMITED' : 'AI_PROVIDER_REJECTED',
@@ -115,7 +122,8 @@ export async function generateStructured(payload, { instruction, schema, version
     try { extraction = JSON.parse(message.content); } catch { failure('AI_INVALID_JSON', false, usage); }
     return { extraction, provenance: { provider: 'groq', model: config.model,
       modelVersion: typeof body.model === 'string' ? body.model.slice(0, 200) : null,
-      extractionVersion: version, thinking: config.thinking, requestHash, usage } };
+      extractionVersion: version, thinking: config.thinking, requestHash, usage,
+      ...(outputMode==='json_object'?{outputMode}:{}) } };
   } catch (error) {
     if (error instanceof GroqError) throw error;
     failure(controller.signal.aborted ? 'AI_TIMEOUT' : 'AI_TRANSPORT_FAILED', true);

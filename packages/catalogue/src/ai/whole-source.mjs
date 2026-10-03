@@ -31,6 +31,7 @@ function linesOf(candidate) {
   if(Buffer.byteLength(corpus)>96000||lines.length>160)fail('AI_INPUT_LIMIT');
   return lines;
 }
+export const wholeSourceLineCount=candidate=>linesOf(candidate).length;
 function wireSchema(candidate) {
   return z.object({lineRoles:z.array(role).length(linesOf(candidate).length),
     groups:z.array(z.object({relation:z.enum(['all','any']),items:z.array(item).min(1).max(30)}).strict()).max(20),
@@ -179,13 +180,23 @@ Behavioral/Attributes sections contain applicant attributes, not employer benefi
 fixedRoles also constrains clear selected conditions. Do not conceal them as context or unresolved. Include every intervening heading, trade label and repeated section label in the partition, even when repetitive.`;
 export const wholeSourceSchema=wholeSourceSchemaV11;
 export function wholeSourcePayload(candidate) {
-  const previous=wholeSourcePayloadV11(candidate),context=requirementContext(candidate);
+  return wholeSourcePayloadWithContext(candidate,requirementContext(candidate));
+}
+export function wholeSourcePayloadWithContext(candidate,context,previous=wholeSourcePayloadV11(candidate)) {
   if(context.requiredLineNumbers.length>40)fail('AI_INPUT_LIMIT');
   return {...previous,...context,fixedRoles:{...previous.fixedRoles,
     ...Object.fromEntries(context.evidenceHints.filter(hint=>hint.state==='stated').map(hint=>[`L${hint.line}`,'condition'])),
     ...Object.fromEntries(context.unresolvedEvidenceSpans.flatMap(([first,last])=>
       Array.from({length:last-first+1},(_,index)=>[`L${first+index}`,'unresolved']))),
   }};
+}
+export function wholeSourcePayloadFromContext(candidate,context) {
+  const lineCount=linesOf(candidate).length,{sourceLines,excludedPromotionalLineNumbers}=groqExtractionPayload(candidate);
+  const previous={sourceLines,lineCount,...context,excludedPromotionalLineNumbers,fixedRoles:Object.fromEntries([
+    ...context.evidenceHints.filter(hint=>['ambiguous','conflicting'].includes(hint.state)).map(hint=>[`L${hint.line}`,'unresolved']),
+    ...excludedPromotionalLineNumbers.map(line=>[`L${line}`,'promotion']),
+  ])};
+  return wholeSourcePayloadWithContext(candidate,context,previous);
 }
 export function decodeWholeSource(input,candidate) {return decodeAttachedSource(input,candidate,wholeSourcePayload(candidate));}
 // Development reviewers may use separately versioned, source-derived evidence.

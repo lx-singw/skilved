@@ -34,6 +34,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Explicit applicability and strength: token-budget results, fresh Sappi control and invalid inventories](33_APPLICABILITY_REQUIREMENT_REVIEW_2026-10-03.md)
 - [Code-owned source scopes and segmented blind review: frozen comparisons and remaining failures](34_COMPILED_REQUIREMENT_REVIEW_2026-10-03.md)
 - [Required source-line keys: provider compatibility and unseen source-boundary failures](35_LINE_REQUIREMENT_REVIEW_2026-10-03.md)
+- [Bounded source sections, schema diagnostics and locally validated JSON review](36_BOUNDED_REVIEW_POLICY_AND_JSON_MODE_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
