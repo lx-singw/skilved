@@ -45,6 +45,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Gemini comparison contract and full-notice provider availability failures](44_GEMINI_COMPARISON_AND_PROVIDER_AVAILABILITY_2026-10-03.md)
 - [Direct Flash-Lite access, identical Siemens repeat and remaining source-fidelity failures](45_FLASH_LITE_DIRECT_ACCESS_AND_FROZEN_COMPARISON_2026-10-03.md)
 - [Source obligation span anchors, faithful submission preflight and remaining model errors](46_SUBMISSION_SPAN_ANCHORS_AND_REMAINING_MODEL_ERRORS_2026-10-03.md)
+- [Native schema compatibility controls and unavailable full-notice comparison](47_NATIVE_SCHEMA_COMPATIBILITY_AND_UNAVAILABLE_COMPARISON_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
