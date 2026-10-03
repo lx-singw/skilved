@@ -24,10 +24,18 @@ Only one attempt has responses from both models. Both fail local decoding, for d
 
 There are no new source fetches, employer crawls, application-route requests, feed writes, worker provider changes or billing changes. Credentials, snapshots, requests, responses, diagnostics and evaluation artifacts remain private and ignored.
 
+## Bounded completion attempt
+
+A separately authorized attempt at 16:58 UTC on 3 October reuses the same three-call plan. Its first Volkswagen request body matches both the prior Flash request body and the saved Flash-Lite request body exactly. All source, audit, control and contract hashes remain fixed; AI module bytes match the previous trial. The first request again receives HTTP 503 with provider status `UNAVAILABLE`; private diagnostics report high demand. The run stops immediately, without making the Volkswagen repeat or Traxtion call. It yields **one new API call and no notice response**, with unknown token usage and no paired result.
+
+The six faithful manual inventories still pass preflight. The four manual control decisions match the saved replay exactly; live replay reports six unavailable control comparisons and exits 1. Those comparisons correspond to three missing inventories, only one of which was requested. All 11 targeted tag-review tests pass. This follow-up changes documentation only; the previous full 348-test result and 162 historical hash/replay checks remain the recorded baseline, rather than being claimed as newly rerun.
+
+Across both Flash runs there are three calls: one answer rejected for requirement coverage and two HTTP 503 failures. Reported usage remains 3,696 tokens for the one answer, with usage unknown for both rejected requests. Availability still prevents completion of the fixed comparison. No automatic retry, fallback, provider switch, billing change or publication is introduced.
+
 ## Verification and next step
 
 All 348 catalogue tests pass and Firestore/Auth emulators shut down cleanly. Two synthetic regression tests verify identical Flash/Flash-Lite request bodies and validation with distinct model provenance, and preservation of HTTP 503 diagnostics without a retry or fallback.
 
 All **162 historical V1–V16 payload/contract hashes and replay outcomes** are preserved. The unchanged faithful/defective manual replay gives four decision matches and exits 0. Flash live replay gives two invalid comparisons for the rejected Volkswagen inventory and four unavailable comparisons for the missing repeat/Traxtion inventories, exiting 1. These six control comparisons represent one invalid model answer and two missing inventories, not six model failures.
 
-Keep V16 fixed for any later bounded completion of the model comparison when Flash is available. Do not reinterpret source evidence or weaken validation to turn this response into a success. Broader independent audits, fresh notices, deadline extraction and original employer/ATS/email handoff still need full-pipeline qualification. Groq remains the worker provider; production scheduling/publication remains disabled, and employer crawling stays optional/off by default.
+Keep V16 fixed for any later bounded completion of the model comparison when Flash is available. Further immediate retries would not add source-fidelity evidence while the provider is rejecting requests. Prioritize independent source audits and offline reproduction of known coverage failures; do not reinterpret source evidence or weaken validation to turn a response into a success. Fresh notices, deadline extraction and original employer/ATS/email handoff still need full-pipeline qualification. Groq remains the worker provider; production scheduling/publication remains disabled, and employer crawling stays optional/off by default.
