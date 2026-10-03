@@ -19,7 +19,7 @@ const secondBranch=/^or (?:a )?national certificate\s*\(vocational\)\s*(?:level\
 // subject lists and an explicit end. No employer names or expected answers.
 export const isCompleteReviewBoundary=text=>boundary(text);
 export const isCompleteReviewStart=text=>start.test(label(text));
-export function completeReviewEvidence(candidate,{sectionEnd=boundary,sectionStart=isCompleteReviewStart}={}) {
+export function completeReviewEvidence(candidate,{sectionEnd=boundary,sectionStart=isCompleteReviewStart,standaloneMustSpanPolicy='exact'}={}) {
   const evidence=compactReviewEvidence(candidate,{sectionEnd,layoutOptions:{sectionStart}});
   evidence.reviewPolicy.version=COMPLETE_REVIEW_POLICY_VERSION;
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
@@ -55,7 +55,8 @@ export function completeReviewEvidence(candidate,{sectionEnd=boundary,sectionSta
   for(let index=0;index<lines.length;index++) {
     const line=index+1,text=label(lines[index]);
     if(!selected.has(line)||covered(line)||!/^must\b/i.test(text)||caveat.test(text)||contextual(index)||/:$/.test(text))continue;
-    evidence.evidenceHints.push({line,level:'required',state:'stated',reason:'Explicit standalone current must-clause; kind remains model-owned.'});
+    evidence.evidenceHints.push({line,level:'required',state:'stated',reason:'Explicit standalone current must-clause; kind remains model-owned.',
+      ...(standaloneMustSpanPolicy==='anchor'?{spanPolicy:'anchor'}:{})});
     evidence.fixedRoles[`L${line}`]='condition';
   }
   evidence.evidenceHints.sort((a,b)=>a.line-b.line);

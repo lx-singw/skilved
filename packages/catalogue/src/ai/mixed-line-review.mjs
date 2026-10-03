@@ -19,7 +19,10 @@ const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex
 const fail=code=>{throw new DomainError(code);};
 const thinkingOf=value=>{if(!['low','medium'].includes(value))fail('AI_INVALID_REVIEW_THINKING');return value;};
 export function mixedLinePayload(candidate) {
-  const evidence=mixedReviewEvidence(candidate),base=completeLinePayloadWithEvidence(candidate,evidence);
+  return mixedLinePayloadWithEvidence(candidate,mixedReviewEvidence(candidate));
+}
+export function mixedLinePayloadWithEvidence(candidate,evidence) {
+  const base=completeLinePayloadWithEvidence(candidate,evidence);
   const compiledQualificationGroups=evidence.compiledQualificationGroups.map(group=>({kind:'education',strength:'mandatory',spans:group.spans}));
   if(compiledQualificationGroups.length>18)fail('AI_INPUT_LIMIT');
   const covered=new Set(compiledQualificationGroups.flatMap(group=>group.spans.flatMap(([first,last])=>Array.from({length:last-first+1},(_,i)=>first+i))));
@@ -45,14 +48,17 @@ export function decodeMixedInventory(candidate,review) {
   if(review?.version!==MIXED_LINE_REVIEW_VERSION)fail('AI_REVIEW_BINDING_MISMATCH');
   const expected=binding(candidate,thinkingOf(review.thinking));
   if(review.sourceSha256!==expected.sourceSha256||review.contractSha256!==expected.contractSha256)fail('AI_REVIEW_BINDING_MISMATCH');
-  const payload=mixedLinePayload(candidate),projected=projectCompleteValues(payload,review.inventory),count=payload.compiledQualificationGroups.length;
+  return decodeMixedValues(candidate,mixedLinePayload(candidate),review.inventory,mixedReviewEvidence(candidate));
+}
+export function decodeMixedValues(candidate,payload,inventory,evidence) {
+  const projected=projectCompleteValues(payload,inventory),count=payload.compiledQualificationGroups.length;
   const modelRows=Object.values(projected.segments).flat(),groups=new Set(modelRows.filter(row=>row.applicability==='current'&&row.relation==='any').map(row=>row.group));
   if(count+groups.size>18)fail('AI_INPUT_LIMIT');
   const remapped=new Map([...groups].sort((a,b)=>a-b).map((group,index)=>[group,count+index+1]));
   const rows=modelRows.map(row=>row.applicability==='current'&&row.relation==='any'?{...row,group:remapped.get(row.group)}:row);
   payload.compiledQualificationGroups.forEach((group,index)=>group.spans.forEach(span=>rows.push({span,applicability:'current',kind:group.kind,strength:group.strength,group:index+1,relation:'any'})));
   rows.sort((a,b)=>a.span[0]-b.span[0]);
-  return decodeCompleteValues(candidate,{segments:{all:rows}},mixedReviewEvidence(candidate));
+  return decodeCompleteValues(candidate,{segments:{all:rows}},evidence);
 }
 export function compareMixedInventory({candidate,requirements,review}) {
   const result=compareReviewedRequirements(candidate,requirements,decodeMixedInventory(candidate,review),MIXED_LINE_REVIEW_VERSION,review.provenance),payload=mixedLinePayload(candidate);

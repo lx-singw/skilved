@@ -79,7 +79,10 @@ function decodeClassifiedSource(input,candidate,payload) {
     if(['ambiguous','conflicting'].includes(hint.state)&&data.lineRoles[hint.line-1]!=='unresolved')fail('AI_INVALID_EXTRACTION');
     if(data.lineRoles[hint.line-1]==='condition') {
       const condition=items.find(item=>item.span[0]<=hint.line&&item.span[1]>=hint.line);
-      if(!condition||condition.span[0]!==hint.line||condition.span[1]!==hint.line)fail('AI_REQUIREMENT_EVIDENCE_SPAN');
+      // A strength-only anchor confirms the start, not a guessed passage end.
+      // Typed hints and historical evidence retain their exact single-line spans.
+      const anchored=hint.spanPolicy==='anchor'&&hint.kind===undefined;
+      if(!condition||condition.span[0]!==hint.line||(!anchored&&condition.span[1]!==hint.line))fail('AI_REQUIREMENT_EVIDENCE_SPAN');
       if(['kind','level'].some(key=>hint[key]!==undefined&&condition[key]!==hint[key]))fail('AI_INVALID_EXTRACTION');
     }
   }

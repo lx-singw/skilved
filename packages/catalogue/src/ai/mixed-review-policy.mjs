@@ -13,7 +13,7 @@ const caveat=/\b(?:prepare for|preparation for)\b.*\b(?:requirements|eligibility
 // Recompute selection at explicit section transitions. Current application
 // instructions can restart selection after a successful-candidate section;
 // arbitrary or caveated document prose is not treated as a new current list.
-export function mixedReviewEvidence(candidate) {
+export function mixedReviewEvidence(candidate,{standaloneMustSpanPolicy='exact'}={}) {
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),guardedDocuments=new Set();let guarded=false;
   for(const value of lines){const text=label(value);
     if(caveat.test(text))guarded=true;
@@ -24,7 +24,7 @@ export function mixedReviewEvidence(candidate) {
   const currentDocuments=text=>documents.test(label(text))&&!guardedDocuments.has(label(text).toLowerCase());
   const boundary=text=>isCompleteReviewBoundary(label(text))||programme.test(label(text))||currentDocuments(text)||administrative(label(text));
   const evidence=profileReviewEvidence(candidate,completeReviewEvidence(candidate,{sectionEnd:boundary,
-    sectionStart:text=>isCompleteReviewStart(text)||currentDocuments(text)}));
+    sectionStart:text=>isCompleteReviewStart(text)||currentDocuments(text),standaloneMustSpanPolicy}));
   evidence.reviewPolicy.version=MIXED_REVIEW_POLICY_VERSION;
   const occupied=line=>evidence.reviewPolicy.scopes.some(({span:[first,last]})=>first<=line&&line<=last)||
     evidence.reviewPolicy.conditions.some(row=>row.line===line)||evidence.evidenceHints.some(row=>row.line===line)||
