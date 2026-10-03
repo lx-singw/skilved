@@ -16,7 +16,7 @@ export function extractionConfiguration(env = process.env) {
   if (env.SKILVED_AI_MODE !== 'gemini' ||
       (env.SKILVED_AI_MODEL && env.SKILVED_AI_MODEL !== GEMINI_MODEL) ||
       !['low', 'medium'].includes(env.SKILVED_AI_THINKING ?? 'low') ||
-      !env.GEMINI_API_KEY || !/^[A-Za-z0-9_-]{20,200}$/.test(env.GEMINI_API_KEY)) failure('AI_CONFIGURATION_REQUIRED');
+      !env.GEMINI_API_KEY || !/^[A-Za-z0-9_.-]{20,200}$/.test(env.GEMINI_API_KEY)) failure('AI_CONFIGURATION_REQUIRED');
   return { model: GEMINI_MODEL, thinking: env.SKILVED_AI_THINKING ?? 'low', apiKey: env.GEMINI_API_KEY,
     maxOutputTokens: 8192, timeoutMs: 45_000 };
 }

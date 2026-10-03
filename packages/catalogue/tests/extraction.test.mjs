@@ -72,6 +72,24 @@ test('HTML through provider boundary produces evidence-backed canonical private 
   assert.equal(repeat.record.id, result.record.id); assert.equal(repeat.snapshot.id, result.snapshot.id);
 });
 
+test('Gemini authorization keys reach the provider unchanged through the header only', async () => {
+  const settings = { ...env, GEMINI_API_KEY: 'AQ.synthetic_authorization_key_for_tests_only' };
+  let calls = 0;
+  const result = await extractWithGemini(candidate(), { env: settings, fetchImpl: async (endpoint, init) => {
+    calls++;
+    assert.equal(init.headers['x-goog-api-key'], settings.GEMINI_API_KEY);
+    assert.equal(endpoint.includes(settings.GEMINI_API_KEY), false);
+    assert.equal(init.body.includes(settings.GEMINI_API_KEY), false);
+    return Response.json(envelope(extracted()));
+  } });
+  assert.equal(calls, 1);
+  assert.equal(JSON.stringify(result).includes(settings.GEMINI_API_KEY), false);
+  for (const invalidKey of [settings.GEMINI_API_KEY + '\n', 'AQ.unsafe key with spaces', 'AQ.unsafe/key/with/slashes']) {
+    await assert.rejects(extractWithGemini(candidate(), { env: { ...settings, GEMINI_API_KEY: invalidKey },
+      fetchImpl: () => assert.fail('network attempted') }), /AI_CONFIGURATION_REQUIRED/);
+  }
+});
+
 test('disabled/misconfigured provider makes zero requests; CLI help needs no credentials', async () => {
   for (const settings of [{}, { ...env, SKILVED_AI_MODE: 'disabled' }, { ...env, SKILVED_AI_THINKING: 'minimal' },
     { ...env, SKILVED_AI_MODEL: 'unqualified-model' }, { ...env, GEMINI_API_KEY: '' }]) {
