@@ -5,7 +5,7 @@ import { groqSchema } from './groq.mjs';
 import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } from './extraction.mjs';
 
 export const GEMINI_MODEL = 'gemini-3.8-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+export const GEMINI_FLASH_LITE_MODEL = 'gemini-3.5-flash-lite';
 const MAX_RESPONSE_BYTES = 256_000;
 export class ExtractionError extends DomainError {
   constructor(code, retryable = false, usage = null, providerStatus = null, retryAfterMs = null) {
@@ -16,11 +16,12 @@ const failure = (...args) => { throw new ExtractionError(...args); };
 
 export function extractionConfiguration(env = process.env) {
   if (!env.SKILVED_AI_MODE || env.SKILVED_AI_MODE === 'disabled') failure('AI_DISABLED');
+  const model = env.SKILVED_AI_MODEL ?? GEMINI_MODEL;
   if (env.SKILVED_AI_MODE !== 'gemini' ||
-      (env.SKILVED_AI_MODEL && env.SKILVED_AI_MODEL !== GEMINI_MODEL) ||
+      ![GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL].includes(model) ||
       !['low', 'medium'].includes(env.SKILVED_AI_THINKING ?? 'low') ||
       !env.GEMINI_API_KEY || !/^[A-Za-z0-9_.-]{20,200}$/.test(env.GEMINI_API_KEY)) failure('AI_CONFIGURATION_REQUIRED');
-  return { model: GEMINI_MODEL, thinking: env.SKILVED_AI_THINKING ?? 'low', apiKey: env.GEMINI_API_KEY,
+  return { model, thinking: env.SKILVED_AI_THINKING ?? 'low', apiKey: env.GEMINI_API_KEY,
     maxOutputTokens: 8192, timeoutMs: 45_000 };
 }
 
@@ -82,7 +83,8 @@ export async function generateStructured(payload, { instruction, schema, version
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   try {
-    const response = await fetchImpl(ENDPOINT, { method: 'POST', redirect: 'error', signal: controller.signal,
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`;
+    const response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error', signal: controller.signal,
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey }, body: JSON.stringify(request) });
     if (!response.ok) {
       await response.body?.cancel();

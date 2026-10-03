@@ -137,6 +137,29 @@ test('comparison options reject invalid modes and token limits before network ca
   await assert.rejects(generateStructured({}, { ...contract, instruction: 'x'.repeat(96001) }, { env, fetchImpl: () => assert.fail('network attempted') }), /AI_INPUT_LIMIT/);
 });
 
+test('explicit Flash-Lite selection binds the endpoint and provenance without fallback', async () => {
+  const model = 'gemini-3.5-flash-lite', settings = { ...env, SKILVED_AI_MODEL: model };
+  assert.equal(extractionConfiguration(env).model, 'gemini-3.8-flash');
+  assert.equal(extractionConfiguration(settings).model, model);
+  let calls = 0;
+  const result = await generateStructured({ source: 'Fictional source' },
+    { instruction: 'Return JSON', schema: {}, version: 'synthetic', outputMode: 'json_object' },
+    { env: settings, maxOutputTokens: 3072, fetchImpl: async (endpoint, init) => {
+      calls++;
+      assert.equal(endpoint, `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`);
+      assert.equal(JSON.parse(init.body).generationConfig.maxOutputTokens, 3072);
+      return Response.json(envelope({ ok: true }));
+    } });
+  assert.equal(result.provenance.model, model);
+  await assert.rejects(generateStructured({}, { instruction: 'Return JSON', schema: {}, version: 'synthetic' },
+    { env: settings, fetchImpl: async endpoint => {
+      calls++;
+      assert.ok(endpoint.includes(model));
+      return new Response(null, { status: 402 });
+    } }), error => error.code === 'AI_PROVIDER_REJECTED' && error.providerStatus === 402 && error.retryable === false);
+  assert.equal(calls, 2);
+});
+
 test('Gemini rate-limit diagnostics retain only safe status and delay without retrying', async () => {
   let calls = 0;
   await assert.rejects(generateStructured({}, { instruction: 'Return JSON', schema: {}, version: 'synthetic' }, { env, fetchImpl: async () => {
