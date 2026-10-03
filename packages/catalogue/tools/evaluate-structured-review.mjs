@@ -13,6 +13,7 @@ import {compareCompactInventory,COMPACT_LINE_REVIEW_VERSION} from '../src/ai/com
 import {compareAnchoredInventory,ANCHORED_LINE_REVIEW_VERSION} from '../src/ai/anchored-line-review.mjs';
 import {compareCompleteInventory,COMPLETE_LINE_REVIEW_VERSION} from '../src/ai/complete-line-review.mjs';
 import {compareProfileInventory,PROFILE_LINE_REVIEW_VERSION} from '../src/ai/profile-line-review.mjs';
+import {compareMixedInventory,MIXED_LINE_REVIEW_VERSION} from '../src/ai/mixed-line-review.mjs';
 
 const Manifest=z.object({version:z.literal(1),purpose:z.literal('development_structured_requirement_review'),qualification:z.literal(false),
   cases:z.array(z.object({id:z.string().regex(/^[a-z][a-z0-9_-]{0,95}$/),expectedSupported:z.boolean(),
@@ -44,7 +45,8 @@ else{
         let bytes;try{bytes=await boundedFile(resolve(dirname(path),row.inventory));}
         catch(error){if(error.code!=='ENOENT')throw error;cases.push({id:row.id,status:'unavailable',code:'EVALUATION_INVENTORY_MISSING'});continue;}
         inventoryHash=digest(bytes);
-        const review=JSON.parse(bytes),compare=review.version===PROFILE_LINE_REVIEW_VERSION?compareProfileInventory:
+        const review=JSON.parse(bytes),compare=review.version===MIXED_LINE_REVIEW_VERSION?compareMixedInventory:
+          review.version===PROFILE_LINE_REVIEW_VERSION?compareProfileInventory:
           review.version===COMPLETE_LINE_REVIEW_VERSION?compareCompleteInventory:
           review.version===ANCHORED_LINE_REVIEW_VERSION?compareAnchoredInventory:
           review.version===COMPACT_LINE_REVIEW_VERSION?compareCompactInventory:

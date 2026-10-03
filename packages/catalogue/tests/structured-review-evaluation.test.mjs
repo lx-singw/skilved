@@ -14,6 +14,7 @@ import {bindGuardedInventory,GUARDED_LINE_REVIEW_VERSION} from '../src/ai/guarde
 import {bindLocalInventory,LOCAL_LINE_REVIEW_VERSION} from '../src/ai/local-line-review.mjs';
 import {bindCompactInventory,COMPACT_LINE_REVIEW_VERSION} from '../src/ai/compact-line-review.mjs';
 import {bindAnchoredInventory,ANCHORED_LINE_REVIEW_VERSION} from '../src/ai/anchored-line-review.mjs';
+import {bindMixedInventory,MIXED_LINE_REVIEW_VERSION} from '../src/ai/mixed-line-review.mjs';
 import {bindProfileInventory,PROFILE_LINE_REVIEW_VERSION} from '../src/ai/profile-line-review.mjs';
 import {bindCompleteInventory,COMPLETE_LINE_REVIEW_VERSION} from '../src/ai/complete-line-review.mjs';
 
@@ -135,5 +136,13 @@ test('offline replay dispatches V11 source constraints without printing private 
   const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
   assert.equal(report.cases[0].inventoryVersion,PROFILE_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
   assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
+  delete inventory.inventory.lines.L2;await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_INVALID_REVIEW_INVENTORY');
+}));
+test('offline replay dispatches V12 inventories and retains source-dependent key failures',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const lines={L1:'context',L2:'context',L3:{kind:'education',strength:'mandatory',alternative:null},L4:{kind:'document',strength:'mandatory',alternative:null},L5:'context'};
+  Object.assign(inventory,bindMixedInventory(input.candidate,{lines}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,MIXED_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
+  assert.deepEqual(report.cases[0].ownership,{compiledQualificationBranches:0,sourceConstraints:0,modelLines:5});assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
   delete inventory.inventory.lines.L2;await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_INVALID_REVIEW_INVENTORY');
 }));

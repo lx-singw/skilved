@@ -56,7 +56,7 @@ function projection(candidate,review) {
   return projectCompleteValues(completeLinePayload(candidate),review.inventory);
 }
 export function projectCompleteValues(payload,inventory) {
-  const projected=projectAnchoredValues(payload,inventory),rows=projected.segments.all;
+  const projected=projectAnchoredValues(payload,inventory),rows=Object.values(projected.segments).flat();
   // Validate the supplied answer; never replace model passages with fixed ones.
   for(const constraint of payload.sourceConstraints) {
     const [first,last]=constraint.span,expectedRole=role[constraint.applicability];

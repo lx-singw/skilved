@@ -15,8 +15,8 @@ const licence=/^(?:a\s+)?valid (?:South African\s+)?(?:driver['’]?s|driving) l
 
 // Add facts only in bounded, current profile lists. Existing uncertainty,
 // alternatives and document scopes take precedence; source quotes stay intact.
-export function profileReviewEvidence(candidate) {
-  const evidence=completeReviewEvidence(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+export function profileReviewEvidence(candidate,evidence=completeReviewEvidence(candidate)) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   evidence.reviewPolicy.version=PROFILE_REVIEW_POLICY_VERSION;
   const hints=new Map(evidence.evidenceHints.map(row=>[row.line,row])),selected=new Set(evidence.requiredLineNumbers);
   const occupied=line=>evidence.reviewPolicy.scopes.some(({span:[first,last]})=>first<=line&&line<=last)||

@@ -41,6 +41,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Source-anchored alternatives, unseen preflight and semantic consistency failures](40_ANCHORED_ALTERNATIVES_AND_UNSEEN_REVIEW_2026-10-03.md)
 - [Complete source-line coverage, preserved qualification spans and low/medium comparison](41_COMPLETE_LINE_COVERAGE_AND_REASONING_COMPARISON_2026-10-03.md)
 - [Bounded competencies and held licences: faithful regressions, repeat failure and unseen preflight blocks](42_BOUNDED_COMPETENCY_REVIEW_AND_REPEATABILITY_2026-10-03.md)
+- [Compiled qualification branches, mixed programme/application sections and remaining semantic failures](43_COMPILED_QUALIFICATION_BRANCHES_AND_MIXED_SECTIONS_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

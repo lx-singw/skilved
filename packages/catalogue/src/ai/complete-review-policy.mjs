@@ -17,8 +17,10 @@ const secondBranch=/^or (?:a )?national certificate\s*\(vocational\)\s*(?:level\
 // Recompute bounded selection, then add only explicit source constraints.
 // Complete OR branches need an obligation, two introductions, contiguous
 // subject lists and an explicit end. No employer names or expected answers.
-export function completeReviewEvidence(candidate) {
-  const evidence=compactReviewEvidence(candidate,{sectionEnd:boundary,layoutOptions:{sectionStart:text=>start.test(label(text))}});
+export const isCompleteReviewBoundary=text=>boundary(text);
+export const isCompleteReviewStart=text=>start.test(label(text));
+export function completeReviewEvidence(candidate,{sectionEnd=boundary,sectionStart=isCompleteReviewStart}={}) {
+  const evidence=compactReviewEvidence(candidate,{sectionEnd,layoutOptions:{sectionStart}});
   evidence.reviewPolicy.version=COMPLETE_REVIEW_POLICY_VERSION;
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   const covered=line=>evidence.reviewPolicy.scopes.some(({span:[first,last]})=>first<=line&&line<=last)||
@@ -27,7 +29,7 @@ export function completeReviewEvidence(candidate) {
     evidence.alternativeGroups.some(group=>group.spans.some(([first,last])=>first<=line&&line<=last));
   const selected=new Set(evidence.requiredLineNumbers);
   const contextual=index=>{
-    for(let at=index-1;at>=0;at--){const text=label(lines[at]);if(boundary(text))break;
+    for(let at=index-1;at>=0;at--){const text=label(lines[at]);if(sectionEnd(text))break;
       if(/\b(?:if|unless|where|when|subject to|previous|past|successful|appointed|selected|after appointment)\b/i.test(text))return true;}
     return false;
   };
@@ -44,7 +46,7 @@ export function completeReviewEvidence(candidate) {
     // Following applicant prose is a branch boundary only when it is clearly
     // independent; unrecognized continuation/OR wording makes this rule abstain.
     const after=label(lines[next]);
-    if(!boundary(after)&&!/^(?:clear criminal record|no criminal record|hard.?working|must\b)/i.test(after))continue;
+    if(!sectionEnd(after)&&!/^(?:clear criminal record|no criminal record|hard.?working|must\b)/i.test(after))continue;
     evidence.alternativeGroups.push({group:evidence.alternativeGroups.length+1,markerLine:index+1,spans});
     index=next-1;
   }
