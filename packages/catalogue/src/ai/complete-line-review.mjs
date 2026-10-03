@@ -30,7 +30,10 @@ const demonstration={title:'Fictional apprenticeship',sourceText:'Requirements\n
 const promptSchema=anchoredLineContract(demonstration).schema;
 
 export function completeLinePayload(candidate) {
-  const evidence=completeReviewEvidence(candidate),compiled=compiledReviewPayloadWithEvidence(candidate,evidence);
+  return completeLinePayloadWithEvidence(candidate,completeReviewEvidence(candidate));
+}
+export function completeLinePayloadWithEvidence(candidate,evidence) {
+  const compiled=compiledReviewPayloadWithEvidence(candidate,evidence);
   const sourceConstraints=compiled.fixedPassages.map(({group,relation,...row})=>row.applicability==='current'?{...row,alternative:null}:row);
   return {sourceLines:evidence.sourceLines,lineCount:evidence.lineCount,policyVersion:evidence.reviewPolicy.version,sourceConstraints,
     remainingSegments:{all:[1,evidence.lineCount]},requiredOutputKeys:Array.from({length:evidence.lineCount},(_,index)=>`L${index+1}`),
@@ -50,7 +53,10 @@ function projection(candidate,review) {
   const expected=binding(candidate,thinkingOf(review?.thinking));
   if(review?.version!==COMPLETE_LINE_REVIEW_VERSION||review.sourceSha256!==expected.sourceSha256||review.contractSha256!==expected.contractSha256)
     fail('AI_REVIEW_BINDING_MISMATCH');
-  const payload=completeLinePayload(candidate),projected=projectAnchoredValues(payload,review.inventory),rows=projected.segments.all;
+  return projectCompleteValues(completeLinePayload(candidate),review.inventory);
+}
+export function projectCompleteValues(payload,inventory) {
+  const projected=projectAnchoredValues(payload,inventory),rows=projected.segments.all;
   // Validate the supplied answer; never replace model passages with fixed ones.
   for(const constraint of payload.sourceConstraints) {
     const [first,last]=constraint.span,expectedRole=role[constraint.applicability];
@@ -59,15 +65,18 @@ function projection(candidate,review) {
     if(['condition','unresolved'].includes(expectedRole)) {
       if(touching.length!==1||touching[0].span[0]!==first||touching[0].span[1]!==last)fail('AI_REVIEW_SOURCE_CONSTRAINT');
       if(expectedRole==='condition'&&(touching[0].kind!==constraint.kind||touching[0].strength!==constraint.strength||
-        review.inventory.lines[`L${first}`].alternative!==null))fail('AI_REVIEW_SOURCE_CONSTRAINT');
+        inventory.lines[`L${first}`].alternative!==null))fail('AI_REVIEW_SOURCE_CONSTRAINT');
     }
   }
   return projected;
 }
 export function decodeCompleteInventory(candidate,review) {
-  const projected=projection(candidate,review),passages=projected.segments.all.map(row=>({span:row.span,role:role[row.applicability],
+  return decodeCompleteValues(candidate,projection(candidate,review),completeReviewEvidence(candidate));
+}
+export function decodeCompleteValues(candidate,projected,evidence) {
+  const passages=projected.segments.all.map(row=>({span:row.span,role:role[row.applicability],
     condition:row.applicability==='current'?{kind:row.kind,level:level[row.strength],group:row.group,relation:row.relation}:null}));
-  return decodeWholeSourceWithEvidence({passages},{title:candidate.title,sourceText:candidate.sourceText,applicationCandidates:[]},completeReviewEvidence(candidate));
+  return decodeWholeSourceWithEvidence({passages},{title:candidate.title,sourceText:candidate.sourceText,applicationCandidates:[]},evidence);
 }
 export function compareCompleteInventory({candidate,requirements,review}) {
   const expected=decodeCompleteInventory(candidate,review),result=compareReviewedRequirements(candidate,requirements,expected,COMPLETE_LINE_REVIEW_VERSION,review.provenance);

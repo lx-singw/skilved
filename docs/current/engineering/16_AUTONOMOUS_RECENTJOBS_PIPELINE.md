@@ -4,6 +4,8 @@ Updated: 27 September 2026. **Current provider: Groq**, using `openai/gpt-oss-12
 
 ## Founder clarification: discovery source versus application destination
 
+The [V11 bounded competency experiment](../operations/42_BOUNDED_COMPETENCY_REVIEW_AND_REPEATABILITY_2026-10-03.md) passes 300 catalogue tests and preserves all 116 historical source/contract hashes. Siemens and Mercedes each match a complete familiar source audit once, but an identical Siemens repeat fails alternative grouping and Sea Harvest retains three kind mismatches. Two unseen notices stop before model calls on input limits and incorrect section coverage. Four calls report 14,432 tokens. V11 remains development-only; production qualification, scheduling and publication stay open.
+
 RecentJobs and later StudentRoom are discovery/extraction sources. Skilved publishes its own listing and sends applicants directly to the original application portal, designated recruitment platform or stated application email. Discovery-source citations remain separate attribution. An ATS can be the original destination even when hosted outside the employer's own domain. Aggregator articles and unresolved short links cannot become application destinations.
 
 Employer crawling is **optional and off by default**: `automation.employerCrawl` defaults to `false`. Default validation checks extracted facts, requirement logic and the original application candidate against the discovery notice and registered issuer route. It neither requests employer robots/pages nor claims employer-page availability, destination reachability or independent employer corroboration. A destination robots restriction therefore does not block this workflow.
