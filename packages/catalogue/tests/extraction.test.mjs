@@ -5,7 +5,9 @@ import { projectOpportunity } from '@skilved/types/opportunities/internal';
 import { formatRequirements } from '@skilved/types/opportunities';
 import { extractRecentJobs } from '../src/adapters/recentjobs-extraction.mjs';
 import { parseRecentJobsDetail } from '../src/adapters/recentjobs.mjs';
-import { extractWithGemini, extractionConfiguration } from '../src/ai/gemini.mjs';
+import { extractWithGemini, extractionConfiguration, generateStructured } from '../src/ai/gemini.mjs';
+import { generateStructured as generateWithGroq } from '../src/ai/groq.mjs';
+import { mixedLineContract, mixedLinePayload, bindMixedInventory, decodeMixedInventory } from '../src/ai/mixed-line-review.mjs';
 import { EXTRACTION_JSON_SCHEMA } from '../src/ai/extraction.mjs';
 
 // Authored source and simulated provider output. These tests make NO network requests.
@@ -98,6 +100,51 @@ test('disabled/misconfigured provider makes zero requests; CLI help needs no cre
   assert.equal(extractionConfiguration({ ...env, SKILVED_AI_THINKING: 'medium' }).thinking, 'medium');
   const cli = spawnSync(process.execPath, ['tools/extract-recentjobs.mjs', '--help'], { cwd: new URL('..', import.meta.url), encoding: 'utf8', env: {} });
   assert.equal(cli.status, 0); assert.match(cli.stdout, /Does not fetch RecentJobs/);
+});
+
+test('comparison JSON mode sends identical blind instructions and source to both providers', async () => {
+  const source = { title: 'Fictional apprenticeship', sourceText: 'Requirements\nGrade 12\nHow to apply', gold: 'PRIVATE_GOLD' };
+  const payload = mixedLinePayload(source), contract = mixedLineContract(source);
+  const inventory = { lines: { L1: 'context', L2: 'context', L3: { kind: 'education', strength: 'mandatory', alternative: null }, L4: 'context' } };
+  let groqRequest, geminiRequest;
+  await generateWithGroq(payload, contract, { env: { SKILVED_AI_MODE: 'groq', GROQ_API_KEY: 'synthetic_comparison_key' },
+    fetchImpl: async (_url, init) => {
+      groqRequest = JSON.parse(init.body);
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(inventory) } }] });
+    } });
+  const response = await generateStructured(payload, contract, { env, maxOutputTokens: 3072, fetchImpl: async (_url, init) => {
+    geminiRequest = JSON.parse(init.body);
+    assert.equal(init.redirect, 'error');
+    return Response.json(envelope(inventory));
+  } });
+  assert.equal(geminiRequest.systemInstruction.parts[0].text, groqRequest.messages[0].content);
+  assert.equal(geminiRequest.contents[0].parts[0].text, groqRequest.messages[1].content);
+  assert.doesNotMatch(JSON.stringify(geminiRequest), /PRIVATE_GOLD/);
+  assert.equal(geminiRequest.generationConfig.maxOutputTokens, groqRequest.max_completion_tokens);
+  assert.equal(geminiRequest.generationConfig.responseMimeType, 'application/json');
+  assert.equal('responseJsonSchema' in geminiRequest.generationConfig, false);
+  assert.equal(response.provenance.outputMode, 'json_object');
+  assert.equal(decodeMixedInventory(source, bindMixedInventory(source, response.extraction, response.provenance)).items.length, 1);
+  const missing = structuredClone(response.extraction); delete missing.lines.L3;
+  assert.throws(() => decodeMixedInventory(source, bindMixedInventory(source, missing)), /AI_INVALID_REVIEW_INVENTORY/);
+});
+
+test('comparison options reject invalid modes and token limits before network calls', async () => {
+  const contract = { instruction: 'Return JSON', schema: { type: 'object' }, version: 'synthetic' };
+  for (const maxOutputTokens of [0, -1, 3072.5, 8193, Infinity, '3072'])
+    await assert.rejects(generateStructured({}, contract, { env, maxOutputTokens, fetchImpl: () => assert.fail('network attempted') }), /AI_CONFIGURATION_REQUIRED/);
+  await assert.rejects(generateStructured({}, { ...contract, outputMode: 'text' }, { env, fetchImpl: () => assert.fail('network attempted') }), /AI_CONFIGURATION_REQUIRED/);
+  await assert.rejects(generateStructured({}, { ...contract, instruction: 'x'.repeat(96001) }, { env, fetchImpl: () => assert.fail('network attempted') }), /AI_INPUT_LIMIT/);
+});
+
+test('Gemini rate-limit diagnostics retain only safe status and delay without retrying', async () => {
+  let calls = 0;
+  await assert.rejects(generateStructured({}, { instruction: 'Return JSON', schema: {}, version: 'synthetic' }, { env, fetchImpl: async () => {
+    calls++;
+    return new Response('PRIVATE_PROVIDER_ERROR', { status: 429, headers: { 'retry-after': '90' } });
+  } }), error => error.code === 'AI_RATE_LIMITED' && error.providerStatus === 429 && error.retryAfterMs === 90000 &&
+    error.usage === null && !JSON.stringify(error).includes('PRIVATE_PROVIDER_ERROR'));
+  assert.equal(calls, 1);
 });
 
 test('invented evidence, injected approvals and malformed fields are rejected without provider text leakage', async () => {

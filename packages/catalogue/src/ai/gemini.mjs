@@ -1,15 +1,18 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { DomainError } from '../config.mjs';
+import { groqSchema } from './groq.mjs';
 import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } from './extraction.mjs';
 
 export const GEMINI_MODEL = 'gemini-3.8-flash';
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const MAX_RESPONSE_BYTES = 256_000;
 export class ExtractionError extends DomainError {
-  constructor(code, retryable = false, usage = null) { super(code); this.retryable = retryable; this.usage = usage; }
+  constructor(code, retryable = false, usage = null, providerStatus = null, retryAfterMs = null) {
+    super(code); Object.assign(this, { retryable, usage, providerStatus, retryAfterMs });
+  }
 }
-const failure = (code, retryable = false, usage = null) => { throw new ExtractionError(code, retryable, usage); };
+const failure = (...args) => { throw new ExtractionError(...args); };
 
 export function extractionConfiguration(env = process.env) {
   if (!env.SKILVED_AI_MODE || env.SKILVED_AI_MODE === 'disabled') failure('AI_DISABLED');
@@ -57,14 +60,24 @@ export async function extractWithGemini(candidate, { env = process.env, fetchImp
     version: EXTRACTION_VERSION }, { env, fetchImpl });
 }
 
-export async function generateStructured(payload, { instruction, schema, version }, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
+/** JSON-object mode requires caller-owned schema validation. A smaller explicit
+ * token cap supports development comparisons without changing worker defaults. */
+export async function generateStructured(payload, { instruction, schema, version, outputMode = 'json_schema' },
+  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens } = {}) {
   const config = extractionConfiguration(env);
+  const cap = maxOutputTokens ?? config.maxOutputTokens;
+  if (!['json_schema', 'json_object'].includes(outputMode) || !Number.isInteger(cap) || cap < 1 || cap > config.maxOutputTokens)
+    failure('AI_CONFIGURATION_REQUIRED');
   const input = JSON.stringify(payload);
   if (Buffer.byteLength(input) > 96_000) failure('AI_INPUT_LIMIT');
-  const request = { systemInstruction: { parts: [{ text: instruction }] },
+  // Match the existing Groq JSON-object instruction exactly for a fair comparison.
+  const systemInstruction = outputMode === 'json_object'
+    ? `${instruction}\nReturn valid JSON matching this schema. All required keys must be present:\n${JSON.stringify(groqSchema(schema))}` : instruction;
+  if (Buffer.byteLength(systemInstruction) > 96_000) failure('AI_INPUT_LIMIT');
+  const request = { systemInstruction: { parts: [{ text: systemInstruction }] },
     contents: [{ role: 'user', parts: [{ text: input }] }],
-    generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema,
-      maxOutputTokens: config.maxOutputTokens, thinkingConfig: { thinkingLevel: config.thinking.toUpperCase(), includeThoughts: false } } };
+    generationConfig: { responseMimeType: 'application/json', ...(outputMode === 'json_schema' ? { responseJsonSchema: schema } : {}),
+      maxOutputTokens: cap, thinkingConfig: { thinkingLevel: config.thinking.toUpperCase(), includeThoughts: false } } };
   const requestHash = createHash('sha256').update(JSON.stringify({ model: config.model, request })).digest('hex');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);
@@ -73,8 +86,11 @@ export async function generateStructured(payload, { instruction, schema, version
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey }, body: JSON.stringify(request) });
     if (!response.ok) {
       await response.body?.cancel();
+      const retrySeconds = Number(response.headers.get('retry-after'));
+      const retryAfterMs = response.headers.has('retry-after') && Number.isFinite(retrySeconds) && retrySeconds >= 0
+        ? Math.min(retrySeconds * 1000, 86_400_000) : null;
       failure(response.status === 429 ? 'AI_RATE_LIMITED' : 'AI_PROVIDER_REJECTED',
-        [429, 500, 502, 503, 504].includes(response.status));
+        [429, 500, 502, 503, 504].includes(response.status), null, response.status, retryAfterMs);
     }
     const body = await boundedBody(response), usage = usageOf(body.usageMetadata);
     if (body.promptFeedback?.blockReason || body.candidates?.length !== 1 || body.candidates[0].finishReason !== 'STOP')
@@ -88,7 +104,8 @@ export async function generateStructured(payload, { instruction, schema, version
     try { extraction = JSON.parse(output); } catch { failure('AI_INVALID_JSON', false, usage); }
     return { extraction, provenance: { provider: 'gemini', model: config.model,
       modelVersion: typeof body.modelVersion === 'string' ? body.modelVersion.slice(0, 200) : null,
-      extractionVersion: version, thinking: config.thinking, requestHash, usage } };
+      extractionVersion: version, thinking: config.thinking, requestHash, usage,
+      ...(outputMode === 'json_object' ? { outputMode } : {}) } };
   } catch (error) {
     if (error instanceof ExtractionError) throw error;
     failure(controller.signal.aborted ? 'AI_TIMEOUT' : 'AI_TRANSPORT_FAILED', true);
