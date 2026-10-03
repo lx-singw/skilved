@@ -47,6 +47,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Source obligation span anchors, faithful submission preflight and remaining model errors](46_SUBMISSION_SPAN_ANCHORS_AND_REMAINING_MODEL_ERRORS_2026-10-03.md)
 - [Native schema compatibility controls and unavailable full-notice comparison](47_NATIVE_SCHEMA_COMPATIBILITY_AND_UNAVAILABLE_COMPARISON_2026-10-03.md)
 - [Uniform native records, array-bound compatibility and remaining role conflicts](48_UNIFORM_NATIVE_RECORDS_AND_REMAINING_ROLE_CONFLICTS_2026-10-03.md)
+- [Single classification tags, remaining anchor conflicts and visible semantic errors](49_SINGLE_CLASSIFICATION_TAGS_AND_VISIBLE_SEMANTIC_ERRORS_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
