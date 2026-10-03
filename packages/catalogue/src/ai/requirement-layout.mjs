@@ -13,12 +13,12 @@ const qualification = /^(?:national senior certificate\b|grade\s+12\b|matric\b|N
 const subject = /^(?:mathematics|physical science|science|engineering science|electrical trade theory)(?:\s+and\s+(?:mathematics|physical science|science|engineering science|electrical trade theory))*[.]?$/i;
 const uncertain = /\b(?:if|unless|except|otherwise|provided|preferred|advantageous|desirable)\b/i;
 
-export function requirementLayout(candidate,{sectionEnd=null}={}) {
+export function requirementLayout(candidate,{sectionEnd=null,sectionStart=null}={}) {
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),sections=[];
   let start=null;
   for(let index=0;index<lines.length;index++) {
     const text=label(lines[index]);
-    if(heading.test(text)) {
+    if(heading.test(text)||sectionStart?.(text)) {
       if(start!==null) sections.push([start,index]);
       start=index+1;
     } else if(start!==null && (ending.test(text)||sectionEnd?.(text)||isPromotionalLine(lines[index]))) {

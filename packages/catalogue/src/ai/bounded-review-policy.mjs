@@ -13,10 +13,10 @@ export const isReviewSectionBoundary=text=>metadata.test(label(text))||timing.te
 
 // Opt-in policy: recompute source constraints rather than deleting selected
 // lines from an old payload or using model output/evaluation expectations.
-export function boundedReviewEvidence(candidate,sectionEnd=isReviewSectionBoundary,attributeGuard=null) {
+export function boundedReviewEvidence(candidate,sectionEnd=isReviewSectionBoundary,attributeGuard=null,layoutOptions={}) {
   const source={title:candidate?.title,sourceText:candidate?.sourceText,applicationCandidates:[]};
   wholeSourceLineCount(source);
-  const layout=requirementLayout(source,{sectionEnd});
+  const layout=requirementLayout(source,{...layoutOptions,sectionEnd});
   const evidence=requirementEvidence(source,layout,sectionEnd);
   const context=requirementContext(source,evidence,sectionEnd,attributeGuard);
   return requirementReviewPolicyWithEvidence(source,wholeSourcePayloadFromContext(source,context),

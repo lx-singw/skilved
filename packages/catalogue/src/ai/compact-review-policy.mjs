@@ -12,15 +12,15 @@ const boundary=text=>isReviewSectionBoundary(text)||/^(?:minimum requirements|re
 const caveat=/\b(?:if|unless|where|when|subject to|may|might|could|previous|past|successful|appointed|selected|after appointment|not required|need not)\b/i;
 const qualification=/^(?:a\s+)?(?:national senior certificate\b|grade\s+12\b|matric\b|N[1-6]\b|NC\(?V\)?\s+level\s+[1-6]\b)|^(?:minimum of\s+)?(?:[1-6]|one|two|three|four|five|six)\s+N[1-6]\s+(?:engineering\s+)?subjects?\b/i;
 
-export function compactReviewEvidence(candidate) {
+export function compactReviewEvidence(candidate,{sectionEnd=boundary,layoutOptions={}}={}) {
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   const guarded=index=>{
     for(let at=index-1;at>=0;at--){const text=label(lines[at]);
-      if(boundary(text)||profile.test(text)||attributes.test(text))break;
+      if(sectionEnd(text)||profile.test(text)||attributes.test(text))break;
       if(caveat.test(text))return true;}
     return false;
   };
-  const base=boundedReviewEvidence(candidate,boundary,(line,text)=>caveat.test(text)||guarded(line-1));
+  const base=boundedReviewEvidence(candidate,sectionEnd,(line,text)=>caveat.test(text)||guarded(line-1),layoutOptions);
   const evidence=localReviewEvidence(candidate,guardedReviewEvidence(candidate,base));
   evidence.reviewPolicy.version=COMPACT_REVIEW_POLICY_VERSION;
   const hints=new Map(evidence.evidenceHints.map(row=>[row.line,row]));
@@ -37,7 +37,7 @@ export function compactReviewEvidence(candidate) {
   for(let index=0;index<lines.length;index++) {
     const line=index+1,text=label(lines[index]);
     if(profile.test(text)){inProfile=!guarded(index);continue;}
-    if(boundary(text))inProfile=false;
+    if(sectionEnd(text))inProfile=false;
     if(!occupied(line)&&inProfile&&!caveat.test(text)&&!guarded(index)&&qualification.test(text)&&
       hints.get(line)?.level==='unclear'&&!/^(?:or|either)\b/i.test(label(lines[index-1]??''))&&
       !/^(?:or|either)\b/i.test(label(lines[index+1]??'')))
@@ -47,7 +47,7 @@ export function compactReviewEvidence(candidate) {
       evidence.fixedRoles[`L${line}`]='promotion';
     }
     if(!attributes.test(text)||guarded(index))continue;
-    let end=index+1;while(end<lines.length&&!boundary(label(lines[end]))&&!profile.test(label(lines[end]))&&!attributes.test(label(lines[end])))end++;
+    let end=index+1;while(end<lines.length&&!sectionEnd(label(lines[end]))&&!profile.test(label(lines[end]))&&!attributes.test(label(lines[end])))end++;
     if(end===lines.length)continue;
     for(let at=index+1;at<end;at++) {
       const value=label(lines[at]),number=at+1;

@@ -14,6 +14,7 @@ import {bindGuardedInventory,GUARDED_LINE_REVIEW_VERSION} from '../src/ai/guarde
 import {bindLocalInventory,LOCAL_LINE_REVIEW_VERSION} from '../src/ai/local-line-review.mjs';
 import {bindCompactInventory,COMPACT_LINE_REVIEW_VERSION} from '../src/ai/compact-line-review.mjs';
 import {bindAnchoredInventory,ANCHORED_LINE_REVIEW_VERSION} from '../src/ai/anchored-line-review.mjs';
+import {bindCompleteInventory,COMPLETE_LINE_REVIEW_VERSION} from '../src/ai/complete-line-review.mjs';
 
 async function fixture(run){
   const dir=await mkdtemp(join(tmpdir(),'skilved-structured-review-'));
@@ -116,4 +117,13 @@ test('offline replay dispatches V9 anchored alternatives and retains invalid poi
   assert.equal(report.cases[0].inventoryVersion,ANCHORED_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
   assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
   inventory.inventory.lines.L3.alternative=3;await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_REVIEW_ALTERNATIVE_INVALID');
+}));
+
+test('offline replay dispatches full V10 medium inventories with bound reasoning and no model calls',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const lines={L1:'context',L2:'context',L3:{kind:'education',strength:'mandatory',alternative:null},L4:{kind:'document',strength:'mandatory',alternative:null},L5:'context'};
+  Object.assign(inventory,bindCompleteInventory(input.candidate,{lines},null,{thinking:'medium'}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,COMPLETE_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
+  assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
+  inventory.thinking='low';await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_REVIEW_BINDING_MISMATCH');
 }));
