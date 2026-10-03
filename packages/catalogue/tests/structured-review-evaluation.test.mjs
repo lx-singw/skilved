@@ -7,6 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {digest} from '../src/ai/evaluation.mjs';
 import {bindRequirementInventory,decodeRequirementInventory} from '../src/ai/structured-requirement-review.mjs';
 import {bindApplicabilityInventory,APPLICABILITY_REQUIREMENT_REVIEW_VERSION} from '../src/ai/applicability-requirement-review.mjs';
+import {bindCompiledInventory,COMPILED_REQUIREMENT_REVIEW_VERSION} from '../src/ai/compiled-requirement-review.mjs';
 
 async function fixture(run){
   const dir=await mkdtemp(join(tmpdir(),'skilved-structured-review-'));
@@ -46,5 +47,15 @@ test('offline replay dispatches typed V2 inventories while retaining the same fr
   Object.assign(inventory,bindApplicabilityInventory(input.candidate,{passages}));await save();
   const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
   assert.equal(report.cases[0].inventoryVersion,APPLICABILITY_REQUIREMENT_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);
+  assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
+}));
+
+test('offline replay dispatches compiled V3 segments and reports code/model ownership without source text',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const rows=inventory.inventory.passages.map(passage=>({span:passage.span,applicability:passage.role==='condition'?'current':'context',
+    ...(passage.condition?{kind:passage.condition.kind,strength:'mandatory',group:passage.condition.group,relation:passage.condition.relation}:{})}));
+  Object.assign(inventory,bindCompiledInventory(input.candidate,{segments:{s_1_5:rows}}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,COMPILED_REQUIREMENT_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);
+  assert.deepEqual(report.cases[0].ownership,{codePassages:0,modelSegments:1,modelPassages:4});
   assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
 }));

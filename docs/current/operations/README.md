@@ -32,6 +32,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Whole-source validator challenges: false acceptance, partial rejections and offline replay](31_WHOLE_SOURCE_VALIDATOR_CHALLENGES_2026-10-03.md)
 - [Blind source inventories and deterministic claim comparison: results and remaining review failures](32_STRUCTURED_REQUIREMENT_REVIEW_2026-10-03.md)
 - [Explicit applicability and strength: token-budget results, fresh Sappi control and invalid inventories](33_APPLICABILITY_REQUIREMENT_REVIEW_2026-10-03.md)
+- [Code-owned source scopes and segmented blind review: frozen comparisons and remaining failures](34_COMPILED_REQUIREMENT_REVIEW_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
