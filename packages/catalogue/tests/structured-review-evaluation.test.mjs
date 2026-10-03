@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {digest} from '../src/ai/evaluation.mjs';
 import {bindRequirementInventory,decodeRequirementInventory} from '../src/ai/structured-requirement-review.mjs';
+import {bindApplicabilityInventory,APPLICABILITY_REQUIREMENT_REVIEW_VERSION} from '../src/ai/applicability-requirement-review.mjs';
 
 async function fixture(run){
   const dir=await mkdtemp(join(tmpdir(),'skilved-structured-review-'));
@@ -37,4 +38,13 @@ test('offline replay distinguishes wrong decisions, changed inputs, source-bound
   manifest.cases[0].expectedSupported=false;input.candidate.sourceText+='\nChanged';await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'EVALUATION_INPUT_CHANGED');
   input.candidate.sourceText=input.candidate.sourceText.replace('\nChanged','');inventory.version='old';await save();assert.equal(JSON.parse(evaluate().stdout).cases[0].code,'AI_REVIEW_BINDING_MISMATCH');
   await rm(join(dir,'inventory.json'));const result=evaluate();assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).counts.unavailable,1);
+}));
+
+test('offline replay dispatches typed V2 inventories while retaining the same frozen input and evidence-only report',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const passages=inventory.inventory.passages.map(passage=>({span:passage.span,applicability:passage.role==='condition'?'current':'context',
+    kind:passage.condition?.kind??null,strength:passage.condition?'mandatory':null,group:passage.condition?.group??null,relation:passage.condition?.relation??null}));
+  Object.assign(inventory,bindApplicabilityInventory(input.candidate,{passages}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,APPLICABILITY_REQUIREMENT_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);
+  assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
 }));

@@ -59,9 +59,14 @@ const unknowns=node=>node.op==='unknown'?[node.originalText]:node.children?node.
   node.op==='if'?[...unknowns(node.then),...(node.otherwise?unknowns(node.otherwise):[])]:[];
 
 export function compareRequirementInventory({candidate,requirements,review}) {
+  return compareReviewedRequirements(candidate,requirements,decodeRequirementInventory(candidate,review),STRUCTURED_REQUIREMENT_REVIEW_VERSION,review.provenance);
+}
+
+// Shared comparison only; historical inventory contracts/decoders stay intact.
+export function compareReviewedRequirements(candidate,requirements,expected,version,provenance=null) {
   // Validate extracted references and exact source evidence before comparison.
   requirementValidationPayload(candidate,requirements);
-  const expected=decodeRequirementInventory(candidate,review),issues=[],checks=[],sourceChecks=[];
+  const issues=[],checks=[],sourceChecks=[];
   const issue=(code,claim=null,span=null)=>issues.push({code,claim,span});
   const sourceSpan=quote=>{
     const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),matches=[];
@@ -107,9 +112,9 @@ export function compareRequirementInventory({candidate,requirements,review}) {
   const keys=items=>new Map(items.map(item=>[item.id,item.fact.quote]));
   if(expressionKey(expected.expression,keys(expected.items))!==expressionKey(requirements.expression,keys(requirements.items)))
     issue('REVIEW_LOGIC_MISMATCH');
-  return {version:STRUCTURED_REQUIREMENT_REVIEW_VERSION,scope:'requirements_evidence_and_structure',qualification:false,
+  return {version,scope:'requirements_evidence_and_structure',qualification:false,
     supported:issues.length===0,needsReview:wantedUnknown.length>0,checks,sourceChecks,issues,
-    sourceConditions:expected.items.length,sourceUnresolvedScopes:wantedUnknown.length,provenance:review.provenance??null};
+    sourceConditions:expected.items.length,sourceUnresolvedScopes:wantedUnknown.length,provenance:provenance??null};
 }
 
 export async function reviewRequirementSource(candidate,options={}) {

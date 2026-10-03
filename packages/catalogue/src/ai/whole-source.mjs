@@ -188,3 +188,6 @@ export function wholeSourcePayload(candidate) {
   }};
 }
 export function decodeWholeSource(input,candidate) {return decodeAttachedSource(input,candidate,wholeSourcePayload(candidate));}
+// Development reviewers may use separately versioned, source-derived evidence.
+// Existing extraction/worker/replay callers keep their original selectors.
+export function decodeWholeSourceWithEvidence(input,candidate,evidence) {return decodeAttachedSource(input,candidate,evidence);}
