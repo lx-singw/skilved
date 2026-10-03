@@ -106,3 +106,33 @@ test('tag review makes a blind bounded native request and preserves invalid usag
   await assert.rejects(reviewTagSource(candidate,{env,fetchImpl}),error=>error.code==='AI_PROVIDER_REJECTED'&&error.providerStatus===400);
   assert.equal(calls,3);
 });
+
+test('Flash and Flash-Lite use identical tag request bodies and validation with distinct model provenance',async()=>{
+  const requests=[],reviews=[];
+  for(const model of ['gemini-3.5-flash-lite','gemini-3.8-flash']){
+    const review=await reviewTagSource(candidate,{env:{SKILVED_AI_MODE:'gemini',SKILVED_AI_MODEL:model,GEMINI_API_KEY:'synthetic_tag_comparison_key'},
+      fetchImpl:async(url,init)=>{
+        assert.ok(url.endsWith(model+':generateContent'));
+        const request=JSON.parse(init.body);requests.push(request);
+        assert.equal(request.generationConfig.maxOutputTokens,3072);
+        assert.equal(request.generationConfig.thinkingConfig.thinkingLevel,'LOW');
+        return Response.json({modelVersion:model,candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(faithful())}]}}],
+          usageMetadata:{promptTokenCount:100,candidatesTokenCount:50,totalTokenCount:150}});
+      }});
+    reviews.push(review);assert.equal(review.provenance.model,model);
+    assert.equal(decodeTagInventory(candidate,review).items.length,2);
+  }
+  assert.deepEqual(requests[0],requests[1]);
+  assert.equal(reviews[0].sourceSha256,reviews[1].sourceSha256);
+  assert.equal(reviews[0].contractSha256,reviews[1].contractSha256);
+  assert.notEqual(reviews[0].provenance.requestHash,reviews[1].provenance.requestHash);
+});
+
+test('Flash unavailability preserves provider diagnostics and never triggers a Lite fallback or retry',async()=>{
+  let calls=0;
+  await assert.rejects(reviewTagSource(candidate,{env:{SKILVED_AI_MODE:'gemini',SKILVED_AI_MODEL:'gemini-3.8-flash',GEMINI_API_KEY:'synthetic_tag_comparison_key'},
+    fetchImpl:async(url)=>{calls++;assert.ok(url.endsWith('gemini-3.8-flash:generateContent'));
+      return new Response('',{status:503,headers:{'Retry-After':'60'}});}}),
+    error=>error.code==='AI_PROVIDER_REJECTED'&&error.providerStatus===503&&error.retryable===true&&error.retryAfterMs===60000&&error.usage===null);
+  assert.equal(calls,1);
+});
