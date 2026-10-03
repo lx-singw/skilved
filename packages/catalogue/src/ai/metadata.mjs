@@ -1,5 +1,5 @@
 import {zodToJsonSchema} from 'zod-to-json-schema';
-import {generateStructured} from './groq.mjs';
+import {generateStructured} from './provider.mjs';
 import {GroqMetadataSchema,decodeGroqMetadata,groqExtractionPayload} from './groq-schema.mjs';
 
 export const METADATA_VERSION = 'recentjobs_metadata_v1';

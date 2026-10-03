@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { configuration, DomainError } from '../src/config.mjs';
-import { extractionConfiguration } from '../src/ai/groq.mjs';
+import { extractionConfiguration } from '../src/ai/provider.mjs';
 import { Source } from '../src/schemas.mjs';
 import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
 import { getRuntime } from '../src/runtime.mjs';
@@ -14,7 +14,7 @@ Run inside fresh Firebase Auth/Firestore emulators using a demo project.
 Source must use automation.mode=shadow and permission.method=recentjobs_html.
 This command bootstraps an ingest-only LOCAL grant, runs one bounded worker tick,
 and saves a private report under the repository's ignored .artifacts/shadow/ directory.
-Requires Groq opt-in. Fetches real RecentJobs pages and may consume model quota.
+Requires explicit Groq or Gemini opt-in. Fetches real RecentJobs pages and may consume model quota.
 --split selects experimental metadata, requirements and validation stages, each separately budgeted/cached.
 Never connects to cloud Firestore, enables public reads, publishes, or schedules another run.`;
 
@@ -47,7 +47,7 @@ else {
     if (source.automation?.mode !== 'shadow' || source.permission.method !== 'recentjobs_html') throw new DomainError('SHADOW_SOURCE_REQUIRED');
     const ai = extractionConfiguration(), principal = await workerPrincipal(config);
     runtime = await getRuntime();
-    const worker = new RecentJobsWorker(runtime.db, principal, { extractionMode:split?'split':'single', model: ai.model, thinking: ai.thinking, validationThinking: ai.validationThinking });
+    const worker = new RecentJobsWorker(runtime.db, principal, { provider:ai.provider, extractionMode:split?'split':'single', model: ai.model, thinking: ai.thinking, validationThinking: ai.validationThinking });
     if ((await worker.ref('sources', source.id).get()).exists) throw new DomainError('FRESH_EMULATOR_REQUIRED');
     await worker.ref('sources', source.id).set({json:JSON.stringify(source)});
     await worker.ref('workers', worker.actor).set({principal, active:true, sources:[source.id], roles:['ingest']});

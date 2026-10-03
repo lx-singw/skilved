@@ -50,6 +50,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Single classification tags, remaining anchor conflicts and visible semantic errors](49_SINGLE_CLASSIFICATION_TAGS_AND_VISIBLE_SEMANTIC_ERRORS_2026-10-03.md)
 - [Flash model comparison, requirement coverage failure and unavailable repeat](50_FLASH_MODEL_COMPARISON_AND_COVERAGE_FAILURE_2026-10-03.md)
 - [Automatic Gemini availability fallback and direct 3.1 Flash-Lite review](51_GEMINI_AVAILABILITY_FALLBACK_AND_31_FLASH_LITE_2026-10-03.md)
+- [Gemini worker integration, per-attempt budgets and one private draft](52_GEMINI_WORKER_INTEGRATION_AND_PRIVATE_DRAFT_PILOT_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

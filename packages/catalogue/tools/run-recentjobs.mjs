@@ -1,5 +1,5 @@
 import { getRuntime } from '../src/runtime.mjs';
-import { extractionConfiguration } from '../src/ai/groq.mjs';
+import { extractionConfiguration } from '../src/ai/provider.mjs';
 import { workerPrincipal } from '../src/worker-identity.mjs';
 import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
 
@@ -18,7 +18,7 @@ No scheduled cloud resources are provisioned by this command. See the autonomous
     const ai = extractionConfiguration();
     runtime = await getRuntime();
     const principal = await workerPrincipal(runtime.config);
-    const worker = new RecentJobsWorker(runtime.db, principal, { thinking: ai.thinking, validationThinking: ai.validationThinking, model: ai.model });
+    const worker = new RecentJobsWorker(runtime.db, principal, { provider:ai.provider, thinking: ai.thinking, validationThinking: ai.validationThinking, model: ai.model });
     const result = await worker.run(process.argv[2]);
     console.log(JSON.stringify(result, null, 2));
     if (result.results.some(r => r.state === 'exception')) process.exitCode = 2;

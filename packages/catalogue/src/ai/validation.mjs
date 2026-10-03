@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { generateStructured, extractionConfiguration } from './groq.mjs';
+import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
 
 export const VALIDATION_VERSION = 'recentjobs_validation_v6';

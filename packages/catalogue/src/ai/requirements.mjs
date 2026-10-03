@@ -1,6 +1,6 @@
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { z } from 'zod';
-import { generateStructured } from './groq.mjs';
+import { generateStructured } from './provider.mjs';
 import { GroqRequirementsSchema, decodeGroqRequirements, groqExtractionPayload } from './groq-schema.mjs';
 import { uncoveredRequirementLines, isPromotionalLine, requirementLineNumbers } from './source-lines.mjs';
 import { DomainError } from '../config.mjs';

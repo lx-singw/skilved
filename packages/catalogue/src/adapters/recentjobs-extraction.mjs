@@ -1,12 +1,12 @@
 import { parseRecentJobsDetail } from './recentjobs.mjs';
-import { extractWithGroq } from '../ai/groq.mjs';
+import { extractWithProvider } from '../ai/provider.mjs';
 import { mapExtraction } from '../ai/extraction.mjs';
 import { IdSchema, InstantSchema } from '@skilved/types/opportunities';
 
 /** Parse -> actual provider boundary -> evidence checks -> canonical PRIVATE record.
  * No Firestore writes or publication; callers must retain the source/evidence before persistence.
  */
-export async function extractRecentJobs({ html, url, sourceId, now }, { model = extractWithGroq } = {}) {
+export async function extractRecentJobs({ html, url, sourceId, now }, { model = extractWithProvider } = {}) {
   IdSchema.parse(sourceId); InstantSchema.parse(now);
   const observedOn = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg',
     year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));

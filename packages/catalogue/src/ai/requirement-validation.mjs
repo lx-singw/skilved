@@ -1,5 +1,5 @@
 import {ExtractionSchema} from './extraction.mjs';
-import {generateStructured,extractionConfiguration} from './groq.mjs';
+import {generateStructured,extractionConfiguration} from './provider.mjs';
 import {validationContract,validateAssessment} from './validation.mjs';
 import {DomainError} from '../config.mjs';
 

@@ -9,7 +9,9 @@ import { retrieve } from './fetch.mjs';
 import { parseRecentJobsList, parseRecentJobsDetail } from './adapters/recentjobs.mjs';
 import { parsePrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { mapExtraction, EXTRACTION_VERSION } from './ai/extraction.mjs';
-import { extractWithGroq, GROQ_MODEL } from './ai/groq.mjs';
+import { GROQ_MODEL } from './ai/groq.mjs';
+import { GEMINI_MODEL, GEMINI_MODEL_CHAIN } from './ai/gemini.mjs';
+import { extractWithProvider } from './ai/provider.mjs';
 import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
 import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs';
@@ -27,9 +29,10 @@ const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSU
 
 /** Trusted backend only. CLI verifies the machine principal; no public HTTP worker endpoint. */
 export class RecentJobsWorker {
-  constructor(db, principal, { now = () => new Date().toISOString(), fetcher = retrieve, extractor = extractWithGroq,
+  constructor(db, principal, { now = () => new Date().toISOString(), fetcher = retrieve, extractor = extractWithProvider,
     extractionMode = 'single', metadataExtractor = extractMetadata, requirementsExtractor = extractRequirements,
-    validator = validateExtraction, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), thinking = 'low', validationThinking = 'medium', model = GROQ_MODEL } = {}) {
+    validator = validateExtraction, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), thinking = 'low', validationThinking = 'medium',
+    provider = 'groq', model, env = process.env } = {}) {
     if (typeof principal !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(principal)) fail('WORKER_UNAUTHORIZED');
     this.db = db; this.principal = principal; this.actor = `worker_${hash(principal).slice(0, 40)}`;
     this.now = now; this.fetcher = fetcher; this.extractor = extractor; this.validator = validator; this.sleep = sleep;
@@ -37,7 +40,11 @@ export class RecentJobsWorker {
     this.extractionMode = extractionMode; this.metadataExtractor = metadataExtractor; this.requirementsExtractor = requirementsExtractor;
     if (!['low', 'medium'].includes(thinking)) fail('AI_CONFIGURATION_REQUIRED'); this.thinking = thinking;
     if (!['low', 'medium'].includes(validationThinking)) fail('AI_CONFIGURATION_REQUIRED'); this.validationThinking = validationThinking;
-    if (![GROQ_MODEL, 'openai/gpt-oss-20b'].includes(model)) fail('AI_CONFIGURATION_REQUIRED'); this.model = model;
+    if (!['groq','gemini'].includes(provider)) fail('AI_CONFIGURATION_REQUIRED'); this.provider = provider;
+    model ??= provider === 'gemini' ? GEMINI_MODEL : GROQ_MODEL;
+    if (!(provider === 'gemini' ? GEMINI_MODEL_CHAIN : [GROQ_MODEL, 'openai/gpt-oss-20b']).includes(model)) fail('AI_CONFIGURATION_REQUIRED'); this.model = model;
+    if (provider === 'gemini' && !['true','false'].includes(env.SKILVED_AI_FALLBACK ?? 'true')) fail('AI_CONFIGURATION_REQUIRED');
+    this.env = {...env}; this.fallback = (env.SKILVED_AI_FALLBACK ?? 'true') === 'true';
     this.catalogue = new Catalogue(db, null, now);
   }
   ref(collection, id) { IdSchema.parse(id); return this.db.collection(`m0_${collection}`).doc(id); }
@@ -50,6 +57,7 @@ export class RecentJobsWorker {
           !grant.roles?.includes('ingest') || (publishing && !grant.roles.includes('publish'))) fail('WORKER_FORBIDDEN');
       if (!raw) fail('SOURCE_PAUSED');
       const source = Source.parse(raw);
+      if (this.provider === 'gemini' && source.automation?.mode !== 'shadow') fail('GEMINI_SHADOW_ONLY');
       if (this.extractionMode === 'split' && source.automation?.mode !== 'shadow') fail('SPLIT_EXTRACTION_SHADOW_ONLY');
       if (source.paused || source.permission.method !== 'recentjobs_html' || !source.automation || source.automation.mode === 'disabled') fail('SOURCE_PAUSED');
       if (!source.categories.includes('apprenticeship') || !source.urls.includes(RECENTJOBS_INDEX)) fail('SOURCE_POLICY_REQUIRED');
@@ -129,14 +137,22 @@ export class RecentJobsWorker {
     const delay = policy.getCrawlDelay(UA);
     if (delay && delay * 1000 > claim.source.automation.minRequestIntervalMs) fail('ROBOTS_DELAY_EXCEEDS_POLICY');
   }
-  async modelCall(claim, stage, work) {
+  async modelStage(claim, stage, work) {
+    const options = {env:{...this.env, SKILVED_AI_MODEL:this.model,
+      SKILVED_AI_THINKING:this.thinking, SKILVED_AI_VALIDATION_THINKING:this.validationThinking}};
+    if (this.provider === 'gemini') return work({...options,
+      runAttempt:(attempt, send) => this.modelCall(claim, stage, send, attempt)});
+    return this.modelCall(claim, stage, () => work(options));
+  }
+  async modelCall(claim, stage, work, attempt = {}) {
     await this.transaction(claim.sourceId, 'worker.model.reserve', async (tx, source) => {
       const job = await this.assertClaim(tx, source, claim);
       const id = hash(`${source.id}:${dayInSA(this.now())}`), ref = this.ref('model_budgets', id);
       const budget = value(await tx.get(ref)) ?? { sourceId: source.id, date: dayInSA(this.now()), calls: 0 };
-      if (budget.nextCallAt > this.now()) {
+      const nextCallAt = this.provider === 'gemini' ? budget.nextCallByModel?.[attempt.model] : budget.nextCallAt;
+      if (nextCallAt > this.now()) {
         const error = new DomainError('AI_RATE_LIMITED'); error.retryable = true;
-        error.retryAfterMs = Date.parse(budget.nextCallAt) - Date.parse(this.now()); throw error;
+        error.retryAfterMs = Date.parse(nextCallAt) - Date.parse(this.now()); throw error;
       }
       if (budget.calls >= source.automation.maxModelCallsPerDay) fail('MODEL_BUDGET_EXHAUSTED');
       tx.set(ref, payload({ ...budget, calls: budget.calls + 1 }));
@@ -149,11 +165,16 @@ export class RecentJobsWorker {
       await this.assertClaim(tx, source, claim);
       const budgetRef = this.ref('model_budgets', hash(`${source.id}:${dayInSA(this.now())}`));
       const budget = error?.code === 'AI_RATE_LIMITED' ? value(await tx.get(budgetRef)) : null;
-      if (budget) tx.set(budgetRef, payload({ ...budget,
-        nextCallAt: new Date(Date.parse(this.now()) + Math.max(60000, error.retryAfterMs ?? 0)).toISOString() }));
+      if (budget) {
+        const until = new Date(Date.parse(this.now()) + Math.max(60000, error.retryAfterMs ?? 0)).toISOString();
+        tx.set(budgetRef, payload({...budget, ...(this.provider === 'gemini'
+          ? {nextCallByModel:{...budget.nextCallByModel, [attempt.model]:until}} : {nextCallAt:until})}));
+      }
       tx.create(this.ref('model_calls', randomUUID()), payload({ jobId: claim.id, sourceId: source.id, stage,
         state: error ? 'failed' : 'received', usage: result?.provenance?.usage ?? error?.usage ?? null,
         at: this.now(), error: error?.code ?? null,
+        provider:this.provider, model:attempt.model ?? this.model,
+        requestHash:attempt.requestHash ?? result?.provenance?.requestHash ?? null,
         providerStatus: Number.isInteger(error?.providerStatus) ? error.providerStatus : null }));
     });
     if (error) throw error;
@@ -262,19 +283,18 @@ export class RecentJobsWorker {
     const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
-    const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:groq:${this.model}:${this.thinking}:${version}`;
-    const modelOptions = {env:{...process.env,SKILVED_AI_MODEL:this.model,SKILVED_AI_THINKING:this.thinking,SKILVED_AI_VALIDATION_THINKING:this.validationThinking}};
+    const policy = this.provider === 'gemini' ? `:json_object:chain_v1:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}` : '';
+    const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}`;
     let extraction;
     if (this.extractionMode === 'split') {
       const metadata = await this.cache(claim,hash(`${keyBase}:metadata`),
-        ()=>this.modelCall(claim,'metadata',()=>this.metadataExtractor(candidate,modelOptions)));
+        ()=>this.modelStage(claim,'metadata',options=>this.metadataExtractor(candidate,options)));
       const requirements = await this.cache(claim,hash(`${keyBase}:requirements`),
-        ()=>this.modelCall(claim,'requirements',()=>this.requirementsExtractor(candidate,modelOptions)));
+        ()=>this.modelStage(claim,'requirements',options=>this.requirementsExtractor(candidate,options)));
       extraction = {extraction:{...metadata.metadata,requirements:requirements.requirements},
-        provenance:{provider:'groq',extractionVersion:version,stages:{metadata:metadata.provenance,requirements:requirements.provenance}}};
+        provenance:{provider:this.provider,extractionVersion:version,stages:{metadata:metadata.provenance,requirements:requirements.provenance}}};
     } else extraction = await this.cache(claim, hash(`${keyBase}:${EXTRACTION_VERSION}`),
-      () => this.modelCall(claim, 'extraction', () => this.extractor(candidate, { env: { ...process.env,
-        SKILVED_AI_MODEL: this.model, SKILVED_AI_THINKING: this.thinking, SKILVED_AI_VALIDATION_THINKING: this.validationThinking } })));
+      () => this.modelStage(claim, 'extraction', options => this.extractor(candidate, options)));
     const mapped = mapExtraction(candidate, extraction.extraction, { sourceId: claim.sourceId, now: this.now() });
     if (!mapped.record) fail('CATEGORY_UNRESOLVED');
     const record = mapped.record;
@@ -301,8 +321,7 @@ export class RecentJobsWorker {
       });
     }
     const assessment = await this.cache(claim, hash(`${keyBase}:${EXTRACTION_VERSION}:${VALIDATION_VERSION}:${this.validationThinking}:${primaryHash}`),
-      () => this.modelCall(claim, 'validation', () => this.validator({ record, recentjobsText: mapped.snapshot.text, primary, applicationCandidates: candidate.applicationCandidates },
-        { env: { ...process.env, SKILVED_AI_MODEL: this.model, SKILVED_AI_THINKING: this.thinking, SKILVED_AI_VALIDATION_THINKING: this.validationThinking } })));
+      () => this.modelStage(claim, 'validation', options => this.validator({ record, recentjobsText: mapped.snapshot.text, primary, applicationCandidates: candidate.applicationCandidates }, options)));
     // Validate even injected/internal validators; production does not expose this dependency to callers.
     const parsed = validateAssessment({ supported: assessment.supported, issues: assessment.issues, evidence: assessment.evidence }, mapped.snapshot.text, primary);
     const gate = publicationGate(claim.source, candidate, record, primary, parsed, this.now());

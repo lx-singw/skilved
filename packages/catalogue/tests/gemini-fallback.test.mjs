@@ -105,3 +105,20 @@ test('timeouts abort each attempt and the whole chain stops after its ninety-sec
   t.mock.timers.tick(45000);await second;t.mock.timers.tick(45000);await rejection;
   assert.equal(signals.length,2);assert.ok(signals.every(signal=>signal.aborted));
 });
+
+test('reservation refusal stops before a request and does not become another billed attempt',async()=>{
+  let sends=0,reservations=0;
+  await assert.rejects(generateStructured({},contract,{env,runAttempt:async(_attempt,send)=>{
+    reservations++;if(reservations===2){const error=new Error('MODEL_BUDGET_EXHAUSTED');error.code='MODEL_BUDGET_EXHAUSTED';throw error;}return send();
+  },fetchImpl:async()=>{sends++;return new Response(null,{status:503});}}),
+    error=>error.code==='MODEL_BUDGET_EXHAUSTED'&&error.attempts.length===1);
+  assert.equal(sends,1);assert.equal(reservations,2);
+});
+
+test('a persisted per-model cooldown skips that model without consuming a request',async()=>{
+  const sent=[];
+  const result=await generateStructured({},contract,{env,runAttempt:async({model},send)=>{
+    if(model===GEMINI_MODEL_CHAIN[0]){const error=new Error('AI_RATE_LIMITED');error.code='AI_RATE_LIMITED';error.retryAfterMs=60000;throw error;}return send();
+  },fetchImpl:async url=>{sent.push(modelOf(url));return answer();}});
+  assert.deepEqual(sent,[GEMINI_MODEL_CHAIN[1]]);assert.equal(result.provenance.attempts[0].status,'deferred');
+});

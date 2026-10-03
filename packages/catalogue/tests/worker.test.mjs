@@ -9,6 +9,8 @@ import { configuration, DomainError } from '../src/config.mjs';
 import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
 import { GroqError } from '../src/ai/groq.mjs';
+import {extractWithProvider} from '../src/ai/provider.mjs';
+import {validateExtraction} from '../src/ai/validation.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -67,6 +69,85 @@ async function fixture({ mode = 'automatic', calls = 10, publisher = true, caden
     restart: (overrides = {}) => new RecentJobsWorker(db, principal, { ...options, ...overrides }), now: () => now };
 }
 const detailResult = result => result.results.find(r => r.recordId);
+
+const geminiEnv = {SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_worker_gemini_key',SKILVED_AI_FALLBACK:'true'};
+const compactWire = () => ({category:'apprenticeship',categorySpan:[1,1],issuer:{state:'stated',value:'Fictional Workshop',span:[3,3]},
+  summary:{state:'stated',value:'Fictional Workshop seeks an electrical apprentice.',span:[3,3]},
+  intake:null,location:null,residence:null,experience:null,compensation:[],practicalConditions:null,applicationCandidateIndex:0,
+  deadline:{state:'stated',value:{kind:'date',localDate:'2026-10-30',localTime:null,timezone:null,utcInstant:null},span:[5,5]},
+  requirements:{items:[{id:'r1',kind:'education',level:'required',state:'stated',span:[4,4]}],expression:'r1'}});
+const geminiAnswer = data => Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],
+  usageMetadata:{promptTokenCount:10,candidatesTokenCount:5,totalTokenCount:15}});
+const geminiOptions = fetchImpl => ({provider:'gemini',env:geminiEnv,
+  extractor:(candidate,options)=>extractWithProvider(candidate,{...options,fetchImpl}),
+  validator:(input,options)=>validateExtraction(input,{...options,fetchImpl})});
+
+test('Gemini shadow extraction and validation reserve every fallback call, preserve routes and cache without publishing',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:4}), requests=[];
+  const options=geminiOptions(async(url,init)=>{
+    const body=JSON.parse(init.body),input=JSON.parse(body.contents[0].parts[0].text),validation=!!input.extracted;
+    requests.push({model:url.split('/models/')[1].split(':')[0],validation,thinking:body.generationConfig.thinkingConfig.thinkingLevel});
+    assert.equal(body.generationConfig.maxOutputTokens,3072);assert.equal(body.generationConfig.responseJsonSchema,undefined);
+    if(requests.length===1)return new Response(null,{status:503});
+    if(requests.length===3)return new Response(null,{status:429,headers:{'Retry-After':'90'}});
+    return geminiAnswer(validation?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]}:compactWire());
+  });
+  const worker=f.restart(options),result=detailResult(await worker.run(f.sourceId));assert.ok(result);assert.equal(result.published,false);
+  assert.deepEqual(requests.map(r=>r.model),['gemini-3.8-flash','gemini-3.7-flash','gemini-3.8-flash','gemini-3.7-flash']);
+  assert.deepEqual(requests.map(r=>r.thinking),['LOW','LOW','MEDIUM','MEDIUM']);
+  const draft=value(await worker.ref('drafts',result.recordId).get());assert.equal(draft.publication.approved,false);
+  assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');
+  assert.equal((await worker.ref('public',result.recordId).get()).exists,false);assert.equal(f.state.requests.some(r=>r.url.startsWith('https://employer.example')),false);
+  const rows=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(rows.length,4);assert.deepEqual(rows.map(r=>r.providerStatus).sort(),[null,null,429,503].sort());assert.ok(rows.every(r=>r.provider==='gemini'));
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);
+  assert.equal(budget.calls,4);assert.ok(budget.nextCallByModel['gemini-3.8-flash']);assert.equal(budget.nextCallAt,undefined);
+  f.advance(24*3600000);assert.equal(detailResult(await f.restart(options).run(f.sourceId)).published,false);assert.equal(requests.length,4);
+});
+
+test('Gemini fallback stops at the daily budget before sending the next model',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:1});let sends=0;
+  const worker=f.restart(geminiOptions(async()=>{sends++;return new Response(null,{status:503});}));
+  assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='MODEL_BUDGET_EXHAUSTED'));assert.equal(sends,1);
+  assert.equal((await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,1);
+});
+
+test('Gemini local schema rejection stops without fallback and does not reuse a Groq cache',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});assert.ok(detailResult(await f.worker.run(f.sourceId)));
+  f.advance(24*3600000);let sends=0;
+  const worker=f.restart(geminiOptions(async()=>{sends++;return geminiAnswer({});}));
+  assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='AI_INVALID_EXTRACTION'));assert.equal(sends,1);
+  assert.equal((await db.collection('m0_worker_decisions').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,1);
+});
+
+test('Gemini is restricted to shadow sources even when a worker holds a publication grant',async()=>{
+  const f=await fixture();let sends=0;
+  await assert.rejects(f.restart(geminiOptions(async()=>{sends++;return geminiAnswer(compactWire());})).run(f.sourceId),/GEMINI_SHADOW_ONLY/);
+  assert.equal(sends,0);assert.equal(f.state.requests.length,0);
+});
+
+test('selecting the Gemini worker cannot override disabled AI even when its key exists',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});let sends=0;
+  const options=geminiOptions(async()=>{sends++;return geminiAnswer(compactWire());});
+  options.env={...geminiEnv,SKILVED_AI_MODE:'disabled'};
+  assert.ok((await f.restart(options).run(f.sourceId)).results.some(r=>r.reason==='AI_DISABLED'));assert.equal(sends,0);
+  assert.equal((await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);
+});
+
+test('Gemini preserves a qualified application email in a private draft without destination probes',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:true});
+  f.state.html=detailHtml.replace('https://employer.example/apply','mailto:jobs@employer.example');
+  f.source.automation.issuers[0].emailAddresses=['jobs@employer.example'];
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const worker=f.restart(geminiOptions(async(_url,init)=>{
+    const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+    return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]}:compactWire());
+  }));
+  const result=detailResult(await worker.run(f.sourceId));assert.equal(result.published,false);
+  const draft=value(await worker.ref('drafts',result.recordId).get());assert.deepEqual(draft.applicationRoute.value,{method:'email',destination:'jobs@employer.example'});
+  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+  assert.equal((await worker.ref('public',result.recordId).get()).exists,false);
+});
 
 function splitOptions(counts) {
   return {extractionMode:'split',metadataExtractor:async()=>{

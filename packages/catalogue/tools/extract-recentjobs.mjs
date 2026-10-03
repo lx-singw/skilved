@@ -2,16 +2,18 @@ import { open } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { z } from 'zod';
 import { extractRecentJobs } from '../src/adapters/recentjobs-extraction.mjs';
-import { extractionConfiguration, GroqError } from '../src/ai/groq.mjs';
+import { extractionConfiguration } from '../src/ai/provider.mjs';
+import { GroqError } from '../src/ai/groq.mjs';
 import { parseRecentJobsDetail } from '../src/adapters/recentjobs.mjs';
 import { extractRequirements } from '../src/ai/requirements.mjs';
 
 const help = `Usage: pnpm --filter @skilved/catalogue extract:recentjobs [--requirements] <manifest.json>
 Manifest: {"sourceId":"recentjobs","url":"https://recentjobs.co.za/YYYY/MM/DD/slug/","htmlPath":"notice.html"}
 htmlPath is relative to the manifest. Use permitted saved HTML, not applicant documents.
-Requires SKILVED_AI_MODE=groq and GROQ_API_KEY in the process environment.
+Requires SKILVED_AI_MODE=groq with GROQ_API_KEY, or gemini with GEMINI_API_KEY.
 Optional: SKILVED_AI_THINKING=low|medium (default low).
-Makes one paid-capable model request; prints a PRIVATE extraction/evidence report.
+Groq makes one model request. Gemini may descend through up to six models on availability errors.
+All requests may consume quota; prints a PRIVATE extraction/evidence report.
 --requirements runs the experimental requirements-only stage, with no metadata or route assessment.
 Does not fetch RecentJobs, save to Firestore, schedule work or publish to the feed.
 Build contracts first. Keep output under an ignored private directory such as .artifacts/.`;

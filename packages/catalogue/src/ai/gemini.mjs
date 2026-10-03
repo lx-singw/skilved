@@ -23,8 +23,10 @@ export function extractionConfiguration(env = process.env) {
       !GEMINI_MODEL_CHAIN.includes(model) ||
       !['true', 'false'].includes(env.SKILVED_AI_FALLBACK ?? 'true') ||
       !['low', 'medium'].includes(env.SKILVED_AI_THINKING ?? 'low') ||
+      !['low', 'medium'].includes(env.SKILVED_AI_VALIDATION_THINKING ?? 'medium') ||
       !env.GEMINI_API_KEY || !/^[A-Za-z0-9_.-]{20,200}$/.test(env.GEMINI_API_KEY)) failure('AI_CONFIGURATION_REQUIRED');
-  return { model, thinking: env.SKILVED_AI_THINKING ?? 'low', apiKey: env.GEMINI_API_KEY,
+  return { provider: 'gemini', model, thinking: env.SKILVED_AI_THINKING ?? 'low', apiKey: env.GEMINI_API_KEY,
+    validationThinking: env.SKILVED_AI_VALIDATION_THINKING ?? 'medium',
     fallback: (env.SKILVED_AI_FALLBACK ?? 'true') === 'true',
     maxOutputTokens: 8192, timeoutMs: 45_000, fallbackTimeoutMs: 90_000 };
 }
@@ -68,11 +70,12 @@ export async function extractWithGemini(candidate, options = {}) {
 /** JSON-object mode requires caller-owned schema validation. A smaller explicit
  * token cap and fallback:false support fixed development comparisons. */
 export async function generateStructured(payload, { instruction, schema, version, outputMode = 'json_schema' },
-  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens, fallback } = {}) {
+  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens, fallback, runAttempt } = {}) {
   const config = extractionConfiguration(env);
   const useFallback = fallback ?? config.fallback;
   const cap = maxOutputTokens ?? config.maxOutputTokens;
-  if (typeof useFallback !== 'boolean' || !['json_schema', 'json_object'].includes(outputMode) || !Number.isInteger(cap) || cap < 1 || cap > config.maxOutputTokens)
+  if (typeof useFallback !== 'boolean' || (runAttempt !== undefined && typeof runAttempt !== 'function') ||
+      !['json_schema', 'json_object'].includes(outputMode) || !Number.isInteger(cap) || cap < 1 || cap > config.maxOutputTokens)
     failure('AI_CONFIGURATION_REQUIRED');
   const input = JSON.stringify(payload);
   if (Buffer.byteLength(input) > 96_000) failure('AI_INPUT_LIMIT');
@@ -92,15 +95,31 @@ export async function generateStructured(payload, { instruction, schema, version
       const error = new ExtractionError('AI_TIMEOUT', true); error.attempts = attempts; throw error;
     }
     const requestHash = createHash('sha256').update(JSON.stringify({ model, request })).digest('hex');
+    let started = false;
     try {
-      const result = await generateForModel(request, { ...config, model, timeoutMs: Math.min(config.timeoutMs, remainingMs) },
-        { fetchImpl, version, outputMode, requestHash });
+      const send = () => {
+        if (started) failure('AI_CONFIGURATION_REQUIRED');
+        started = true;
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) failure('AI_TIMEOUT', true);
+        return generateForModel(request, { ...config, model, timeoutMs: Math.min(config.timeoutMs, remaining) },
+          { fetchImpl, version, outputMode, requestHash });
+      };
+      const result = await (runAttempt ? runAttempt({model, requestHash}, send) : send());
       if (useFallback) {
         attempts.push({ model, requestHash, status: 'response', usage: result.provenance.usage });
         Object.assign(result.provenance, { requestedModel: config.model, attempts });
       }
       return result;
     } catch (error) {
+      if (!started) {
+        if (useFallback && error.code === 'AI_RATE_LIMITED') {
+          attempts.push({model, requestHash, status:'deferred', code:error.code, retryAfterMs:error.retryAfterMs ?? null, usage:null});
+          error.attempts = attempts;
+          if (model !== models.at(-1)) continue;
+        } else if (useFallback) error.attempts = attempts;
+        throw error;
+      }
       attempts.push({ model, requestHash, status: 'error', code: error.code, providerStatus: error.providerStatus,
         retryable: error.retryable, retryAfterMs: error.retryAfterMs, usage: error.usage });
       if (useFallback) error.attempts = attempts;
