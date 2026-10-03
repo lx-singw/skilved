@@ -278,6 +278,39 @@ test('qualified original application email publishes without fetching a website 
   assert.equal(f.state.requests.every(r => r.url.startsWith('https://recentjobs.co.za/')), true);
 });
 
+test('a qualified explicit plain-text email reaches a private draft with its source instruction',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:true});
+  f.state.html=detailHtml.replace('<a href="https://employer.example/apply">Apply now</a>','<p>Apply by email: jobs@employer.example</p>');
+  f.source.automation.issuers[0].emailAddresses=['jobs@employer.example'];
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const result=detailResult(await f.worker.run(f.sourceId));assert.equal(result.published,false);
+  const draft=value(await f.worker.ref('drafts',result.recordId).get());
+  assert.deepEqual(draft.applicationRoute.value,{method:'email',destination:'jobs@employer.example'});
+  assert.equal(draft.applicationRoute.originalText,'Apply by email: jobs@employer.example');
+  assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  assert.equal(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')),true);
+  assert.equal((await f.worker.ref('public',result.recordId).get()).exists,false);
+});
+
+test('multiple programme email destinations are held before model work even when both are qualified',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+  f.state.html=detailHtml.replace('<a href="https://employer.example/apply">Apply now</a>','<p>Apply: electrical@employer.example</p><p>Apply: plumbing@employer.example</p>');
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const result=await f.worker.run(f.sourceId);
+  assert.ok(result.results.some(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'));
+  assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+});
+
+test('physical submission alternatives require review even beside a qualified website route',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:true});
+  f.state.html=detailHtml.replace('</div>','<p>Applications should be hand delivered / couriered to: Fictional College, 9 Example Street.</p></div>');
+  const result=await f.worker.run(f.sourceId);
+  assert.ok(result.results.some(r=>r.reason==='NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED'));
+  assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+  assert.equal(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')),true);
+});
+
 test('provider Retry-After persists across worker restarts and defers model calls', async () => {
   const f = await fixture({ employerCrawl: false });
   let attempts = 0;

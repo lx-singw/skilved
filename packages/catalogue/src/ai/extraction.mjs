@@ -42,7 +42,7 @@ export const ExtractionSchema = z.object({
       level: z.enum(['required', 'preferred', 'unclear']), fact: fact(RequirementValueSchema),
     }).strict()).max(40), expression: expression(4),
   }).strict(),
-  // The model selects an existing parsed anchor; it never supplies a URL.
+  // The model selects an existing parsed route; it never supplies a destination.
   applicationCandidateIndex: z.number().int().min(0).max(19).nullable(),
 }).strict();
 

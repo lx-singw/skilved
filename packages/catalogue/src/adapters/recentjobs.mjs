@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { parse } from 'parse5';
 import ipaddr from 'ipaddr.js';
+import { applicationMethods } from './application-methods.mjs';
 
 // Pure extraction only. These candidates are not canonical records, approvals,
 // source permissions or instructions to fetch an application destination.
@@ -153,17 +154,23 @@ export function parseRecentJobsDetail({ html, url, observedOn = null }) {
   const sourcePublishedAtRaw = times.length === 1 ? attr(times[0], 'datetime') || text(times[0]) : null;
   const applicationCandidates = [...new Map(find(content, n => n.tagName === 'a' && attr(n, 'href'))
     .map(a => applicationCandidate(a, url)).filter(Boolean).map(a => [`${a.method}:${a.destination}`, a])).values()];
+  const methods = applicationMethods(sourceText);
+  for (const route of methods.candidates) {
+    if (!applicationCandidates.some(c => c.method === route.method && c.destination === route.destination)) applicationCandidates.push(route);
+  }
   if (applicationCandidates.length > 20) fail('RECENTJOBS_CONTENT_LIMIT');
   const deadlineCandidates = deadlines(sourceText);
   const issues = ['aggregator_facts_need_review', 'availability_not_verified'];
   if (!applicationCandidates.length) issues.push('application_route_missing');
   if (applicationCandidates.length > 1) issues.push('multiple_application_routes');
+  if (methods.instructions.length) issues.push('physical_application_requires_review');
   if (!deadlineCandidates.length || deadlineCandidates.some(d => !d.localDate)) issues.push('deadline_needs_review');
   if (new Set(deadlineCandidates.map(d => d.localDate).filter(Boolean)).size > 1) issues.push('conflicting_deadlines');
   if (observedOn && deadlineCandidates.some(d => d.localDate && d.localDate < observedOn)) issues.push('source_deadline_before_observation');
   const categoryHint = /\bapprentice(?:ship)?s?\b/i.test(title) ? 'apprenticeship' : null;
   if (!categoryHint) issues.push('category_needs_review');
   const candidate = { adapter: RECENTJOBS_ADAPTER, sourceUrl: url, sourceRecordId: hash(url),
-    title, categoryHint, sourcePublishedAtRaw, sourceText, deadlineCandidates, applicationCandidates };
+    title, categoryHint, sourcePublishedAtRaw, sourceText, deadlineCandidates, applicationCandidates,
+    ...(methods.instructions.length ? {applicationInstructions:methods.instructions} : {}) };
   return { ...candidate, contentHash: hash(JSON.stringify(candidate)), observedOn, review: 'pending', issues };
 }

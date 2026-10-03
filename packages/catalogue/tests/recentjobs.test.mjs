@@ -70,6 +70,62 @@ test('email application labels and multiple candidates remain explicit and unver
   assert.ok(result.issues.includes('multiple_application_routes'));
 });
 
+test('plain-text application emails retain their complete instruction and original recipient', () => {
+  const instruction='📧 Apply: electrical@employer.example';
+  const result=parseDetail(`<h2>Electrical programme</h2><p>${instruction}</p>`);
+  assert.deepEqual(result.applicationCandidates,[{method:'email',destination:'electrical@employer.example',originalText:instruction,check:'pending'}]);
+  assert.ok(result.sourceText.includes(result.applicationCandidates[0].originalText));
+  assert.equal(result.issues.includes('application_route_missing'),false);
+});
+
+test('plain-text email discovery requires explicit application wording before the address', () => {
+  for(const line of ['jobs@employer.example','For enquiries email jobs@employer.example',
+    'Request an application form from jobs@employer.example','Do not send applications to jobs@employer.example',
+    'Email applications to jobs@employer.example will not be accepted',
+    'Apply: https://jobs@employer.example/apply','Apply: jobs@employer.example9',
+    'Apply: bad..address@employer.example','jobs@employer.example — apply online',
+    'Applicants must submit a CV with a reference email jobs@employer.example']) {
+    assert.deepEqual(parseDetail(`<p>${line}</p>`).applicationCandidates,[],line);
+  }
+  for(const line of ['Apply by email: jobs@employer.example','Send your CV to jobs@employer.example.',
+    'Submit applications to jobs@employer.example']) assert.equal(parseDetail(`<p>${line}</p>`).applicationCandidates[0].destination,'jobs@employer.example');
+});
+
+test('programme emails stay separate while form-request addresses and unlabelled emails stay out', () => {
+  const result=parseDetail('<h2>Electrical</h2><p>Apply: electrical@employer.example</p><h2>Plumbing</h2><p>Apply: plumbing@employer.example</p><p>Request the application form: forms@employer.example</p><p>civil@employer.example</p>');
+  assert.deepEqual(result.applicationCandidates.map(c=>c.destination),['electrical@employer.example','plumbing@employer.example']);
+  assert.ok(result.issues.includes('multiple_application_routes'));
+  assert.notEqual(result.applicationCandidates[0].originalText,result.applicationCandidates[1].originalText);
+});
+
+test('an existing application anchor remains first and duplicate plain-text email is deduplicated', () => {
+  const result=parseDetail('<a href="mailto:jobs@employer.example">Apply: jobs@employer.example</a><p>Send applications to jobs@employer.example.</p>');
+  assert.equal(result.applicationCandidates.length,1);
+  assert.equal(result.applicationCandidates[0].originalText,'Apply: jobs@employer.example');
+  assert.equal('applicationInstructions' in result,false);
+});
+
+test('physical submission instructions remain exact review evidence, never an enquiry email or inferred postal route', () => {
+  const instruction='Applications should be hand delivered / couriered to: Fictional College, 9 Example Street, Test City.';
+  const result=parseDetail(`<p>${instruction}</p><p>Enquiries: enquiries@employer.example</p>`);
+  assert.deepEqual(result.applicationCandidates,[]);
+  assert.deepEqual(result.applicationInstructions,[{methods:['in_person','courier'],originalText:instruction,check:'pending'}]);
+  assert.ok(result.issues.includes('physical_application_requires_review'));
+  assert.deepEqual(parseDetail('<p>Applications must be posted to: Fictional College, PO Box 123.</p>').applicationInstructions[0].methods,['post']);
+  assert.equal('applicationInstructions' in parseDetail('<p>Posted and hand-delivered applications will not be accepted.</p>'),false);
+  assert.equal('applicationInstructions' in parseDetail('<p>Please mark the application with the correct post title and reference number.</p>'),false);
+  assert.deepEqual(parseDetail('<p>Submit the application form by hand delivery to: 9 Example Street.</p>').applicationInstructions[0].methods,['in_person']);
+  assert.equal('applicationInstructions' in parseDetail('<p>No hand delivered applications will be accepted.</p>'),false);
+});
+
+test('route discovery stays bounded and physical instructions change the source fingerprint', () => {
+  const many=Array.from({length:21},(_,i)=>`<p>Apply: trade${i}@employer.example</p>`).join('');
+  assert.throws(()=>parseDetail(many),/CONTENT_LIMIT/);
+  const first=parseDetail('<p>Applications must be hand delivered to: 9 Example Street.</p>');
+  const changed=parseDetail('<p>Applications must be hand delivered to: 10 Example Street.</p>');
+  assert.notEqual(first.contentHash,changed.contentHash);
+});
+
 test('numeric months, invalid dates, absent deadlines and conflicting dates stay distinguishable', () => {
   assert.equal(parseDetail('<p>Closing date: 06/10/2026</p>').deadlineCandidates[0].localDate, '2026-10-06');
   assert.equal(parseDetail('<p>Closing date: 2026/10/06</p>').deadlineCandidates[0].localDate, '2026-10-06');
