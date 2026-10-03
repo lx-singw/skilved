@@ -16,6 +16,7 @@ import {compareProfileInventory,PROFILE_LINE_REVIEW_VERSION} from '../src/ai/pro
 import {compareMixedInventory,MIXED_LINE_REVIEW_VERSION} from '../src/ai/mixed-line-review.mjs';
 import {compareSubmissionInventory,SUBMISSION_LINE_REVIEW_VERSION} from '../src/ai/submission-line-review.mjs';
 import {compareNativeInventory,NATIVE_LINE_REVIEW_VERSION} from '../src/ai/native-line-review.mjs';
+import {compareRecordInventory,RECORD_LINE_REVIEW_VERSION} from '../src/ai/record-line-review.mjs';
 
 const Manifest=z.object({version:z.literal(1),purpose:z.literal('development_structured_requirement_review'),qualification:z.literal(false),
   cases:z.array(z.object({id:z.string().regex(/^[a-z][a-z0-9_-]{0,95}$/),expectedSupported:z.boolean(),
@@ -32,7 +33,7 @@ async function boundedFile(path) {
   }finally{await file.close();}
 }
 const safeCode=error=>/^[A-Z_]+$/.test(error?.code??error?.message??'')?error.code??error.message:'EVALUATION_INPUT_INVALID';
-if(process.argv.includes('--help'))console.log('Usage: node packages/catalogue/tools/evaluate-structured-review.mjs <manifest.json>\nOffline V1–V14 source-inventory/claim comparison. No credentials, network, model calls or publication. Decision agreement is distinct from inventory accuracy and complete defect coverage.');
+if(process.argv.includes('--help'))console.log('Usage: node packages/catalogue/tools/evaluate-structured-review.mjs <manifest.json>\nOffline V1–V15 source-inventory/claim comparison. No credentials, network, model calls or publication. Decision agreement is distinct from inventory accuracy and complete defect coverage.');
 else{
   try{
     if(process.argv.length!==3)throw Error('EVALUATION_USAGE');
@@ -47,7 +48,8 @@ else{
         let bytes;try{bytes=await boundedFile(resolve(dirname(path),row.inventory));}
         catch(error){if(error.code!=='ENOENT')throw error;cases.push({id:row.id,status:'unavailable',code:'EVALUATION_INVENTORY_MISSING'});continue;}
         inventoryHash=digest(bytes);
-        const review=JSON.parse(bytes),compare=review.version===NATIVE_LINE_REVIEW_VERSION?compareNativeInventory:
+        const review=JSON.parse(bytes),compare=review.version===RECORD_LINE_REVIEW_VERSION?compareRecordInventory:
+          review.version===NATIVE_LINE_REVIEW_VERSION?compareNativeInventory:
           review.version===SUBMISSION_LINE_REVIEW_VERSION?compareSubmissionInventory:
           review.version===MIXED_LINE_REVIEW_VERSION?compareMixedInventory:
           review.version===PROFILE_LINE_REVIEW_VERSION?compareProfileInventory:
