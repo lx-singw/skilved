@@ -14,7 +14,7 @@ const completion=/\bapplication is only complete (?:after|once|when)\b.*\b(?:cli
 
 // Versioned supplements: earlier evidence selectors/replay remain unchanged.
 // These are narrow source constraints, not a complete semantic classifier.
-export function requirementContext(candidate,base=requirementEvidence(candidate),sectionEnd=null) {
+export function requirementContext(candidate,base=requirementEvidence(candidate),sectionEnd=null,attributeGuard=null) {
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   const hints=new Map(base.evidenceHints.map(hint=>[hint.line,{...hint}])),primary=new Set(base.requiredLineNumbers);
   const add=(line,reason,constraints)=>{
@@ -44,7 +44,7 @@ export function requirementContext(candidate,base=requirementEvidence(candidate)
     if(!isSubject||!primary.has(number))nested=false;
     if(!uncertain(number)&&completion.test(lines[index]))
       add(number,'Explicit final submission condition for a complete application.',{kind:'document',level:'required',state:'stated'});
-    if(!behavioral.test(text))continue;
+    if(!behavioral.test(text)||attributeGuard?.(number,text))continue;
     let end=index+1;
     while(end<lines.length&&!boundary.test(label(lines[end]))&&!sectionEnd?.(label(lines[end]))&&!isPromotionalLine(lines[end]))end++;
     if(end===lines.length)continue; // An unbounded list must not absorb a footer.
@@ -54,7 +54,7 @@ export function requirementContext(candidate,base=requirementEvidence(candidate)
       if(!value)continue;
       if(/^(?:none|n\/a|not applicable)\.?$/i.test(value)||/^["“”‘’]/.test(value))break;
       if(/^(?:preferred|advantageous)\s*:?$/i.test(value)){level='preferred';continue;}
-      if(uncertain(at+1))continue;
+      if(uncertain(at+1)||attributeGuard?.(at+1,value))continue;
       add(at+1,'Applicant behavioral attribute; unstated required/preferred status remains unclear.',
         {kind:'other',level:/\b(?:must|required)\b/i.test(value)?'required':level,state:'stated'});
     }

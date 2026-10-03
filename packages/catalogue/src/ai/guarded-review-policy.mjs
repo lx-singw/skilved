@@ -12,8 +12,8 @@ const boundary=/^(?:minimum requirements|requirements|qualifications|how to appl
 
 // Development-only source constraints. Unknown qualifications are preserved,
 // never resolved into an inferred ALL/ANY. Conditional/future wording abstains.
-export function guardedReviewEvidence(candidate) {
-  const evidence=boundedReviewEvidence(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+export function guardedReviewEvidence(candidate,evidence=boundedReviewEvidence(candidate)) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   evidence.reviewPolicy.version=GUARDED_REVIEW_POLICY_VERSION;
   const required=new Set(evidence.requiredLineNumbers);
   const caveated=number=>{

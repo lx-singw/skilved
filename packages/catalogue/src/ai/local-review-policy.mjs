@@ -13,8 +13,8 @@ const readiness=/^(?:candidates|applicants) must be prepared to undergo (?:medic
 const disclaimer=/^\(?(?:NB\s*:\s*)?taking part in (?:the|these) tests does not guarantee (?:placement|appointment)(?: in [^;.!]+)?\s*[.!]?\)?$/i;
 
 // Narrow, versioned source facts; no employer names or expected/model answers.
-export function localReviewEvidence(candidate) {
-  const evidence=guardedReviewEvidence(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+export function localReviewEvidence(candidate,evidence=guardedReviewEvidence(candidate)) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   evidence.reviewPolicy.version=LOCAL_REVIEW_POLICY_VERSION;
   const hints=new Map(evidence.evidenceHints.map(row=>[row.line,row]));
   const contextCaveated=line=>{
