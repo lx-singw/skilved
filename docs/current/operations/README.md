@@ -36,6 +36,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Required source-line keys: provider compatibility and unseen source-boundary failures](35_LINE_REQUIREMENT_REVIEW_2026-10-03.md)
 - [Bounded source sections, schema diagnostics and locally validated JSON review](36_BOUNDED_REVIEW_POLICY_AND_JSON_MODE_2026-10-03.md)
 - [Guarded qualification logic, independent submission obligations and repeated review](37_GUARDED_REQUIREMENT_REVIEW_2026-10-03.md)
+- [Local requirement facts, frozen repeats and previously unseen notices](38_LOCAL_REQUIREMENT_HINTS_AND_UNSEEN_REVIEW_2026-10-03.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

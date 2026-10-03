@@ -11,6 +11,7 @@ import {bindCompiledInventory,COMPILED_REQUIREMENT_REVIEW_VERSION} from '../src/
 import {bindLineInventory,LINE_REQUIREMENT_REVIEW_VERSION} from '../src/ai/line-requirement-review.mjs';
 import {bindBoundedInventory,BOUNDED_LINE_REVIEW_VERSION} from '../src/ai/bounded-line-review.mjs';
 import {bindGuardedInventory,GUARDED_LINE_REVIEW_VERSION} from '../src/ai/guarded-line-review.mjs';
+import {bindLocalInventory,LOCAL_LINE_REVIEW_VERSION} from '../src/ai/local-line-review.mjs';
 
 async function fixture(run){
   const dir=await mkdtemp(join(tmpdir(),'skilved-structured-review-'));
@@ -86,5 +87,13 @@ test('offline replay dispatches V6 guarded-policy inventories while preserving o
   Object.assign(inventory,bindGuardedInventory(input.candidate,{lines}));await save();
   const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
   assert.equal(report.cases[0].inventoryVersion,GUARDED_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
+  assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
+}));
+
+test('offline replay dispatches V7 local-policy inventories without exposing source text',async()=>fixture(async({input,inventory,save,evaluate})=>{
+  const lines={L1:'context',L2:'context',L3:{kind:'education',strength:'mandatory',group:1,relation:'all'},L4:{kind:'document',strength:'mandatory',group:1,relation:'all'},L5:'context'};
+  Object.assign(inventory,bindLocalInventory(input.candidate,{lines}));await save();
+  const result=evaluate();assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);
+  assert.equal(report.cases[0].inventoryVersion,LOCAL_LINE_REVIEW_VERSION);assert.equal(report.counts.decision_match,1);assert.equal(report.newModelCalls,0);
   assert.doesNotMatch(result.stdout,/Grade 12|CV required/);
 }));
