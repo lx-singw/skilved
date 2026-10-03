@@ -7,6 +7,7 @@ import {compareApplicabilityInventory,APPLICABILITY_REQUIREMENT_REVIEW_VERSION} 
 import {compareCompiledInventory,COMPILED_REQUIREMENT_REVIEW_VERSION} from '../src/ai/compiled-requirement-review.mjs';
 import {compareLineInventory,LINE_REQUIREMENT_REVIEW_VERSION} from '../src/ai/line-requirement-review.mjs';
 import {compareBoundedInventory,BOUNDED_LINE_REVIEW_VERSION} from '../src/ai/bounded-line-review.mjs';
+import {compareGuardedInventory,GUARDED_LINE_REVIEW_VERSION} from '../src/ai/guarded-line-review.mjs';
 
 const Manifest=z.object({version:z.literal(1),purpose:z.literal('development_structured_requirement_review'),qualification:z.literal(false),
   cases:z.array(z.object({id:z.string().regex(/^[a-z][a-z0-9_-]{0,95}$/),expectedSupported:z.boolean(),
@@ -23,7 +24,7 @@ async function boundedFile(path) {
   }finally{await file.close();}
 }
 const safeCode=error=>/^[A-Z_]+$/.test(error?.code??error?.message??'')?error.code??error.message:'EVALUATION_INPUT_INVALID';
-if(process.argv.includes('--help'))console.log('Usage: node packages/catalogue/tools/evaluate-structured-review.mjs <manifest.json>\nOffline V1/V2/V3/V4/V5 source-inventory/claim comparison. No credentials, network, model calls or publication. Decision agreement is distinct from inventory accuracy and complete defect coverage.');
+if(process.argv.includes('--help'))console.log('Usage: node packages/catalogue/tools/evaluate-structured-review.mjs <manifest.json>\nOffline V1/V2/V3/V4/V5/V6 source-inventory/claim comparison. No credentials, network, model calls or publication. Decision agreement is distinct from inventory accuracy and complete defect coverage.');
 else{
   try{
     if(process.argv.length!==3)throw Error('EVALUATION_USAGE');
@@ -38,7 +39,8 @@ else{
         let bytes;try{bytes=await boundedFile(resolve(dirname(path),row.inventory));}
         catch(error){if(error.code!=='ENOENT')throw error;cases.push({id:row.id,status:'unavailable',code:'EVALUATION_INVENTORY_MISSING'});continue;}
         inventoryHash=digest(bytes);
-        const review=JSON.parse(bytes),compare=review.version===BOUNDED_LINE_REVIEW_VERSION?compareBoundedInventory:
+        const review=JSON.parse(bytes),compare=review.version===GUARDED_LINE_REVIEW_VERSION?compareGuardedInventory:
+          review.version===BOUNDED_LINE_REVIEW_VERSION?compareBoundedInventory:
           review.version===LINE_REQUIREMENT_REVIEW_VERSION?compareLineInventory:
           review.version===COMPILED_REQUIREMENT_REVIEW_VERSION?compareCompiledInventory:
           review.version===APPLICABILITY_REQUIREMENT_REVIEW_VERSION?compareApplicabilityInventory:compareRequirementInventory;
