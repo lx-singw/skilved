@@ -18,7 +18,7 @@ const body = `<p>Fictional Workshop seeks an electrical apprentice.</p>
 <a href="https://employer.example/apply">Apply now</a>`;
 const html = content => `<article class="type-post"><h1 class="entry-title">Fictional electrical apprentice</h1><div class="entry-content">${content}</div></article>`;
 const input = { html: html(body), url, sourceId: 'recentjobs', now };
-const env = { SKILVED_AI_MODE: 'gemini', GEMINI_API_KEY: 'synthetic_api_key_for_tests_only' };
+const env = { SKILVED_AI_MODE: 'gemini', SKILVED_AI_FALLBACK: 'false', GEMINI_API_KEY: 'synthetic_api_key_for_tests_only' };
 const absent = () => ({ state: 'not_stated', value: null, quote: null });
 const stated = (value, quote = value) => ({ state: 'stated', value, quote });
 function extracted() {

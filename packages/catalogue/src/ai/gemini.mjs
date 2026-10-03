@@ -6,6 +6,8 @@ import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } fr
 
 export const GEMINI_MODEL = 'gemini-3.8-flash';
 export const GEMINI_FLASH_LITE_MODEL = 'gemini-3.5-flash-lite';
+export const GEMINI_MODEL_CHAIN = Object.freeze([GEMINI_MODEL, 'gemini-3.7-flash', 'gemini-3.6-flash',
+  'gemini-3.5-flash', GEMINI_FLASH_LITE_MODEL, 'gemini-3.1-flash-lite']);
 const MAX_RESPONSE_BYTES = 256_000;
 export class ExtractionError extends DomainError {
   constructor(code, retryable = false, usage = null, providerStatus = null, retryAfterMs = null) {
@@ -18,11 +20,13 @@ export function extractionConfiguration(env = process.env) {
   if (!env.SKILVED_AI_MODE || env.SKILVED_AI_MODE === 'disabled') failure('AI_DISABLED');
   const model = env.SKILVED_AI_MODEL ?? GEMINI_MODEL;
   if (env.SKILVED_AI_MODE !== 'gemini' ||
-      ![GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL].includes(model) ||
+      !GEMINI_MODEL_CHAIN.includes(model) ||
+      !['true', 'false'].includes(env.SKILVED_AI_FALLBACK ?? 'true') ||
       !['low', 'medium'].includes(env.SKILVED_AI_THINKING ?? 'low') ||
       !env.GEMINI_API_KEY || !/^[A-Za-z0-9_.-]{20,200}$/.test(env.GEMINI_API_KEY)) failure('AI_CONFIGURATION_REQUIRED');
   return { model, thinking: env.SKILVED_AI_THINKING ?? 'low', apiKey: env.GEMINI_API_KEY,
-    maxOutputTokens: 8192, timeoutMs: 45_000 };
+    fallback: (env.SKILVED_AI_FALLBACK ?? 'true') === 'true',
+    maxOutputTokens: 8192, timeoutMs: 45_000, fallbackTimeoutMs: 90_000 };
 }
 
 const Usage = z.object({ promptTokenCount: z.number().int().nonnegative(),
@@ -53,21 +57,22 @@ async function boundedBody(response) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { failure('AI_INVALID_RESPONSE'); }
 }
 
-/** One call, no tools, redirects, ambient sessions, automatic retries or fallback model. */
-export async function extractWithGemini(candidate, { env = process.env, fetchImpl = globalThis.fetch } = {}) {
+/** Availability fallback retains the same evidence and extraction contract. */
+export async function extractWithGemini(candidate, options = {}) {
   const payload = { title: candidate.title, sourceText: candidate.sourceText,
     applicationCandidates: candidate.applicationCandidates.map(({ method, destination, originalText }) => ({ method, destination, originalText })) };
   return generateStructured(payload, { instruction: EXTRACTION_INSTRUCTION, schema: EXTRACTION_JSON_SCHEMA,
-    version: EXTRACTION_VERSION }, { env, fetchImpl });
+    version: EXTRACTION_VERSION }, options);
 }
 
 /** JSON-object mode requires caller-owned schema validation. A smaller explicit
- * token cap supports development comparisons without changing worker defaults. */
+ * token cap and fallback:false support fixed development comparisons. */
 export async function generateStructured(payload, { instruction, schema, version, outputMode = 'json_schema' },
-  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens } = {}) {
+  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens, fallback } = {}) {
   const config = extractionConfiguration(env);
+  const useFallback = fallback ?? config.fallback;
   const cap = maxOutputTokens ?? config.maxOutputTokens;
-  if (!['json_schema', 'json_object'].includes(outputMode) || !Number.isInteger(cap) || cap < 1 || cap > config.maxOutputTokens)
+  if (typeof useFallback !== 'boolean' || !['json_schema', 'json_object'].includes(outputMode) || !Number.isInteger(cap) || cap < 1 || cap > config.maxOutputTokens)
     failure('AI_CONFIGURATION_REQUIRED');
   const input = JSON.stringify(payload);
   if (Buffer.byteLength(input) > 96_000) failure('AI_INPUT_LIMIT');
@@ -79,7 +84,34 @@ export async function generateStructured(payload, { instruction, schema, version
     contents: [{ role: 'user', parts: [{ text: input }] }],
     generationConfig: { responseMimeType: 'application/json', ...(outputMode === 'json_schema' ? { responseJsonSchema: schema } : {}),
       maxOutputTokens: cap, thinkingConfig: { thinkingLevel: config.thinking.toUpperCase(), includeThoughts: false } } };
-  const requestHash = createHash('sha256').update(JSON.stringify({ model: config.model, request })).digest('hex');
+  const models = useFallback ? GEMINI_MODEL_CHAIN.slice(GEMINI_MODEL_CHAIN.indexOf(config.model)) : [config.model];
+  const attempts = [], deadline = Date.now() + (useFallback ? config.fallbackTimeoutMs : config.timeoutMs);
+  for (const model of models) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) {
+      const error = new ExtractionError('AI_TIMEOUT', true); error.attempts = attempts; throw error;
+    }
+    const requestHash = createHash('sha256').update(JSON.stringify({ model, request })).digest('hex');
+    try {
+      const result = await generateForModel(request, { ...config, model, timeoutMs: Math.min(config.timeoutMs, remainingMs) },
+        { fetchImpl, version, outputMode, requestHash });
+      if (useFallback) {
+        attempts.push({ model, requestHash, status: 'response', usage: result.provenance.usage });
+        Object.assign(result.provenance, { requestedModel: config.model, attempts });
+      }
+      return result;
+    } catch (error) {
+      attempts.push({ model, requestHash, status: 'error', code: error.code, providerStatus: error.providerStatus,
+        retryable: error.retryable, retryAfterMs: error.retryAfterMs, usage: error.usage });
+      if (useFallback) error.attempts = attempts;
+      const unavailable = ['AI_TIMEOUT', 'AI_TRANSPORT_FAILED', 'AI_RATE_LIMITED'].includes(error.code) ||
+        (error.code === 'AI_PROVIDER_REJECTED' && [404, 500, 502, 503, 504].includes(error.providerStatus));
+      if (!unavailable || model === models.at(-1)) throw error;
+    }
+  }
+}
+
+async function generateForModel(request, config, { fetchImpl, version, outputMode, requestHash }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   try {

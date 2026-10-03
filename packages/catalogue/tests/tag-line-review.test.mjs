@@ -128,9 +128,9 @@ test('Flash and Flash-Lite use identical tag request bodies and validation with 
   assert.notEqual(reviews[0].provenance.requestHash,reviews[1].provenance.requestHash);
 });
 
-test('Flash unavailability preserves provider diagnostics and never triggers a Lite fallback or retry',async()=>{
+test('fixed Flash comparison preserves provider diagnostics with fallback explicitly disabled',async()=>{
   let calls=0;
-  await assert.rejects(reviewTagSource(candidate,{env:{SKILVED_AI_MODE:'gemini',SKILVED_AI_MODEL:'gemini-3.8-flash',GEMINI_API_KEY:'synthetic_tag_comparison_key'},
+  await assert.rejects(reviewTagSource(candidate,{fallback:false,env:{SKILVED_AI_MODE:'gemini',SKILVED_AI_MODEL:'gemini-3.8-flash',GEMINI_API_KEY:'synthetic_tag_comparison_key'},
     fetchImpl:async(url)=>{calls++;assert.ok(url.endsWith('gemini-3.8-flash:generateContent'));
       return new Response('',{status:503,headers:{'Retry-After':'60'}});}}),
     error=>error.code==='AI_PROVIDER_REJECTED'&&error.providerStatus===503&&error.retryable===true&&error.retryAfterMs===60000&&error.usage===null);
