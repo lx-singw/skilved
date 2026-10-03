@@ -12,6 +12,7 @@
     "test:adapters": "node --test tests/recentjobs.test.mjs",
     "test:extraction": "node --test tests/extraction.test.mjs",
     "extract:recentjobs": "node tools/extract-recentjobs.mjs",
+    "plan:recentjobs": "node tools/plan-recentjobs-programmes.mjs",
     "worker:recentjobs": "node tools/run-recentjobs.mjs",
     "shadow:recentjobs": "node tools/shadow-recentjobs.mjs",
     "evaluate:recentjobs": "node tools/evaluate-recentjobs.mjs",

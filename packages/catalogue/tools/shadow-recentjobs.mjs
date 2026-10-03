@@ -52,7 +52,7 @@ else {
     await worker.ref('sources', source.id).set({json:JSON.stringify(source)});
     await worker.ref('workers', worker.actor).set({principal, active:true, sources:[source.id], roles:['ingest']});
     const result = await worker.run(source.id), records = {};
-    for (const name of ['sources','worker_jobs','worker_candidates','worker_exceptions','worker_decisions','model_cache','model_calls','model_budgets','drafts','public','snapshots']) {
+    for (const name of ['sources','worker_jobs','worker_programme_plans','worker_candidates','worker_exceptions','worker_decisions','model_cache','model_calls','model_budgets','drafts','public','snapshots']) {
       const rows = await runtime.db.collection(`m0_${name}`).get();
       records[name] = rows.docs.map(row => ({id:row.id, ...(row.data().json ? JSON.parse(row.data().json) : row.data())}));
     }

@@ -17,6 +17,7 @@ const payload = v => ({ json: JSON.stringify(v) });
 const value = s => s.exists ? JSON.parse(s.data().json) : null;
 const detailUrl = 'https://recentjobs.co.za/2026/09/26/fictional-apprentice/';
 const detailHtml = await readFile(new URL('./fixtures/recentjobs-synthetic.html', import.meta.url), 'utf8');
+const programmeHtml = await readFile(new URL('./fixtures/recentjobs-programmes.html',import.meta.url),'utf8');
 const listing = `<div class="articles-wrap"><article class="type-post"><h2 class="entry-title"><a href="${detailUrl}">Fictional apprentice</a></h2></article></div>`;
 const primaryHtml = (issuer = 'Fictional Workshop') => `<script type="application/ld+json">${JSON.stringify({ '@type': 'JobPosting',
   title: 'Electrical apprentice', hiringOrganization: { name: issuer }, validThrough: '2026-10-30',
@@ -300,6 +301,34 @@ test('multiple programme email destinations are held before model work even when
   const result=await f.worker.run(f.sourceId);
   assert.ok(result.results.some(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'));
   assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+});
+
+test('a shadow worker saves a source-bound programme plan linked to its exception without model calls or drafts',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const result=await f.worker.run(f.sourceId);assert.ok(result.results.some(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'));
+  const plans=(await db.collection('m0_worker_programme_plans').get()).docs.map(value).filter(p=>p.sourceId===f.sourceId);
+  assert.equal(plans.length,1);assert.equal(plans[0].plan.intakes.length,2);assert.equal(plans[0].plan.qualification,false);
+  const exception=value(await f.worker.ref('worker_exceptions',plans[0].jobId).get());
+  assert.equal(exception.programmePlanId,plans[0].jobId);assert.equal(exception.snapshotId,plans[0].snapshotId);
+  assert.equal((await f.worker.ref('snapshots',plans[0].snapshotId).get()).exists,true);
+  assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+  assert.equal((await f.worker.ref('drafts',exception.recordId).get()).exists,false);
+  assert.equal((await f.worker.ref('public',exception.recordId).get()).exists,false);
+  assert.equal(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')),true);
+});
+
+test('unsupported multi-route layouts save an explicit unsupported plan only in shadow mode',async()=>{
+  for(const mode of ['shadow','automatic']){
+    const f=await fixture({mode,employerCrawl:false});
+    f.state.html=detailHtml.replace('<a href="https://employer.example/apply">Apply now</a>','<p>Apply: electrical@employer.example</p><p>Apply: plumbing@employer.example</p>');
+    const result=await f.worker.run(f.sourceId);assert.ok(result.results.some(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'));
+    const plans=(await db.collection('m0_worker_programme_plans').get()).docs.map(value).filter(p=>p.sourceId===f.sourceId);
+    assert.equal(plans.length,mode==='shadow'?1:0);
+    if(plans.length){assert.equal(plans[0].plan.state,'unsupported');assert.deepEqual(plans[0].plan.intakes,[]);}
+    assert.equal(f.state.modelCalls,0);
+  }
 });
 
 test('physical submission alternatives require review even beside a qualified website route',async()=>{

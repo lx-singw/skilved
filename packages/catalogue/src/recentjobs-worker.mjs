@@ -7,6 +7,7 @@ import { Source } from './schemas.mjs';
 import { DomainError } from './config.mjs';
 import { retrieve } from './fetch.mjs';
 import { parseRecentJobsList, parseRecentJobsDetail } from './adapters/recentjobs.mjs';
+import { planRecentJobsProgrammes } from './adapters/recentjobs-programmes.mjs';
 import { parsePrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { mapExtraction, EXTRACTION_VERSION } from './ai/extraction.mjs';
 import { GROQ_MODEL } from './ai/groq.mjs';
@@ -217,6 +218,7 @@ export class RecentJobsWorker {
         tx.set(this.ref('worker_exceptions', claim.id), payload({ jobId: claim.id, sourceId: source.id,
           reason: code, stage: job.stage ?? job.kind, url: job.url, snapshotId: job.snapshotId ?? null,
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
+          programmePlanId:job.programmePlanId ?? null,
           attempts: job.attempts, at: this.now() }));
       }
       return { state: retry ? 'pending' : 'exception', reason: code };
@@ -279,6 +281,15 @@ export class RecentJobsWorker {
     const response = await this.request(claim, claim.url, 'html');
     const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
     const captured = await this.capture(claim, candidate);
+    if (claim.source.automation.mode === 'shadow' && candidate.applicationCandidates.length > 1) {
+      const plan = planRecentJobsProgrammes(candidate);
+      await this.transaction(claim.sourceId, 'worker.programme_plan', async (tx, source) => {
+        const job = await this.assertClaim(tx, source, claim);
+        tx.set(this.ref('worker_programme_plans', claim.id), payload({sourceId:source.id,jobId:claim.id,
+          snapshotId:captured.snapshotId,plan,at:this.now()}));
+        tx.set(this.ref('worker_jobs',claim.id),payload({...job,programmePlanId:claim.id}));
+      });
+    }
     const pendingRoute = preflightCandidate(claim.source, candidate, this.now());
     const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
