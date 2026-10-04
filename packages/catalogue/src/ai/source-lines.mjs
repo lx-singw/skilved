@@ -27,7 +27,7 @@ export function requirementLineNumbers(candidate) {
     line.trim() && !heading.test(line.trim()) && !connective.test(line.trim()) && !isPromotionalLine(line) ? [from + index + 1] : []));
 }
 
-export function uncoveredRequirementLines(candidate, extraction) {
+export function uncoveredRequirementLines(candidate, extraction, numbers = requirementLineNumbers(candidate)) {
   const corpus = `${candidate.title}\n${candidate.sourceText}`, lines = corpus.split('\n');
   const quotes = extraction.requirements.items.map(item => item.fact.quote).filter(Boolean);
   const unknownQuotes = node => node.op === 'unknown' ? [node.originalText]
@@ -42,7 +42,7 @@ export function uncoveredRequirementLines(candidate, extraction) {
   });
   let offset = 0;
   const positions = lines.map(line => { const at = offset; offset += line.length + 1; return [at, at + line.length]; });
-  return requirementLineNumbers(candidate).filter(number => {
+  return numbers.filter(number => {
     const [from, until] = positions[number - 1];
     return !covered.some(([start, end]) => start <= from && end >= until);
   });

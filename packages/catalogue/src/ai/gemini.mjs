@@ -1,13 +1,12 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { DomainError } from '../config.mjs';
+import { dailyQuotaFailure } from './gemini-quota.mjs';
 import { groqSchema } from './groq.mjs';
 import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } from './extraction.mjs';
 
-export const GEMINI_MODEL = 'gemini-3.8-flash';
-export const GEMINI_FLASH_LITE_MODEL = 'gemini-3.5-flash-lite';
-export const GEMINI_MODEL_CHAIN = Object.freeze([GEMINI_MODEL, 'gemini-3.7-flash', 'gemini-3.6-flash',
-  'gemini-3.5-flash', GEMINI_FLASH_LITE_MODEL, 'gemini-3.1-flash-lite']);
+import { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN } from './gemini-models.mjs';
+export { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN };
 const MAX_RESPONSE_BYTES = 256_000;
 export class ExtractionError extends DomainError {
   constructor(code, retryable = false, usage = null, providerStatus = null, retryAfterMs = null) {
@@ -138,12 +137,17 @@ async function generateForModel(request, config, { fetchImpl, version, outputMod
     const response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error', signal: controller.signal,
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey }, body: JSON.stringify(request) });
     if (!response.ok) {
-      await response.body?.cancel();
+      // Inspect only structured quota metadata. Never retain provider messages,
+      // quota values, IDs or raw responses in errors/receipts.
+      let daily=false;
+      if(response.status===429){try{daily=dailyQuotaFailure(await boundedBody(response),config.model);}catch{}}
+      else await response.body?.cancel();
       const retrySeconds = Number(response.headers.get('retry-after'));
       const retryAfterMs = response.headers.has('retry-after') && Number.isFinite(retrySeconds) && retrySeconds >= 0
         ? Math.min(retrySeconds * 1000, 86_400_000) : null;
-      failure(response.status === 429 ? 'AI_RATE_LIMITED' : 'AI_PROVIDER_REJECTED',
+      const error=new ExtractionError(response.status === 429 ? 'AI_RATE_LIMITED' : 'AI_PROVIDER_REJECTED',
         [429, 500, 502, 503, 504].includes(response.status), null, response.status, retryAfterMs);
+      if(daily)error.rateLimitKind='daily';throw error;
     }
     const body = await boundedBody(response), usage = usageOf(body.usageMetadata);
     if (body.promptFeedback?.blockReason || body.candidates?.length !== 1 || body.candidates[0].finishReason !== 'STOP')

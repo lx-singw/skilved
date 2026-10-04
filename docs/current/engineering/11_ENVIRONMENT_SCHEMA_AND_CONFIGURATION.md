@@ -47,6 +47,8 @@ Every configuration variable within Skilved must adhere to one of three sensitiv
 | `NODE_ENV` | `SERVER_RUNTIME` | `ACTIVE` | All workspaces | Enum: `development`, `test`, `production` | Defaults to `development` |
 | `NEXT_TELEMETRY_DISABLED` | `SERVER_RUNTIME` | `ACTIVE` | `@skilved/web`, CI | String: `1` or `0` | Defaults to `1` (telemetry disabled) |
 | `PORT` | `SERVER_RUNTIME` | `ACTIVE` | `@skilved/web` | Integer port (1–65535) | Defaults to `3000` (`3001` for prototype) |
+| `SKILVED_GEMINI_PROJECT_ID` | `SERVER_RUNTIME` | `ACTIVE` | Gemini RecentJobs worker | Optional Google project ID; identical for keys sharing a project | Blank hashes the API key for same-key sharing only |
+| `SKILVED_GEMINI_MODEL_LIMITS` | `SERVER_RUNTIME` | `ACTIVE` | Gemini RecentJobs worker | JSON keyed by supported model IDs, optional positive integer `rpm`/`tpm`/`rpd` | `{}`; counters and provider exhaustion holds remain active without guessed quotas |
 | `GCP_PROJECT_ID` | `SERVER_RUNTIME` | `RESERVED` | Server | Valid GCP project ID string | Defaults to `skilved-dev` |
 | `GCP_REGION` | `SERVER_RUNTIME` | `RESERVED` | Server | GCP region string (e.g. `africa-south1`) | Defaults to `africa-south1` |
 | `FIREBASE_PROJECT_ID` | `SERVER_RUNTIME` | `RESERVED` | Server SDKs | Valid Firebase project ID | Defaults to `skilved-dev` |

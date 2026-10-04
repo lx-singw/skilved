@@ -774,3 +774,86 @@ test('unsupported location metadata stops programme worker before candidate stor
  const candidates=(await db.collection('m0_worker_programme_candidates').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(candidates.length,0);
  const decisions=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(decisions.length,2);assert.ok(decisions.every(r=>r.reason==='AI_LOCATION_EVIDENCE_UNRESOLVED'));
 });
+
+const quotaResponse = (_url,init) => {
+  const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+  return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]}:compactWire());
+};
+const quotaFixture = () => fixture({mode:'shadow',publisher:false,employerCrawl:false});
+const quotaOptions = (project,fetchImpl,limits={}) => ({...geminiOptions(fetchImpl),env:{...geminiEnv,SKILVED_GEMINI_PROJECT_ID:project,SKILVED_GEMINI_MODEL_LIMITS:JSON.stringify(limits)}});
+const quotaRows = async (worker,name) => (await db.collection('m0_'+name).get()).docs.map(value).filter(r=>r.scopeHash===worker.quotaScope);
+
+test('daily provider exhaustion is shared across sources and keys, survives restart and expires at Pacific reset',async()=>{
+  const project=`authored-${randomUUID()}`, f=await quotaFixture(),g=await quotaFixture(),requests=[];
+  let exhausted=false;
+  const options=quotaOptions(project,async(url,init)=>{
+    const model=url.split('/models/')[1].split(':')[0];requests.push(model);
+    if(model==='gemini-3.8-flash'&&!exhausted){exhausted=true;return Response.json({error:{details:[{'@type':'type.googleapis.com/google.rpc.QuotaFailure',violations:[{quotaId:'GenerateRequestsPerDayPerProjectPerModel-FreeTier',quotaDimensions:{model}}]}]}},{status:429});}
+    return quotaResponse(url,init);
+  });
+  const worker=f.restart(options);assert.ok(detailResult(await worker.run(f.sourceId)));
+  assert.deepEqual(requests,['gemini-3.8-flash','gemini-3.7-flash','gemini-3.7-flash']);
+  const hold=value(await worker.ref('model_availability',worker.modelAvailabilityId('gemini-3.8-flash')).get());
+  assert.equal(hold.reason,'provider_daily_exhaustion');assert.equal(hold.until,'2026-09-27T07:00:00.000Z');
+  const otherOptions={...options,env:{...options.env,GEMINI_API_KEY:'another_authored_key'}};
+  const restarted=g.restart(otherOptions);assert.ok(detailResult(await restarted.run(g.sourceId)));
+  assert.deepEqual(requests.slice(3),['gemini-3.7-flash','gemini-3.7-flash']);
+  const rows=await quotaRows(worker,'model_usage'),failed=rows.find(r=>r.model==='gemini-3.8-flash');
+  assert.equal(failed.requests,1);assert.equal(failed.unknownUsageCalls,1);assert.equal(failed.knownTotalTokens,0);
+  const success=rows.find(r=>r.model==='gemini-3.7-flash');assert.equal(success.requests,4);assert.equal(success.knownInputTokens,40);assert.equal(success.knownTotalTokens,60);
+  const budgets=(await db.collection('m0_model_budgets').get()).docs.map(value).filter(r=>r.sourceId===g.sourceId);assert.equal(budgets[0].calls,2);
+  const h=await quotaFixture();h.advance(21*3600000);assert.ok(detailResult(await h.restart(otherOptions).run(h.sourceId)));
+  assert.deepEqual(requests.slice(5),['gemini-3.8-flash','gemini-3.8-flash']);
+  assert.equal((await quotaRows(worker,'model_usage')).find(r=>r.model==='gemini-3.8-flash'&&r.date==='2026-09-27').requests,2);
+});
+
+test('operator daily hold skips a known exhausted model without reserving requests or spending budgets',async()=>{
+  const f=await quotaFixture(),g=await quotaFixture(),requests=[];
+  const options=quotaOptions(`authored-${randomUUID()}`,async(url,init)=>{requests.push(url.split('/models/')[1].split(':')[0]);return quotaResponse(url,init);});
+  const worker=f.restart(options);await worker.holdModelForDay(f.sourceId,'gemini-3.8-flash');
+  assert.ok(detailResult(await g.restart(options).run(g.sourceId)));
+  assert.deepEqual(requests,['gemini-3.7-flash','gemini-3.7-flash']);
+  assert.ok((await quotaRows(worker,'model_usage')).every(r=>r.model!=='gemini-3.8-flash'));
+  await worker.ref('workers',worker.actor).update({active:false});
+  await assert.rejects(worker.holdModelForDay(f.sourceId,'gemini-3.7-flash'),/WORKER_FORBIDDEN/);
+});
+
+test('configured daily request reservations skip that model across jobs, including concurrent claims',async()=>{
+  const f=await quotaFixture(),g=await quotaFixture(),options=quotaOptions(`authored-${randomUUID()}`,quotaResponse,{'gemini-3.8-flash':{rpd:1}});
+  const workers=[f.restart(options),g.restart(options)];
+  const claims=await Promise.all(workers.map((w,i)=>w.schedule([f,g][i].sourceId).then(id=>w.claim([f,g][i].sourceId,id))));
+  let sends=0;
+  const results=await Promise.allSettled(workers.map((w,i)=>w.modelCall(claims[i],'extraction',async()=>{sends++;return {provenance:{usage:{inputTokens:10,totalTokens:15}}};},{model:'gemini-3.8-flash'})));
+  assert.equal(sends,1);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  const error=results.find(r=>r.status==='rejected').reason;assert.equal(error.code,'AI_RATE_LIMITED');assert.equal(error.rateLimitKind,'daily');
+  assert.equal((await quotaRows(workers[0],'model_usage'))[0].requests,1);
+  const budgets=(await db.collection('m0_model_budgets').get()).docs.map(value).filter(r=>[f.sourceId,g.sourceId].includes(r.sourceId));assert.equal(budgets.reduce((n,b)=>n+b.calls,0),1);
+});
+
+test('shared rolling minute request and known token counters release across worker restarts',async()=>{
+  for(const limits of [{rpm:1},{tpm:10}]){
+    const f=await quotaFixture(),g=await quotaFixture(),requests=[];
+    const options=quotaOptions(`authored-${randomUUID()}`,async(url,init)=>{requests.push(url.split('/models/')[1].split(':')[0]);return quotaResponse(url,init);},{'gemini-3.8-flash':limits});
+    assert.ok(detailResult(await f.restart(options).run(f.sourceId)));
+    assert.deepEqual(requests,['gemini-3.8-flash','gemini-3.7-flash']);
+    assert.ok(detailResult(await g.restart(options).run(g.sourceId)));
+    assert.deepEqual(requests.slice(2),['gemini-3.7-flash','gemini-3.7-flash']);
+    const h=await quotaFixture();h.advance(60000);assert.ok(detailResult(await h.restart(options).run(h.sourceId)));
+    assert.equal(requests[4],'gemini-3.8-flash');
+    const usage=(await quotaRows(h.restart(options),'model_usage')).find(r=>r.model==='gemini-3.8-flash');assert.equal(usage.requests,2);assert.equal(usage.minute.length,1);
+  }
+});
+
+test('rolling request limits remain active through a Pacific daily reset',async()=>{
+  const f=await quotaFixture(),g=await quotaFixture();
+  f.advance(Date.parse('2026-09-27T06:59:45.000Z')-Date.parse(f.now()));
+  g.advance(Date.parse('2026-09-27T07:00:01.000Z')-Date.parse(g.now()));
+  const options=quotaOptions(`authored-${randomUUID()}`,quotaResponse,{'gemini-3.8-flash':{rpm:1}}),a=f.restart(options),b=g.restart(options);
+  const claimA=await a.claim(f.sourceId,await a.schedule(f.sourceId)),claimB=await b.claim(g.sourceId,await b.schedule(g.sourceId));let sends=0;
+  const work=async()=>{sends++;return {provenance:{usage:{inputTokens:10,totalTokens:15}}};};
+  await a.modelCall(claimA,'extraction',work,{model:'gemini-3.8-flash'});
+  await assert.rejects(b.modelCall(claimB,'extraction',work,{model:'gemini-3.8-flash'}),error=>error.code==='AI_RATE_LIMITED'&&error.rateLimitKind==='minute');
+  assert.equal(sends,1);g.advance(44000);
+  await b.modelCall(claimB,'extraction',work,{model:'gemini-3.8-flash'});assert.equal(sends,2);
+  const rows=await quotaRows(a,'model_usage');assert.equal(rows.length,2);assert.ok(rows.every(r=>r.requests===1));
+});

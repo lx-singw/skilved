@@ -5,7 +5,8 @@ import { CompensationSchema } from '@skilved/types/opportunities';
 import { LocationSchema } from '@skilved/types/opportunities/internal';
 import { ExtractionSchema, EXTRACTION_VERSION } from './extraction.mjs';
 import { DomainError } from '../config.mjs';
-import { requirementLineNumbers, promotionalLineNumbers } from './source-lines.mjs';
+import { promotionalLineNumbers } from './source-lines.mjs';
+import { requirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,96}$/);
 const text = z.string().min(1).max(4000);
@@ -65,7 +66,7 @@ A list introduced by one of the following is ANY.
 Separate alternatives into items; subjects required together stay in the same item's span as their qualification.
 Example: Grade 12 with Maths OR N3 with Maths and Science means two items under ANY, not three independent subject alternatives.
 If source logic is genuinely unclear use "unknown(firstLine,lastLine)" citing its actual line numbers and empty items.
-Do not use unknown to avoid a clear list of alternatives.${LOCATION_EVIDENCE_INSTRUCTION}`;
+Do not use unknown to avoid a clear list of alternatives.${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}`;
 
 function sourceLines(candidate) {
   if (typeof candidate?.title !== 'string' || typeof candidate?.sourceText !== 'string') throw new DomainError('AI_INVALID_SOURCE');
@@ -75,7 +76,8 @@ function sourceLines(candidate) {
 }
 export function groqExtractionPayload(candidate) {
   return { sourceLines: sourceLines(candidate).map((line, index) => `${index + 1}: ${line}`).join('\n'),
-    requiredLineNumbers: requirementLineNumbers(candidate),
+    requiredLineNumbers: requirementSourcePolicy(candidate).requiredLineNumbers,
+    requirementSourcePolicy: requirementSourcePolicy(candidate),
     excludedPromotionalLineNumbers: promotionalLineNumbers(candidate),
     applicationCandidates: candidate.applicationCandidates.map(({ method, destination, originalText }) => ({ method, destination, originalText })) };
 }

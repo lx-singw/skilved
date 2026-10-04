@@ -10,6 +10,8 @@ Requires explicit catalogue/AI configuration, a registered recentjobs_html sourc
 server-owned m0_workers grant for the verified service-account principal. No role bootstrap.
 Cloud uses ADC workload ID tokens. Emulator requires SKILVED_WORKER_EMULATOR_IDENTITY=synthetic-worker@example.test.
 The source's automation.mode selects shadow or automatic publication. Source pause wins.
+Gemini quota tracking shares project/model reservations via SKILVED_GEMINI_PROJECT_ID;
+SKILVED_GEMINI_MODEL_LIMITS optionally supplies JSON rpm/tpm/rpd limits.
 No scheduled cloud resources are provisioned by this command. See the autonomous pipeline document.`);
 } else {
   let runtime;

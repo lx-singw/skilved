@@ -19,6 +19,7 @@ import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
 import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs';
 import { validateExtraction, validateAssessment, validationPayload, VALIDATION_VERSION } from './ai/validation.mjs';
+import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,recentGeminiUsage,mergeGeminiMinuteUsage,geminiUsageDelay } from './ai/gemini-quota.mjs';
 import { RECENTJOBS_INDEX, assertSourceTarget, approvedIssuer, preflightCandidate, publicationGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
@@ -49,6 +50,7 @@ export class RecentJobsWorker {
     model ??= provider === 'gemini' ? GEMINI_MODEL : GROQ_MODEL;
     if (!(provider === 'gemini' ? GEMINI_MODEL_CHAIN : [GROQ_MODEL, 'openai/gpt-oss-20b']).includes(model)) fail('AI_CONFIGURATION_REQUIRED'); this.model = model;
     if (provider === 'gemini' && !['true','false'].includes(env.SKILVED_AI_FALLBACK ?? 'true')) fail('AI_CONFIGURATION_REQUIRED');
+    this.quotaScope=provider==='gemini'?geminiQuotaScope(env):null;this.quotaLimits=provider==='gemini'?geminiQuotaLimits(env):{};
     this.env = {...env}; this.fallback = (env.SKILVED_AI_FALLBACK ?? 'true') === 'true';
     if (typeof programmeExtraction !== 'boolean' || programmeExtraction && extractionMode !== 'single') fail('AI_CONFIGURATION_REQUIRED');
     this.programmeExtraction=programmeExtraction;this.programmeExtractor=programmeExtractor;this.programmeValidator=programmeValidator;
@@ -152,41 +154,77 @@ export class RecentJobsWorker {
       runAttempt:(attempt, send) => this.modelCall(claim, stage, send, attempt)});
     return this.modelCall(claim, stage, () => work(options));
   }
+  modelAvailabilityId(model) { return hash(`${this.quotaScope}:${model}`); }
+  async holdModelForDay(sourceId,model) {
+    if(this.provider!=='gemini'||!GEMINI_MODEL_CHAIN.includes(model))fail('AI_CONFIGURATION_REQUIRED');
+    return this.transaction(sourceId,'worker.model.daily_hold',async tx=>{
+      const ref=this.ref('model_availability',this.modelAvailabilityId(model)),previous=value(await tx.get(ref));
+      const until=new Date(Math.max(Date.parse(nextGeminiQuotaReset(this.now())),Date.parse(previous?.until??0)||0)).toISOString();
+      tx.set(ref,payload({scopeHash:this.quotaScope,provider:'gemini',model,until,reason:'operator_daily_exhaustion'}));return until;
+    });
+  }
   async modelCall(claim, stage, work, attempt = {}) {
+    const callId=randomUUID(),at=this.now(),quotaDate=this.provider==='gemini'?geminiQuotaDay(at):null;
+    const usageId=this.provider==='gemini'?hash(`${this.quotaScope}:${attempt.model}:${quotaDate}`):null;
     await this.transaction(claim.sourceId, 'worker.model.reserve', async (tx, source) => {
       const job = await this.assertClaim(tx, source, claim);
       const id = hash(`${source.id}:${dayInSA(this.now())}`), ref = this.ref('model_budgets', id);
       const budget = value(await tx.get(ref)) ?? { sourceId: source.id, date: dayInSA(this.now()), calls: 0 };
+      let usage=null,blocked=null;
+      if(this.provider==='gemini'){
+        const availability=value(await tx.get(this.ref('model_availability',this.modelAvailabilityId(attempt.model))));
+        usage=value(await tx.get(this.ref('model_usage',usageId)))??{scopeHash:this.quotaScope,provider:'gemini',model:attempt.model,date:quotaDate,requests:0,knownInputTokens:0,knownTotalTokens:0,unknownUsageCalls:0,minute:[]};
+        // A provider-day reset does not reset a rolling minute window. Carry
+        // recent reservations from the preceding day, deduplicated by call ID.
+        const minuteDate=geminiQuotaDay(new Date(Date.parse(at)-60000).toISOString());
+        if(minuteDate!==quotaDate){
+          const previous=value(await tx.get(this.ref('model_usage',hash(`${this.quotaScope}:${attempt.model}:${minuteDate}`))));
+          usage={...usage,minute:mergeGeminiMinuteUsage(previous??{},usage,at)};
+        }
+        blocked=availability?.until>this.now()?{until:availability.until,kind:'daily'}:geminiUsageDelay(usage,this.quotaLimits[attempt.model],this.now());
+      }
       const nextCallAt = this.provider === 'gemini' ? budget.nextCallByModel?.[attempt.model] : budget.nextCallAt;
-      if (nextCallAt > this.now()) {
+      if (blocked || nextCallAt > this.now()) {
         const error = new DomainError('AI_RATE_LIMITED'); error.retryable = true;
-        error.retryAfterMs = Date.parse(nextCallAt) - Date.parse(this.now()); throw error;
+        error.retryAfterMs = Date.parse(blocked?.until??nextCallAt) - Date.parse(this.now());
+        if(blocked)error.rateLimitKind=blocked.kind;throw error;
       }
       if (budget.calls >= source.automation.maxModelCallsPerDay) fail('MODEL_BUDGET_EXHAUSTED');
+      if(usage)tx.set(this.ref('model_usage',usageId),payload({...usage,requests:usage.requests+1,minute:[...recentGeminiUsage(usage,this.now()),{id:callId,at,inputTokens:null}]}));
       tx.set(ref, payload({ ...budget, calls: budget.calls + 1 }));
       tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, stage }));
     });
     let result, error;
     try { result = await work(); } catch (caught) { error = caught; }
+    const daily=this.provider==='gemini'&&error?.code==='AI_RATE_LIMITED'&&error.rateLimitKind==='daily';
     const unavailable = this.provider === 'gemini' && error?.code === 'AI_PROVIDER_REJECTED' &&
       [404,500,502,503,504].includes(error.providerStatus);
     if (unavailable) error.retryAfterMs = Math.max(GEMINI_UNAVAILABLE_MS,error.retryAfterMs ?? 0);
-    // Reserve is not refunded on failure/crash: the provider may already have billed.
+    if(daily)error.retryAfterMs=Math.max(Date.parse(nextGeminiQuotaReset(this.now()))-Date.parse(this.now()),error.retryAfterMs??0);
+    // Source spending and shared quota reservations are not refunded on failure.
     await this.transaction(claim.sourceId, 'worker.model.result', async (tx, source) => {
       await this.assertClaim(tx, source, claim);
       const budgetRef = this.ref('model_budgets', hash(`${source.id}:${dayInSA(this.now())}`));
       const budget = error?.code === 'AI_RATE_LIMITED' || unavailable ? value(await tx.get(budgetRef)) : null;
+      const usage=this.provider==='gemini'?value(await tx.get(this.ref('model_usage',usageId))):null;
+      const availability=daily?value(await tx.get(this.ref('model_availability',this.modelAvailabilityId(attempt.model)))):null;
+      const receivedUsage=result?.provenance?.usage??error?.usage??null;
+      if(usage)tx.set(this.ref('model_usage',usageId),payload({...usage,
+        knownInputTokens:usage.knownInputTokens+(receivedUsage?.inputTokens??0),knownTotalTokens:usage.knownTotalTokens+(receivedUsage?.totalTokens??0),
+        unknownUsageCalls:usage.unknownUsageCalls+(receivedUsage===null?1:0),
+        minute:recentGeminiUsage(usage,this.now()).map(row=>row.id===callId?{...row,inputTokens:receivedUsage?.inputTokens??null}:row)}));
+      if(daily)tx.set(this.ref('model_availability',this.modelAvailabilityId(attempt.model)),payload({scopeHash:this.quotaScope,provider:'gemini',model:attempt.model,
+        until:new Date(Math.max(Date.parse(availability?.until??0)||0,Date.parse(this.now())+error.retryAfterMs)).toISOString(),reason:'provider_daily_exhaustion'}));
       if (budget) {
         const until = new Date(Date.parse(this.now()) + Math.max(60000, error.retryAfterMs ?? 0)).toISOString();
         tx.set(budgetRef, payload({...budget, ...(this.provider === 'gemini'
           ? {nextCallByModel:{...budget.nextCallByModel, [attempt.model]:until}} : {nextCallAt:until})}));
       }
-      tx.create(this.ref('model_calls', randomUUID()), payload({ jobId: claim.id, sourceId: source.id, stage,
-        state: error ? 'failed' : 'received', usage: result?.provenance?.usage ?? error?.usage ?? null,
-        at: this.now(), error: error?.code ?? null,
-        provider:this.provider, model:attempt.model ?? this.model,
-        requestHash:attempt.requestHash ?? result?.provenance?.requestHash ?? null,
-        providerStatus: Number.isInteger(error?.providerStatus) ? error.providerStatus : null }));
+      tx.create(this.ref('model_calls', callId), payload({ jobId: claim.id, sourceId: source.id, stage,
+        state: error ? 'failed' : 'received', usage: receivedUsage,at:this.now(),error:error?.code??null,
+        provider:this.provider,model:attempt.model??this.model,rateLimitKind:error?.rateLimitKind??null,
+        requestHash:attempt.requestHash??result?.provenance?.requestHash??null,
+        providerStatus:Number.isInteger(error?.providerStatus)?error.providerStatus:null }));
     });
     if (error) throw error;
     return result;
