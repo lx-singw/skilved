@@ -8,7 +8,7 @@ import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION } from './locatio
 import { isPromotionalLine } from './source-lines.mjs';
 import { assertRequirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v7';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v8';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()

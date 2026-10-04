@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LOCATION_EVIDENCE_INSTRUCTION } from './location-evidence.mjs';
+import { LOCATION_EVIDENCE_INSTRUCTION, locationEvidenceHints } from './location-evidence.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { CompensationSchema } from '@skilved/types/opportunities';
 import { LocationSchema } from '@skilved/types/opportunities/internal';
@@ -81,6 +81,7 @@ export function groqExtractionPayload(candidate) {
   return { sourceLines: sourceLines(candidate).map((line, index) => `${index + 1}: ${line}`).join('\n'),
     requiredLineNumbers: requirementSourcePolicy(candidate).requiredLineNumbers,
     requirementSourcePolicy: requirementSourcePolicy(candidate),
+    locationEvidenceHints: locationEvidenceHints(candidate),
     excludedPromotionalLineNumbers: promotionalLineNumbers(candidate),
     applicationCandidates: candidate.applicationCandidates.map(({ method, destination, originalText }) => ({ method, destination, originalText })) };
 }

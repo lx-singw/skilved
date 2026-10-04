@@ -1,7 +1,7 @@
 import {DomainError} from '../config.mjs';
 import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v1';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v2';
 export const REQUIREMENT_SOURCE_INSTRUCTION=`
 requirementSourcePolicy lists code-recognised bounded source passages, not new requirements.
 Cover every listed line with its original requirement passage or exact unknown logic.
@@ -11,6 +11,10 @@ A conditional hint such as if applicable has no defined predicate. Do not call i
 unconditionally required. Preserve its full passage as an ambiguous/conflicting requirement item
 with level unclear, or unknown(firstLine,lastLine) without a confident item for that passage.
 Do not invent a predicate to build IF logic. Unknown logic stops publication rather than guessing.
+completeRequirementSpans are recognised COMPLETE conditions. Keep the entire span in ONE item.
+Assessment components belong to the assessment condition, never standalone eligibility items.
+An unqualified Valid passport profile line is a held credential (kind other), not citizenship or a submission document.
+Document sections still use kind document for documents to submit.
 Headings, preparation labels and editorial explanations are context, not requirement items.`;
 const label=text=>text.trim().replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s·•]+/u,'');
 const required=/^(?:minimum requirements|requirements|qualifications and experience required|minimum qualifications|entry requirements)\s*:?$/i;
@@ -44,10 +48,24 @@ export function requirementSourcePolicy(candidate) {
    if(!text||connective.test(text)||preferenceIntro.test(text)||blankForm(text))continue;
    if(candidate.programmeScope&&/\bfor WIL applicants\b/i.test(text))continue;
    if(section.kind==='documents'&&(documentAcceptance.test(text)||documentList.test(text)))level='required';
-   lineHints.push({line:index+1,level:conditional?'unclear':level,kind:section.kind==='documents'?'document':null,conditional});
+   lineHints.push({line:index+1,level:conditional?'unclear':level,kind:section.kind==='documents'?'document':/^Valid passport[.]?$/i.test(text)?'other':null,conditional});
   }
  }
- return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints};
+ const completeRequirementSpans=[];
+ for(const section of sections){
+  if(section.kind==='documents')continue;
+  for(let index=section.start;index+2<section.until;index++){
+   if(!/^Pass .{0,100}\b(?:technical|aptitude) assessment, including:$/i.test(label(lines[index])))continue;
+   const components=[label(lines[index+1]),label(lines[index+2])];
+   if(!components.every(text=>/^(?:Numeracy|Literacy)$/i.test(text))||new Set(components.map(text=>text.toLowerCase())).size!==2)continue;
+   // Without HTML nesting, recognise only this closed pair followed by a
+   // separate explicit applicant condition or the bounded section end.
+   const after=index+3;
+   if(after!==section.until&&!/^(?:Valid\b|Be able\b|Be prepared\b|Live within\b|Hold\b|Have\b|Applicants? must\b|Grade \d+\b|N\d+\b|NCV\b)/i.test(label(lines[after])))continue;
+   completeRequirementSpans.push({span:[index+1,index+3],kind:'other'});
+  }
+ }
+ return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans};
 }
 const unknownPassages=node=>node.op==='unknown'?[node.originalText]:node.children?node.children.flatMap(unknownPassages):node.op==='if'?[...unknownPassages(node.then),...(node.otherwise?unknownPassages(node.otherwise):[])]:[];
 export function assertRequirementSourcePolicy(candidate,extraction) {
@@ -59,6 +77,12 @@ export function assertRequirementSourcePolicy(candidate,extraction) {
   if(hint.conditional){
    if(items.some(i=>i.level!=='unclear'||!['ambiguous','conflicting'].includes(i.fact.state)) || !items.length&&!unknown.some(q=>q.split('\n').includes(text)))throw new DomainError('AI_CONDITIONAL_REQUIREMENT_UNRESOLVED');
   }else if(['required','preferred'].includes(hint.level)&&items.some(i=>i.level!==hint.level))throw new DomainError('AI_REQUIREMENT_LEVEL_UNRESOLVED');
-  if(hint.kind&&items.some(i=>i.kind!==hint.kind))throw new DomainError('AI_DOCUMENT_REQUIREMENT_UNRESOLVED');
+  if(hint.kind&&items.some(i=>i.kind!==hint.kind))throw new DomainError(hint.kind==='document'?'AI_DOCUMENT_REQUIREMENT_UNRESOLVED':'AI_REQUIREMENT_KIND_UNRESOLVED');
+ }
+ for(const group of policy.completeRequirementSpans){
+  const passage=lines.slice(group.span[0]-1,group.span[1]).join('\n'),members=passage.split('\n');
+  const items=extraction.requirements.items.filter(i=>i.fact.quote?.split('\n').some(line=>members.includes(line)));
+  if(items.some(i=>!i.fact.quote.includes(passage))||!items.length&&!unknown.some(q=>q.includes(passage)))throw new DomainError('AI_REQUIREMENT_GROUP_UNRESOLVED');
+  if(items.some(i=>i.kind!==group.kind))throw new DomainError('AI_REQUIREMENT_KIND_UNRESOLVED');
  }
 }

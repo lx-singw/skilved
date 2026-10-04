@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assertLocationEvidence} from '../src/ai/location-evidence.mjs';
+import {assertLocationEvidence,locationEvidenceHints} from '../src/ai/location-evidence.mjs';
 const fact=(quote,patch={})=>({state:'stated',quote,value:{places:[{country:null,province:null,city:'Polokwane'}],coverage:'not_stated',attendance:'not_stated',relocation:null,...patch}});
 
 test('a city alone cannot establish province, country, coverage or attendance',()=>{
@@ -36,4 +36,17 @@ test('explicit all-province location labels support coverage without inventing a
  for(const quote of ['Locations: All provinces','Locations\nAll provinces'])assert.doesNotThrow(()=>assertLocationEvidence(fact(quote,{places:[],coverage:'national'})));
  assert.throws(()=>assertLocationEvidence(fact('Applicants from all provinces may ask for information.',{places:[],coverage:'national'})),/AI_LOCATION_EVIDENCE_UNRESOLVED/);
  assert.throws(()=>assertLocationEvidence(fact('Locations\nAll provinces',{places:[{city:null,province:null,country:'ZA'}],coverage:'national'})),/AI_LOCATION_EVIDENCE_UNRESOLVED/);
+});
+
+test('location hints retain full labelled source spans without rewriting an incomplete returned quote',()=>{
+ const candidate={title:'Authored apprenticeship',sourceText:'Locations\nAll provinces\nWork mode: hybrid'};
+ assert.deepEqual(locationEvidenceHints(candidate),[{field:'coverage',span:[2,3],value:'national'},{field:'attendance',span:[4,4],value:'hybrid'}]);
+ const incomplete=fact('All provinces',{places:[],coverage:'national'}),before=JSON.stringify(incomplete);
+ assert.throws(()=>assertLocationEvidence(incomplete),/AI_LOCATION_EVIDENCE_UNRESOLVED/);assert.equal(JSON.stringify(incomplete),before);
+ assert.doesNotThrow(()=>assertLocationEvidence(fact('Locations\nAll provinces\nWork mode: hybrid',{places:[],coverage:'national',attendance:'hybrid'})));
+});
+
+test('location hints abstain on conflicting or unsupported labels and never infer geography',()=>{
+ for(const sourceText of ['Location: Polokwane','All provinces','Locations\n\nAll provinces','Coverage: national or international','Coverage: national\nRecruitment scope: not national','Coverage: local\nCoverage: national','Work mode: remote\nAttendance: hybrid'])assert.deepEqual(locationEvidenceHints({title:'Authored',sourceText}),[]);
+ assert.deepEqual(locationEvidenceHints({title:'Authored',sourceText:'Location: Polokwane\nCoverage: national\nWork mode: not remote'}),[{field:'coverage',span:[3,3],value:'national'}]);
 });
