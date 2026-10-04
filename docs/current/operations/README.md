@@ -62,6 +62,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Zurel Fitting completion, preserved receipts and source-evidence limits](61_ZUREL_FITTING_COMPLETION_AND_SOURCE_EVIDENCE_LIMITS_2026-10-04.md)
 - [Source-bound location metadata and fresh Bell requirement coverage hold](62_SOURCE_BOUND_LOCATION_METADATA_AND_BELL_COVERAGE_HOLD_2026-10-04.md)
 - [Shared Gemini quota memory and requirement boundaries](63_SHARED_GEMINI_QUOTA_MEMORY_AND_REQUIREMENT_BOUNDARIES_2026-10-04.md)
+- [Ordinary data-object adherence and Bell evidence hold](64_ORDINARY_DATA_OBJECT_ADHERENCE_AND_BELL_EVIDENCE_HOLD_2026-10-04.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

@@ -1,7 +1,8 @@
 import * as groq from './groq.mjs';
 import * as gemini from './gemini.mjs';
 import {groqExtractionPayload, GROQ_EXTRACTION_SCHEMA, GROQ_EXTRACTION_INSTRUCTION,
-  GROQ_EXTRACTION_VERSION, decodeGroqExtraction} from './groq-schema.mjs';
+  GROQ_EXTRACTION_VERSION, GroqExtractionSchema, decodeGroqExtraction} from './groq-schema.mjs';
+import {rejectedOutputDiagnostic} from './rejected-output.mjs';
 
 export function extractionConfiguration(env = process.env) {
   return (env.SKILVED_AI_MODE === 'gemini' ? gemini : groq).extractionConfiguration(env);
@@ -20,5 +21,11 @@ export async function extractWithProvider(candidate, options = {}) {
   const result = await generateStructured(groqExtractionPayload(candidate),
     {instruction:GROQ_EXTRACTION_INSTRUCTION, schema:GROQ_EXTRACTION_SCHEMA, version:GROQ_EXTRACTION_VERSION}, options);
   try { return {...result, extraction:decodeGroqExtraction(result.extraction, candidate)}; }
-  catch (error) { error.usage = result.provenance.usage; throw error; }
+  catch (error) {
+    error.usage = result.provenance.usage;
+    if (error.code === 'AI_INVALID_EXTRACTION' && !GroqExtractionSchema.safeParse(result.extraction).success) {
+      error.outputDiagnostic = rejectedOutputDiagnostic(JSON.stringify(result.extraction), GROQ_EXTRACTION_SCHEMA);
+    }
+    throw error;
+  }
 }

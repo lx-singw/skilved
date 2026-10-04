@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import {extractWithProvider} from '../src/ai/provider.mjs';
 import assert from 'node:assert/strict';
 import { extractWithGroq, extractionConfiguration, GROQ_MODEL } from '../src/ai/groq.mjs';
 import { decodeGroqExtraction, groqExtractionPayload } from '../src/ai/groq-schema.mjs';
@@ -163,4 +164,41 @@ test('large bodies and timeouts fail closed; missing usage remains unknown', asy
   }) });
   t.mock.timers.tick(45000);
   await assert.rejects(pending, e => e.code === 'AI_TIMEOUT' && e.retryable);
+});
+
+const geminiEnv={SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_ordinary_shape_key'};
+const geminiAnswer=data=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
+
+test('ordinary schema-keyword echoes fail unchanged without semantic fallback or private-value diagnostics',async()=>{
+  for(const data of [{...wire(),type:'object',private_model_key:'private value'},{...wire(),issuer:{...wire().issuer,type:'string',private_nested_key:'private value'}}]){
+    const before=JSON.stringify(data);let calls=0;
+    await assert.rejects(extractWithProvider(candidate,{env:geminiEnv,fetchImpl:async()=>{calls++;return geminiAnswer(data);}}),error=>{
+      assert.equal(error.code,'AI_INVALID_EXTRACTION');assert.equal(error.usage.totalTokens,15);
+      assert.ok(error.outputDiagnostic.unknownPropertyCounts.length>0);
+      assert.doesNotMatch(JSON.stringify(error),/private_model_key|private_nested_key|private value/);return true;
+    });
+    assert.equal(calls,1);assert.equal(JSON.stringify(data),before);
+  }
+});
+
+test('an ordinary schema wrapper reports missing data keys rather than unwrapping or accepting it',async()=>{
+  let calls=0;
+  await assert.rejects(extractWithProvider(candidate,{env:geminiEnv,fetchImpl:async()=>{calls++;return geminiAnswer({type:'object',properties:wire()});}}),error=>{
+    assert.equal(error.code,'AI_INVALID_EXTRACTION');assert.equal(error.usage.totalTokens,15);
+    assert.ok(error.outputDiagnostic.missingRequired.includes('/requirements'));
+    assert.deepEqual(error.outputDiagnostic.unknownPropertyCounts,[{path:'',count:2}]);return true;
+  });assert.equal(calls,1);
+});
+
+test('a data-only ordinary response keeps exact evidence and original routes with the versioned contract',async()=>{
+  let calls=0;
+  const result=await extractWithProvider(candidate,{env:geminiEnv,fetchImpl:async(_url,init)=>{
+    calls++;const request=JSON.parse(init.body),instruction=request.systemInstruction.parts[0].text;
+    assert.match(instruction,/Return one opportunity DATA object/);assert.doesNotMatch(instruction,/Return the strict JSON schema/);
+    return geminiAnswer(wire());
+  }});
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v7_groq_v7');
+  assert.equal(result.extraction.requirements.items[1].fact.quote,'N3 with:\nMathematics\nEngineering Science');
+  const mapped=mapExtraction(candidate,result.extraction,{sourceId:'ordinary_shape_test',now:'2026-10-04T10:00:00.000Z'});
+  assert.equal(mapped.record.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(mapped.record.publication.approved,false);
 });
