@@ -351,3 +351,25 @@ test('ordinary extraction rejects invented location arrangements without another
   let calls=0;await assert.rejects(extractRecentJobs({...input,html:html(body+'<p>Location: Fictional Town</p>')},{model:async()=>{calls++;return {extraction:data,provenance:{}};}}),/AI_LOCATION_EVIDENCE_UNRESOLVED/);assert.equal(calls,1);
  }
 });
+
+test('conditional submission instructions map to evidence-backed practical conditions without weakening eligibility',async()=>{
+ const instruction='Other supporting certificates, if applicable',notice={...input,html:html(body.replace('<p>Closing date:', '<h2>Required documents</h2><p>Certified ID</p><p>'+instruction+'</p><p>Closing date:'))};
+ const data=extracted();data.practicalConditions=stated(instruction);
+ data.requirements.items.push({id:'id_doc',kind:'document',level:'required',fact:stated({description:'Certified ID',qualification:null,document:null},'Certified ID')});
+ data.requirements.expression={op:'all',children:[data.requirements.expression,{op:'ref',id:'id_doc'}]};
+ const result=await extractRecentJobs(notice,{model:simulated(data)});
+ const {assertMaterialFacts}=await import('../src/worker-policy.mjs');
+ assert.doesNotThrow(()=>assertMaterialFacts(result.record));
+ assert.equal(result.record.practicalConditions.value,instruction);
+ assert.equal(result.snapshot.text.slice(result.evidence.find(e=>e.quote===instruction).start,result.evidence.find(e=>e.quote===instruction).end),instruction);
+ assert.ok(result.issues.includes('semantic_validation_required'));
+ assert.equal(result.record.publication.approved,false);
+ assert.equal(result.record.applicationRoute.value.destination,'https://employer.example/apply');
+ for(const mutate of [d=>d.practicalConditions.value='Other supporting certificates',d=>d.practicalConditions.quote='Other supporting certificates']){
+  const bad=structuredClone(data);mutate(bad);await assert.rejects(extractRecentJobs(notice,{model:simulated(bad)}),/AI_CONDITIONAL_DOCUMENT_COVERAGE/);
+ }
+ const unclear=structuredClone(result.record);unclear.requirements.requirements[0].fact.state='ambiguous';unclear.requirements.requirements[0].fact.value=null;
+ assert.throws(()=>assertMaterialFacts(unclear),/MATERIAL_FACTS_UNRESOLVED/);
+ const unknown=structuredClone(result.record);unknown.requirements.expression={op:'unknown',originalText:'Unclear eligibility'};
+ assert.throws(()=>assertMaterialFacts(unknown),/MATERIAL_FACTS_UNRESOLVED/);
+});

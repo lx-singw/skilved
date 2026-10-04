@@ -103,3 +103,21 @@ test('explicit unresolved programme subjects block preflight and publication bef
   assert.throws(()=>preflightCandidate({},candidate,'2026-10-04T10:00:00.000Z'),/NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED/);
   assert.throws(()=>publicationGate({},candidate,makeRecord(),null,{supported:true,issues:[]},'2026-10-04T10:00:00.000Z'),/NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED/);
 });
+
+test('conditional document instructions remain visible in projection and independent semantic audit',async()=>{
+ const instruction='Other supporting certificates, if applicable',record=makeRecord();
+ record.practicalConditions.value=record.practicalConditions.originalText=instruction;
+ const projected=projectOpportunity(record);assert.equal(projected.kind,'opportunity');
+ assert.equal(projected.opportunity.practicalConditions.value,instruction);
+ assert.equal(projected.opportunity.practicalConditions.originalText,instruction);
+ assert.equal(projected.opportunity.application.route.destination,record.applicationRoute.value.destination);
+ let calls=0;
+ const assessment=await validateExtraction({record,recentjobsText:instruction},{
+  env:{SKILVED_AI_MODE:'groq',GROQ_API_KEY:'synthetic_key_for_test'},fetchImpl:async(_url,init)=>{
+   calls++;const request=JSON.parse(init.body),payload=JSON.parse(request.messages[1].content);
+   assert.match(request.messages[0].content,/Genuine unclear eligibility still fails/);
+   assert.equal(payload.extracted.practicalConditions.value,instruction);
+   return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({supported:false,issues:[{field:'requirements',reason:'Missing eligibility passage'}],evidence:[{source:'recentjobs',quote:instruction}]})}}]});
+  }});
+ assert.equal(calls,1);assert.equal(assessment.supported,false);
+});

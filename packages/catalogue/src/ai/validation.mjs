@@ -3,7 +3,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v6';
+export const VALIDATION_VERSION = 'recentjobs_validation_v7';
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
   evidence: z.array(z.object({ source: z.enum(['recentjobs', 'primary']), quote: z.string().min(1).max(4000) }).strict()).min(1).max(30),
@@ -17,6 +17,10 @@ The supplied source text includes the notice title. A title that names an employ
 can support the stated issuer; a separate sentence saying employer is not required.
 Check every stated field, summary, requirements, document rules, compensation and deadline for support.
 Check completeness: omitted mandatory conditions are failures even when the extracted claims are true.
+Standalone supplemental-document instructions such as Other supporting certificates, if applicable
+belong in practicalConditions with their exact conditional wording. A stated instruction does not
+assert that it applies to every applicant. Verify the entire instruction is retained there, not
+made unconditional, preferred or invented IF eligibility. Genuine unclear eligibility still fails.
 Publisher invitations to join social groups are promotional content, not application conditions; including them as facts is a failure.
 Verbatim requirement text retains its internal alternatives; a single item may contain a complete results OR certificates condition.
 Check required versus preferred and ALL/ANY/IF qualification logic. OR changed into AND is a failure.

@@ -228,3 +228,20 @@ test('programme mapping rejects unsourced location metadata before canonical can
   assert.throws(()=>subjectMap(intake,input),/AI_LOCATION_EVIDENCE_UNRESOLVED/);
  }
 });
+
+test('scoped programme conditional supporting documents preserve original instructions and form recipient separately',()=>{
+ const instruction='Other supporting certificates, if applicable',source=parseRecentJobsDetail({url:candidate.sourceUrl,html:html.replace('<p>Request an application form', '<p>'+instruction+'</p><p>Request an application form')});
+ for(const intake of planRecentJobsProgrammes(source).intakes){
+  const wire=programmeWire(source,intake),lines=(source.title+'\n'+source.sourceText).split('\n'),line=lines.indexOf(instruction)+1;
+  wire.practicalConditions.span[0]=line;wire.practicalConditions.value=lines.slice(line-1,wire.practicalConditions.span[1]).join('\n');
+  const view=programmeCandidate(source,intake.id),payload=programmeExtractionPayload(source,intake.id);
+  assert.deepEqual(payload.requirementSourcePolicy.conditionalDocumentInstructions,[{originalText:instruction,span:[line,line]}]);
+  const mapped=mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...wire,applicationCandidateIndex:0},view),options);
+  assert.ok(mapped.record.practicalConditions.value.includes(instruction));
+  assert.ok(mapped.record.practicalConditions.value.includes('Request an application form from forms@employer.example.'));
+  assert.equal(mapped.record.applicationRoute.value.destination,intake.application.destination);
+  assert.ok(!mapped.record.requirements.requirements.some(i=>i.fact.originalText.includes(instruction)));
+  const missing=structuredClone(wire);missing.practicalConditions.value=missing.practicalConditions.value.replace(instruction,'');
+  assert.throws(()=>mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...missing,applicationCandidateIndex:0},view),options),/AI_CONDITIONAL_DOCUMENT_COVERAGE/);
+ }
+});

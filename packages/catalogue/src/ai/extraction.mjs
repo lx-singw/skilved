@@ -8,7 +8,7 @@ import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION } from './locatio
 import { isPromotionalLine } from './source-lines.mjs';
 import { assertRequirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v8';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v9';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -78,7 +78,8 @@ Dates retain the original wording. Missing time, timezone and UTC instant stay n
 Select applicationCandidateIndex only if one supplied candidate is clearly the application route;
 otherwise use null. Link presence is not an authenticity, availability or safety check.
 Preserve stated email subjects, reference codes and submission instructions in practicalConditions,
-and required application documents in requirements. Never substitute a generic contact address.
+and required application documents in requirements, except listed conditionalDocumentInstructions
+which belong in practicalConditions. Never substitute a generic contact address.
 Put a stated recruitment reference number in intake. Classify qualification requirements as education.
 Return only the requested JSON. Do not add confidence, review, approval or publication fields.${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}`;
 

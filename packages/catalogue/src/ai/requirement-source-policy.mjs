@@ -1,13 +1,17 @@
 import {DomainError} from '../config.mjs';
 import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v2';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v3';
 export const REQUIREMENT_SOURCE_INSTRUCTION=`
 requirementSourcePolicy lists code-recognised bounded source passages, not new requirements.
-Cover every listed line with its original requirement passage or exact unknown logic.
+Cover every requiredLineNumbers line with its original requirement passage or exact unknown logic.
 Keep required and preferred levels as listed. In document sections retain the acceptance rule,
 including certified-copy restrictions, as well as each document. Do not replace the rule with a list.
-A conditional hint such as if applicable has no defined predicate. Do not call it preferred or
+conditionalDocumentInstructions are stated submission instructions, not eligibility facts. Retain each
+entire originalText, including applicability wording, in BOTH practicalConditions.value and its
+contiguous evidence span. Do not create requirement items or unknown/IF eligibility nodes for them.
+Do not infer who they apply to or assert that every applicant must submit them.
+Other conditional hints such as if applicable have no defined predicate. Do not call them preferred or
 unconditionally required. Preserve its full passage as an ambiguous/conflicting requirement item
 with level unclear, or unknown(firstLine,lastLine) without a confident item for that passage.
 Do not invent a predicate to build IF logic. Unknown logic stops publication rather than guessing.
@@ -25,6 +29,12 @@ const editorial=/^(?:what makes (?:this|the) (?:opportunity|programme|apprentice
 const connective=/^(?:you need(?: one of the following)?|one of the following|either|or|and|prepare|applicants should have)\s*:?$/i;
 const preferenceIntro=/^These (?:are not|aren't|aren’t) stated as mandatory, but can strengthen an application\s*:?$/i;
 const undefinedCondition=/\b(?:if applicable|where applicable|where required|if relevant)\b/i;
+export const CONDITIONAL_DOCUMENT_INSTRUCTION=`
+Keep listed conditionalDocumentInstructions in practicalConditions as stated source instructions.
+Copy each entire originalText into its value and supporting contiguous span, including if applicable.
+The source states the instruction, not whether it applies to this applicant. Never infer that predicate,
+remove its condition, call it preferred or mandatory eligibility, or omit it. Other uncertain eligibility stays unresolved.`;
+const conditionalDocument=/^Other (?:supporting )?(?:certificates|documents),? (?:if applicable|where applicable)[.]?$/i;
 const documentAcceptance=/^(?:[A-Za-z][A-Za-z '’.-]{0,100} says )?only applications with .+\brequired documents\b.+\bwill be considered[.]?$/i;
 const documentList=/^Applicants? must (?:submit|provide|attach)\s*:$/i;
 const blankForm=line=>/^(?:Request|Obtain|Download)\s+(?:(?:an?|the)\s+)?application\s+form\s+(?:from|via|at)\s+.{1,300}$/i.test(line)&&! /\b(?:submit|return|attach|completed|required|compulsory|must)\b/i.test(line);
@@ -41,12 +51,17 @@ export function requirementSourcePolicy(candidate) {
   else if(active&&(ending.test(text)||editorial.test(text)||isPromotionalLine(text)))close(index);
  }
  // An unbounded section still abstains rather than treating a footer as evidence.
- const lineHints=[];
+ const lineHints=[],conditionalDocumentInstructions=[];
  for(const section of sections){let level=section.level;
   for(let index=section.start;index<section.until;index++){
    const text=label(lines[index]),conditional=undefinedCondition.test(text);
    if(!text||connective.test(text)||preferenceIntro.test(text)||blankForm(text))continue;
    if(candidate.programmeScope&&/\bfor WIL applicants\b/i.test(text))continue;
+   // Only standalone supplemental-document instructions in a closed document
+   // section qualify. Mixed qualifications and named credentials abstain.
+   if(section.kind==='documents'&&conditionalDocument.test(text)){
+    conditionalDocumentInstructions.push({originalText:lines[index],span:[index+1,index+1]});continue;
+   }
    if(section.kind==='documents'&&(documentAcceptance.test(text)||documentList.test(text)))level='required';
    lineHints.push({line:index+1,level:conditional?'unclear':level,kind:section.kind==='documents'?'document':/^Valid passport[.]?$/i.test(text)?'other':null,conditional});
   }
@@ -65,13 +80,20 @@ export function requirementSourcePolicy(candidate) {
    completeRequirementSpans.push({span:[index+1,index+3],kind:'other'});
   }
  }
- return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans};
+ return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions};
 }
 const unknownPassages=node=>node.op==='unknown'?[node.originalText]:node.children?node.children.flatMap(unknownPassages):node.op==='if'?[...unknownPassages(node.then),...(node.otherwise?unknownPassages(node.otherwise):[])]:[];
 export function assertRequirementSourcePolicy(candidate,extraction) {
  const policy=requirementSourcePolicy(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
  if(uncoveredRequirementLines(candidate,extraction,policy.requiredLineNumbers).length)throw new DomainError('AI_REQUIREMENT_COVERAGE');
  const unknown=unknownPassages(extraction.requirements.expression);
+ for(const instruction of policy.conditionalDocumentInstructions){
+  const passage=instruction.originalText,fact=extraction.practicalConditions;
+  if(fact?.state!=='stated'||!fact.value?.includes(passage)||!fact.quote?.split('\n').includes(passage))
+   throw new DomainError('AI_CONDITIONAL_DOCUMENT_COVERAGE');
+  if(extraction.requirements.items.some(i=>i.fact.quote?.includes(passage))||unknown.some(q=>q.includes(passage)))
+   throw new DomainError('AI_CONDITIONAL_DOCUMENT_MISCLASSIFIED');
+ }
  for(const hint of policy.lineHints){
   const text=lines[hint.line-1],items=extraction.requirements.items.filter(i=>i.fact.quote?.split('\n').includes(text));
   if(hint.conditional){

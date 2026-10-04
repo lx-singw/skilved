@@ -48,7 +48,8 @@ Issuer is the named employer/recruiter, not RecentJobs. Summary is a short sourc
 An explicit Reference or Reference number line states intake: copy the identifier and cite that line.
 Retain stated city/province even if country is absent: country null, unknown attendance/coverage not_stated, relocation null.
 Dates: localDate YYYY-MM-DD; keep unstated localTime, timezone and utcInstant null. Code derives original wording from the span.
-Preserve email subjects, reference codes and submission instructions in practicalConditions, required documents in requirements.
+Preserve email subjects, reference codes and submission instructions in practicalConditions, required documents in requirements
+except listed conditionalDocumentInstructions which belong in practicalConditions with their entire conditional wording.
 excludedPromotionalLineNumbers marks publisher social-group invitations. Never treat those lines as job facts or application instructions.
 Select only an existing applicationCandidateIndex. Never invent a destination. Link presence is not a verification of authenticity or availability.
 Requirements must include every mandatory condition and preserve required versus preferred, ALL, ANY and IF logic.
