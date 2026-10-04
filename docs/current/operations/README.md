@@ -58,6 +58,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Form preparation, model cooldowns and cached private draft completion](57_FORM_PREPARATION_MODEL_COOLDOWNS_AND_CACHED_COMPLETION_2026-10-04.md)
 - [Source-bound programme application methods and two fresh private drafts](58_SOURCE_BOUND_PROGRAMME_APPLICATION_METHODS_2026-10-04.md)
 - [Programme repeatability, current source assessment and shared-email scope holds](59_PROGRAMME_REPEATABILITY_AND_SHARED_EMAIL_SCOPE_2026-10-04.md)
+- [Shared-email subject plans, two private drafts and held real-source extraction](60_SHARED_EMAIL_SUBJECT_PLANS_AND_HELD_REAL_EXTRACTION_2026-10-04.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

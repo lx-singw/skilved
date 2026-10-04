@@ -10,8 +10,8 @@ import { allFacts } from '../worker-policy.mjs';
 import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v4';
-export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v4';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v5';
+export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v5';
 // Programme routes are resolved by the source planner, never selected by AI.
 // Strict parsing rejects old index-bearing outputs rather than repairing them.
 export const ProgrammeExtractionSchema = GroqExtractionSchema.omit({applicationCandidateIndex:true}).strict();
@@ -72,8 +72,25 @@ export function mapProgrammeExtraction(candidate,id,input,options) {
   const {intake} = scopeOf(candidate,id), extraction = ExtractionSchema.parse(input);
   const quotes = [extraction.categoryQuote,...extractionFacts(extraction).map(f=>f.quote),...unknownQuotes(extraction.requirements.expression)].filter(Boolean);
   for (const quote of quotes) originalPosition(candidate,intake,quote);
-  if (extraction.intake.state !== 'stated' || extraction.intake.value !== intake.reference.value ||
-      extraction.intake.quote !== intake.reference.originalText || extraction.applicationCandidateIndex !== 0) fail('PROGRAMME_INTAKE_MISMATCH');
+  if (extraction.applicationCandidateIndex !== 0) fail('PROGRAMME_INTAKE_MISMATCH');
+  if (intake.reference) {
+    if(extraction.intake.state!=='stated' || extraction.intake.value!==intake.reference.value ||
+       extraction.intake.quote!==intake.reference.originalText) fail('PROGRAMME_INTAKE_MISMATCH');
+  } else if(extraction.intake.state!=='not_stated') fail('PROGRAMME_INTAKE_MISMATCH');
+  if(intake.subject) {
+    if(extraction.practicalConditions.state!=='stated' || !extraction.practicalConditions.value.includes(intake.subject.originalText) ||
+       !extraction.practicalConditions.quote.includes(intake.subject.originalText)) fail('PROGRAMME_SUBJECT_COVERAGE');
+    const foreign=planRecentJobsProgrammes(candidate).intakes.filter(i=>i.id!==id).map(i=>i.subject.originalText);
+    if(foreign.some(text=>extraction.practicalConditions.value.includes(text))) fail('PROGRAMME_SUBJECT_MISMATCH');
+    if(extraction.requirements.items.some(i=>i.fact.quote?.includes(intake.subject.originalText))) fail('PROGRAMME_SUBJECT_MISCLASSIFIED');
+    const requirementQuotes=[...extraction.requirements.items.map(i=>i.fact.quote),...unknownQuotes(extraction.requirements.expression)].filter(Boolean);
+    for(const span of intake.mandatoryRequirementSpans) if(!requirementQuotes.some(quote=>quote.includes(programmePassage(candidate,id,span)))) fail('AI_REQUIREMENT_COVERAGE');
+    for(const span of intake.uncertaintySpans) {
+      const warning=programmePassage(candidate,id,span);
+      if(!extraction.requirements.items.some(i=>i.kind==='education'&&['ambiguous','conflicting'].includes(i.fact.state)&&i.fact.quote?.includes(warning)) &&
+         !unknownQuotes(extraction.requirements.expression).some(quote=>quote.includes(warning))) fail('PROGRAMME_REQUIREMENT_UNCERTAINTY');
+    }
+  }
   // This narrow planner selects apprenticeship trades, not the separate WIL intake.
   // Keep WIL-only shared wording in the source audit; abstain if it becomes a trade requirement.
   if (extraction.requirements.items.some(i=>/\bfor WIL applicants\b/i.test(i.fact.quote ?? ''))) fail('PROGRAMME_SHARED_CONDITION_UNRESOLVED');
@@ -96,6 +113,12 @@ export function mapProgrammeExtraction(candidate,id,input,options) {
     evidence.snapshotId=parentSnapshot;evidence.start=originalPosition(candidate,intake,evidence.quote);evidence.end=evidence.start+evidence.quote.length;
     if (evidence.applicationCandidate) evidence.applicationCandidate.index=intake.application.index;
   }
+  // A short trade name may also occur in the shared introduction. Bind its
+  // code-owned title evidence to the selected heading's original line.
+  const titleEvidence=mapped.evidence.find(e=>e.id===mapped.record.title.id),titleLine=intake.heading.span[0],
+    originalLines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+  titleEvidence.start=originalLines.slice(0,titleLine-1).reduce((n,line)=>n+line.length+1,0);
+  titleEvidence.end=titleEvidence.start+titleEvidence.quote.length;
   mapped.record.private.queueId=parentSnapshot;
   for (const citation of mapped.record.citations) citation.snapshotId=parentSnapshot;
   mapped.snapshot={...mapped.snapshot,id:parentSnapshot,contentHash:candidate.contentHash,
@@ -109,7 +132,12 @@ const scopeInstruction = `
 This is one explicitly selected apprenticeship trade inside a multi-programme notice.
 Use only includedSpans for this trade's facts. All original lines remain visible for context.
 Never cite another trade or the experiential programme. Application binding is owned by code; do not select a route.
-Copy selectedIntake.reference.value exactly, including spaces. Shared wording needs applicability review.
+When selectedIntake.reference exists, copy its value exactly, including spaces.
+When reference is null, intake must be null: an application subject is not a recruitment reference.
+For selectedIntake.subject, preserve its complete originalText verbatim in practicalConditions, not in requirement items.
+Never include another trade's subject. mandatoryRequirementSpans must all appear in requirement items or unknown logic.
+uncertaintySpans explicitly state missing qualification detail: preserve that uncertainty in an ambiguous education item or unknown logic. Never invent subjects.
+Shared wording needs applicability review. Excluded editorial career benefits are not employer promises.
 WIL-only document instructions belong to the separate WIL intake, not this apprenticeship's requirements.
 formRequestInstructions identify standalone steps for obtaining a blank application form.
 Preserve each instruction verbatim, including its recipient, in practicalConditions. Do not make it a requirement item.

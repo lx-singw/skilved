@@ -15,3 +15,17 @@ export function programmeWire(candidate,intake) {
     requirements:{items:[{id:'r1',kind:'education',level:'required',state:'stated',span:span(education)},
       {id:'r2',kind:'document',level:'required',state:'stated',span:span('Applicants must submit an updated CV.')}],expression:'all(r1,r2)'}};
 }
+
+// Authored expectations for the shared-email synthetic fixture only.
+export function subjectProgrammeWire(candidate,intake) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),line=text=>lines.indexOf(text)+1;
+  const items=intake.mandatoryRequirementSpans.map((span,index)=>({id:`r${index+1}`,
+    kind:/^(?:Updated CV|Relevant certificates)$/.test(lines[span[0]-1])?'document':'education',level:'required',
+    state:intake.uncertaintySpans.some(s=>s[0]===span[0])?'ambiguous':'stated',span}));
+  return {category:'apprenticeship',categorySpan:[1,1],issuer:{state:'stated',value:'Fictional Workshop',span:[2,2]},
+    summary:{state:'stated',value:lines[intake.programmeSpan[0]],span:[intake.programmeSpan[0]+1,intake.programmeSpan[1]]},
+    intake:null,location:{state:'stated',value:{places:[{country:null,province:null,city:'Test City'}],coverage:'not_stated',attendance:'not_stated',relocation:null},span:[3,3]},
+    residence:null,experience:null,compensation:[],deadline:{state:'stated',value:{kind:'date',localDate:'2026-10-13',localTime:null,timezone:null,utcInstant:null},span:[line('Closing date'),line('Tuesday, 13 October 2026')]},
+    practicalConditions:{state:'stated',value:intake.subject.originalText,span:intake.subject.span},
+    requirements:{items,expression:`all(${items.map(i=>i.id).join(',')})`}};
+}

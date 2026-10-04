@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { DomainError } from '../config.mjs';
 
-export const PROGRAMME_PLAN_VERSION = 'recentjobs_programme_plan_v1';
+export const PROGRAMME_PLAN_VERSION = 'recentjobs_programme_plan_v2';
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new DomainError(code); };
 const label = text => text.trim().replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u, '');
@@ -16,6 +16,51 @@ const merge = spans => spans.sort((a,b) => a[0]-b[0]).reduce((out,span) => {
   return out;
 }, []);
 
+// Deliberately narrow table + numbered sections + two written email subjects.
+// Subject identities are not fabricated recruitment reference numbers.
+function subjectPlan(candidate,base,lines) {
+  const unsupported=reason=>({...base,reason}),names=['Available trades','Important requirements','Why applying is important','Why the two trades matter','How to apply'];
+  const sections=lines.flatMap((text,index)=>/^\d+\.\s+/.test(text)?[{text,start:index+1}]:[]);
+  if (sections.length!==5 || sections.some((s,i)=>s.text.trim().toLowerCase()!==`${i+1}. ${names[i]}`.toLowerCase())) return unsupported('PROGRAMME_LAYOUT_UNSUPPORTED');
+  if (lines.some(line=>reference.test(label(line)))) return unsupported('PROGRAMME_REFERENCE_UNRESOLVED');
+  const [available,requirements,benefits,,apply]=sections;
+  const subjectsAt=lines.flatMap((text,index)=>/^Use the correct subject line\s*:$/i.test(text.trim())?[index+1]:[]);
+  if(subjectsAt.length!==1 || subjectsAt[0]<=apply.start) return unsupported('PROGRAMME_SUBJECT_SCOPE_UNRESOLVED');
+  const subjectHeading=subjectsAt[0],subjectRows=lines.slice(subjectHeading,subjectHeading+2).map((text,index)=>{
+    const match=/^([A-Za-z][A-Za-z -]{1,79}?)\s+[—–-]\s+if applying for\s+([A-Za-z][A-Za-z -]{1,79})$/i.exec(text);
+    return match&&match[1].trim().toLowerCase()===match[2].trim().toLowerCase()
+      ? {value:match[1].trim(),originalText:text,span:[subjectHeading+index+1,subjectHeading+index+1]} : null;
+  });
+  if(subjectRows.some(s=>!s) || new Set(subjectRows.map(s=>s.value.toLowerCase())).size!==2 ||
+      !/^Closing date\s*:?$/i.test(lines[subjectHeading+2]??'')) return unsupported('PROGRAMME_SUBJECT_SCOPE_UNRESOLVED');
+  if(lines[available.start]!=='Trade' || lines[available.start+1]!=='What you will learn/do') return unsupported('PROGRAMME_LAYOUT_UNSUPPORTED');
+  const trades=subjectRows.map(subject=>{
+    const found=lines.flatMap((text,index)=>index+1>available.start+2&&index+1<requirements.start&&text.trim().toLowerCase()===subject.value.toLowerCase()?[index+1]:[]);
+    return found.length===1?{subject,start:found[0]}:null;
+  });
+  if(trades.some(t=>!t)) return unsupported('PROGRAMME_SUBJECT_SCOPE_UNRESOLVED');
+  trades.sort((a,b)=>a.start-b.start);
+  if(trades[0].start!==available.start+3 || trades.some((t,i)=>(trades[i+1]?.start??requirements.start)!==t.start+2)) return unsupported('PROGRAMME_LAYOUT_UNSUPPORTED');
+  if(candidate.applicationCandidates.length!==1 || candidate.applicationCandidates[0].method!=='email') return unsupported('PROGRAMME_APPLICATION_SCOPE_UNRESOLVED');
+  const route=candidate.applicationCandidates[0],written=lines.slice(apply.start-1,apply.start+2).join('\n');
+  if(route.originalText!==written || !written.includes(route.destination) || lines[apply.start+2]!=='Attach:') return unsupported('PROGRAMME_APPLICATION_SCOPE_UNRESOLVED');
+  const documentsStart=apply.start+4;
+  if(documentsStart>=subjectHeading) return unsupported('PROGRAMME_SHARED_SCOPE_UNSUPPORTED');
+  const requirementSpans=lines.flatMap((text,index)=>index+1>requirements.start&&index+1<benefits.start&&
+    !/^(?:Location\s*:|The opportunity is .*based\.)/i.test(text)?[[index+1,index+1]]:[]);
+  const documentSpans=Array.from({length:subjectHeading-documentsStart},(_,index)=>[documentsStart+index,documentsStart+index]);
+  const uncertaintySpans=requirementSpans.filter(([line])=>/\b(?:doesn['’]t specify|not specified|unspecified)\b/i.test(lines[line-1])&&/\b(?:subjects?|qualifications?)\b/i.test(lines[line-1]));
+  const sharedSpans=[[1,available.start-1],[requirements.start,benefits.start-1],[apply.start,subjectHeading],[subjectHeading+3,lines.length]];
+  const intakes=trades.map((trade,index)=>{
+    const end=(trades[index+1]?.start??requirements.start)-1;
+    return {id:hash(`${candidate.sourceRecordId}:subject:${trade.subject.value.toLowerCase()}`),state:'review_required',identityKind:'application_subject',reference:null,
+      heading:{originalText:lines[trade.start-1],span:[trade.start,trade.start]},subject:trade.subject,
+      application:{...route,index:0,span:[apply.start,apply.start+2]},programmeSpan:[trade.start,end],
+      includedSpans:merge([...sharedSpans,[trade.start,end],trade.subject.span]),mandatoryRequirementSpans:[...requirementSpans,...documentSpans],
+      uncertaintySpans,sharedScopeReviewRequired:true};
+  });
+  return {...base,state:'review_required',reason:'PROGRAMME_SCOPE_REVIEW_REQUIRED',layout:'shared_email_subjects',sharedSpans,intakes};
+}
 /** Private source-bound planning only. No record creation, eligibility decisions or fetching. */
 export function planRecentJobsProgrammes(candidate) {
   if (candidate?.adapter !== 'recentjobs_html_v1' || typeof candidate.title !== 'string' ||
@@ -32,6 +77,7 @@ export function planRecentJobsProgrammes(candidate) {
     source:{url:candidate.sourceUrl,recordId:candidate.sourceRecordId,contentHash:candidate.contentHash,sourceSha256,lineCount:lines.length},
     intakes:[]};
   const unsupported = reason => ({...base,reason});
+  if (lines.some(line=>/^Use the correct subject line\s*:$/i.test(line.trim()))) return subjectPlan(candidate,base,lines);
   const groups = lines.flatMap((line,index) => {
     const match = groupHeading.exec(label(line));
     return match ? [{start:index+1,kind:/^APPRENTICESHIP$/i.test(match[2])?'apprenticeship':'other',originalText:line}] : [];

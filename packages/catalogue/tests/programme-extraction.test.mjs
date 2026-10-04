@@ -6,7 +6,7 @@ import {planRecentJobsProgrammes} from '../src/adapters/recentjobs-programmes.mj
 import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
 import {programmeCandidate,programmeExtractionPayload,mapProgrammeExtraction,extractProgramme,validateProgramme,validateProgrammeAssessment,PROGRAMME_EXTRACTION_VERSION} from '../src/ai/programme-extraction.mjs';
 import {generateStructured} from '../src/ai/provider.mjs';
-import {programmeWire} from './fixtures/programme-model.mjs';
+import {programmeWire,subjectProgrammeWire} from './fixtures/programme-model.mjs';
 
 const html=await readFile(new URL('./fixtures/recentjobs-programmes.html',import.meta.url),'utf8');
 const candidate=parseRecentJobsDetail({html,url:'https://recentjobs.co.za/2026/09/26/fictional-programmes/'}),plan=planRecentJobsProgrammes(candidate);
@@ -167,4 +167,56 @@ test('model-written route indexes and destinations are rejected once, never stri
       assert.deepEqual(error.outputDiagnostic.unknownPropertyCounts,[{path:'',count:1}]);return true;});
     assert.equal(calls,1);
   }
+});
+
+const subjectHtml=await readFile(new URL('./fixtures/recentjobs-subject-programmes.html',import.meta.url),'utf8'),
+  subjectCandidate=parseRecentJobsDetail({html:subjectHtml,url:candidate.sourceUrl}),subjectPlan=planRecentJobsProgrammes(subjectCandidate);
+const subjectCanonical=(intake,wire=subjectProgrammeWire(subjectCandidate,intake),source=subjectCandidate)=>decodeGroqExtraction({...wire,applicationCandidateIndex:0},source);
+const subjectMap=(intake,input=subjectCanonical(intake),source=subjectCandidate)=>mapProgrammeExtraction(source,intake.id,input,options);
+
+test('subject-bound records share the original email but keep distinct subjects, IDs and absent reference facts',()=>{
+  const records=subjectPlan.intakes.map(i=>subjectMap(i));assert.notEqual(records[0].record.id,records[1].record.id);
+  for(const [index,mapped] of records.entries()){
+    assert.equal(mapped.record.intake.state,'not_stated');assert.equal(mapped.record.intake.value,null);
+    assert.equal(mapped.record.title.value,subjectPlan.intakes[index].heading.originalText);
+    assert.equal(mapped.record.applicationRoute.value.destination,'jobs@employer.example');
+    assert.equal(mapped.record.practicalConditions.value,subjectPlan.intakes[index].subject.originalText);
+    assert.equal(mapped.record.requirements.requirements.length,4);
+    for(const e of mapped.evidence)assert.equal(mapped.snapshot.text.slice(e.start,e.end),e.quote);
+    assert.equal(mapped.evidence.find(e=>e.applicationCandidate).applicationCandidate.index,0);
+  }
+});
+
+test('missing subjects, wrong subjects, invented references and requirement classification of a subject fail locally',()=>{
+  const intake=subjectPlan.intakes[0],foreign=subjectPlan.intakes[1];
+  const absent=subjectCanonical(intake);absent.practicalConditions={state:'not_stated',value:null,quote:null};assert.throws(()=>subjectMap(intake,absent),/SUBJECT_COVERAGE/);
+  const wrong=subjectCanonical(intake);wrong.practicalConditions.value+='\n'+foreign.subject.originalText;assert.throws(()=>subjectMap(intake,wrong),/SUBJECT_MISMATCH/);
+  const reference=subjectCanonical(intake);reference.intake={state:'stated',value:'Electrical',quote:intake.subject.originalText};assert.throws(()=>subjectMap(intake,reference),/INTAKE_MISMATCH/);
+  const bad=subjectProgrammeWire(subjectCandidate,intake);bad.requirements.items.push({id:'r5',kind:'other',level:'required',state:'stated',span:intake.subject.span});bad.requirements.expression='all(r1,r2,r3,r4,r5)';assert.throws(()=>subjectMap(intake,subjectCanonical(intake,bad)),/SUBJECT_MISCLASSIFIED/);
+  const omitted=subjectProgrammeWire(subjectCandidate,intake);omitted.requirements.items.pop();omitted.requirements.expression='all(r1,r2,r3)';assert.throws(()=>subjectMap(intake,subjectCanonical(intake,omitted)),/REQUIREMENT_COVERAGE/);
+});
+
+test('source-stated unspecified qualifications cannot become a confident complete requirement list',()=>{
+  const source=parseRecentJobsDetail({html:subjectHtml.replace('<p>SOR is not accepted.</p>',"<p>SOR is not accepted.</p><p>The advert doesn't specify which qualification subjects are required.</p>"),url:candidate.sourceUrl}),intake=planRecentJobsProgrammes(source).intakes[0];
+  const wire=subjectProgrammeWire(source,intake),mapped=subjectMap(intake,subjectCanonical(intake,wire,source),source);
+  assert.ok(mapped.record.requirements.requirements.some(i=>i.fact.state==='ambiguous'));
+  const confident=structuredClone(wire);confident.requirements.items.forEach(i=>i.state='stated');assert.throws(()=>subjectMap(intake,subjectCanonical(intake,confident,source),source),/REQUIREMENT_UNCERTAINTY/);
+});
+
+test('the live programme contract carries a selected subject and null reference without asking AI to bind a destination',async()=>{
+  const intake=subjectPlan.intakes[1];let calls=0;
+  const result=await extractProgramme(subjectCandidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async(_url,init)=>{
+    calls++;const request=JSON.parse(init.body),payload=JSON.parse(request.contents[0].parts[0].text);
+    assert.equal(payload.selectedIntake.reference,null);assert.equal(payload.selectedIntake.subject.value,'Plumbing');
+    assert.match(request.systemInstruction.parts[0].text,/application subject is not a recruitment reference/);
+    return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(subjectProgrammeWire(subjectCandidate,intake))}]}}]});
+  }});
+  assert.equal(subjectMap(intake,result.extraction).record.practicalConditions.value,intake.subject.originalText);assert.equal(calls,1);
+});
+
+test('short subject trade titles cite their bound heading even when repeated in the shared introduction',()=>{
+  const source=parseRecentJobsDetail({html:subjectHtml.replace('Fictional Workshop invites applicants for its apprenticeship trades.','Fictional Workshop invites applicants for Electrical and Plumbing apprenticeship trades.'),url:candidate.sourceUrl}),intake=planRecentJobsProgrammes(source).intakes[0],
+    wire=subjectProgrammeWire(source,intake),mapped=subjectMap(intake,subjectCanonical(intake,wire,source),source),title=mapped.evidence.find(e=>e.id===mapped.record.title.id),lines=mapped.snapshot.text.split('\n');
+  assert.equal(title.start,lines.slice(0,intake.heading.span[0]-1).reduce((n,line)=>n+line.length+1,0));
+  assert.equal(mapped.snapshot.text.slice(title.start,title.end),'Electrical');
 });

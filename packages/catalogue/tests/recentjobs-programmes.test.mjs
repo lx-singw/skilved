@@ -92,3 +92,37 @@ test('the private planning CLI works with AI disabled and reports only source-bo
   const plan=JSON.parse(result.stdout);assert.equal(plan.intakes.length,2);assert.equal(plan.qualification,false);
   assert.equal(plan.state,'review_required');assert.equal('record' in plan,false);
 });
+
+const subjectHtml=await readFile(new URL('./fixtures/recentjobs-subject-programmes.html',import.meta.url),'utf8');
+test('shared-email plans bind explicit trade subjects without inventing recruitment references',()=>{
+  const candidate=parse(subjectHtml),plan=planRecentJobsProgrammes(candidate);
+  assert.equal(plan.state,'review_required');assert.equal(plan.layout,'shared_email_subjects');assert.equal(plan.intakes.length,2);
+  assert.deepEqual(plan.intakes.map(i=>i.subject.value),['Electrical','Plumbing']);
+  assert.equal(new Set(plan.intakes.map(i=>i.id)).size,2);assert.ok(plan.intakes.every(i=>i.reference===null&&i.identityKind==='application_subject'&&i.application.index===0));
+  for(const intake of plan.intakes){assert.equal(intake.application.destination,'jobs@employer.example');assert.equal(programmePassage(candidate,intake.id,intake.application.span),intake.application.originalText);
+    assert.equal(programmePassage(candidate,intake.id,intake.subject.span),intake.subject.originalText);
+    const foreign=plan.intakes.find(i=>i.id!==intake.id);assert.throws(()=>programmePassage(candidate,intake.id,foreign.subject.span),/OUTSIDE_SCOPE/);
+    assert.throws(()=>programmePassage(candidate,intake.id,foreign.programmeSpan),/OUTSIDE_SCOPE/);
+    const editorial=`${candidate.title}\n${candidate.sourceText}`.split('\n').findIndex(s=>s.startsWith('Editorial career'))+1;
+    assert.throws(()=>programmePassage(candidate,intake.id,[editorial,editorial]),/OUTSIDE_SCOPE/);
+  }
+  const revised=planned(subjectHtml.replace('NCV Level 4','NCV Level 3'));assert.deepEqual(plan.intakes.map(i=>i.id),revised.intakes.map(i=>i.id));assert.notEqual(plan.source.sourceSha256,revised.source.sourceSha256);
+});
+
+test('ambiguous shared subjects, missing trade correspondence and extra application routes yield no partial plan',()=>{
+  for(const input of [subjectHtml.replace('Plumbing — if applying for Plumbing','Electrical — if applying for Electrical'),
+    subjectHtml.replace('Plumbing — if applying for Plumbing','Plumbing — if applying for Electrical'),
+    subjectHtml.replace('<h3>Plumbing</h3>','<h3>Mechanical</h3>'),
+    subjectHtml.replace('<h3>Electrical</h3>','<h3>Electrical</h3><p>Electrical</p>'),
+    subjectHtml.replace('<p>Closing date</p>','<p>Mechanical — if applying for Mechanical</p><p>Closing date</p>'),
+    subjectHtml.replace('<p>Attach:</p>','<p>Further instructions:</p>'),
+    subjectHtml.replace('<h3>Plumbing</h3>','<h3>Mechanical</h3><p>Third trade training.</p><h3>Plumbing</h3>'),
+    subjectHtml.replace('<p>Relevant certificates</p>','<p>Relevant certificates</p><p>Apply: second@employer.example</p>')]){
+    const plan=planned(input);assert.equal(plan.state,'unsupported');assert.deepEqual(plan.intakes,[]);
+  }
+});
+
+test('explicit missing qualification detail is retained as source-bound uncertainty',()=>{
+  const input=subjectHtml.replace('<p>SOR is not accepted.</p>',"<p>SOR is not accepted.</p><p>The advert doesn't specify which qualification subjects are required.</p>"),candidate=parse(input),plan=planRecentJobsProgrammes(candidate);
+  assert.equal(plan.state,'review_required');for(const intake of plan.intakes){assert.equal(intake.uncertaintySpans.length,1);assert.match(programmePassage(candidate,intake.id,intake.uncertaintySpans[0]),/doesn't specify/);}
+});

@@ -12,7 +12,7 @@ import { GroqError } from '../src/ai/groq.mjs';
 import {extractWithProvider} from '../src/ai/provider.mjs';
 import {validateExtraction} from '../src/ai/validation.mjs';
 import {extractProgramme,validateProgramme} from '../src/ai/programme-extraction.mjs';
-import {programmeWire} from './fixtures/programme-model.mjs';
+import {programmeWire,subjectProgrammeWire} from './fixtures/programme-model.mjs';
 import {parseRecentJobsDetail} from '../src/adapters/recentjobs.mjs';
 
 let runtime, db;
@@ -726,4 +726,37 @@ test('shared email with distinct explicit trade subjects cannot enter a single-n
     const plans=(await db.collection('m0_worker_programme_plans').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);
     assert.equal(plans.length,mode==='shadow'?1:0);if(plans.length)assert.equal(plans[0].plan.state,'unsupported');
   }
+});
+
+const subjectProgrammeHtml=await readFile(new URL('./fixtures/recentjobs-subject-programmes.html',import.meta.url),'utf8');
+test('opt-in subject programmes create distinct private drafts with a shared email and exact subjects',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=subjectProgrammeHtml;
+  f.source.automation.issuers[0].emailAddresses=['jobs@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:subjectProgrammeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+    return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:input.selectedIntake.subject.originalText}]}:subjectProgrammeWire(candidate,input.selectedIntake));
+  }));
+  const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(result.draftCount,2);assert.equal(calls,4);assert.notEqual(result.programmes[0].recordId,result.programmes[1].recordId);
+  const drafts=await Promise.all(result.programmes.map(r=>worker.ref('drafts',r.recordId).get().then(value)));
+  assert.deepEqual(drafts.map(d=>d.title.value),['Electrical','Plumbing']);assert.ok(drafts.every(d=>d.intake.state==='not_stated'&&d.applicationRoute.value.destination==='jobs@employer.example'&&!d.publication.approved));
+  assert.deepEqual(drafts.map(d=>d.practicalConditions.value),['Electrical — if applying for Electrical','Plumbing — if applying for Plumbing']);
+  for(const r of result.programmes)assert.equal((await worker.ref('public',r.recordId).get()).exists,false);
+  const receipts=(await db.collection('m0_model_calls').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(receipts.length,4);
+});
+
+test('explicit qualification uncertainty stops before candidate storage, validation and drafts',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=subjectProgrammeHtml.replace('<p>SOR is not accepted.</p>',"<p>SOR is not accepted.</p><p>The advert doesn't specify which qualification subjects are required.</p>");
+  f.source.automation.issuers[0].emailAddresses=['jobs@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:f.state.html,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);assert.equal(input.extracted,undefined);
+    return geminiAnswer(subjectProgrammeWire(candidate,input.selectedIntake));
+  }));
+  const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(result.draftCount,0);assert.equal(calls,2);assert.ok(result.programmes.every(r=>r.reason==='MATERIAL_FACTS_UNRESOLVED'));
+  const candidates=(await db.collection('m0_worker_programme_candidates').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(candidates.length,0);
+  const decisions=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);
+  assert.equal(decisions.length,2);assert.ok(decisions.every(d=>d.reason==='MATERIAL_FACTS_UNRESOLVED'));
 });
