@@ -11,7 +11,7 @@ import {programmeWire} from './fixtures/programme-model.mjs';
 const html=await readFile(new URL('./fixtures/recentjobs-programmes.html',import.meta.url),'utf8');
 const candidate=parseRecentJobsDetail({html,url:'https://recentjobs.co.za/2026/09/26/fictional-programmes/'}),plan=planRecentJobsProgrammes(candidate);
 const options={sourceId:'programme_test',now:'2026-10-04T10:00:00.000Z'};
-const canonical=(intake,wire=programmeWire(candidate,intake))=>decodeGroqExtraction(wire,candidate);
+const canonical=(intake,wire=programmeWire(candidate,intake))=>decodeGroqExtraction({...wire,applicationCandidateIndex:0},programmeCandidate(candidate,intake.id));
 const map=(intake,input=canonical(intake))=>mapProgrammeExtraction(candidate,intake.id,input,options);
 
 test('programme extraction retains the full numbered source, one original recipient and a separate bound local view',()=>{
@@ -68,7 +68,7 @@ test('supported validation evidence must stay in scope while rejected assessment
 test('raw provider spans from another trade are rejected before canonical conversion without semantic fallback',async()=>{
   let calls=0;const intake=plan.intakes[0],wire=programmeWire(candidate,plan.intakes[1]);wire.intake=programmeWire(candidate,intake).intake;
   await assert.rejects(extractProgramme(candidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{
-    calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{totalTokenCount:15}});
+    calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
   }}),/OUTSIDE_SCOPE/);assert.equal(calls,1);
 });
 
@@ -115,7 +115,7 @@ test('an explicit completed-form submission remains a required document independ
     html:html.replace('<p>Applicants must submit an updated CV.</p>',`<p>Applicants must submit an updated CV.</p><p>${submission}</p>`)}),intake=planRecentJobsProgrammes(changed).intakes[0];
   const wire=programmeWire(changed,intake),line=`${changed.title}\n${changed.sourceText}`.split('\n').indexOf(submission)+1;
   wire.requirements.items.push({id:'r3',kind:'document',level:'required',state:'stated',span:[line,line]});wire.requirements.expression='all(r1,r2,r3)';
-  const mapped=mapProgrammeExtraction(changed,intake.id,decodeGroqExtraction(wire,changed),options);
+  const mapped=mapProgrammeExtraction(changed,intake.id,decodeGroqExtraction({...wire,applicationCandidateIndex:0},programmeCandidate(changed,intake.id)),options);
   assert.ok(mapped.record.requirements.requirements.some(r=>r.level==='required'&&r.fact.originalText===submission));
   assert.ok(mapped.record.practicalConditions.value.includes('Request an application form from forms@employer.example.'));
 });
@@ -134,4 +134,37 @@ test('an explicit provider output allowance cannot exceed the Gemini adapter lim
   let calls=0;await assert.rejects(generateStructured({}, {instruction:'Synthetic control',schema:{type:'object'},version:'synthetic_control'},
     {maxOutputTokens:8193,env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{calls++;assert.fail('Invalid token cap reached transport');}}),/AI_CONFIGURATION_REQUIRED/);
   assert.equal(calls,0);
+});
+
+test('AI programme output has no route selector and code binds each original scoped recipient',async()=>{
+  for(const intake of plan.intakes){
+    let calls=0;
+    const result=await extractProgramme(candidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async(_url,init)=>{
+      calls++;const body=JSON.parse(init.body),instruction=body.systemInstruction.parts[0].text,
+        payload=JSON.parse(body.contents[0].parts[0].text);
+      assert.doesNotMatch(instruction,/Select only an existing applicationCandidateIndex|Select applicationCandidateIndex=0/);
+      assert.equal(Object.hasOwn(payload.selectedIntake.application,'index'),false);
+      assert.equal(payload.selectedIntake.application.destination,intake.application.destination);
+      const schemaText=instruction.slice(instruction.indexOf('The root data keys are exactly:'));
+      assert.doesNotMatch(schemaText,/applicationCandidateIndex/);
+      return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(programmeWire(candidate,intake))}]}}]});
+    }});
+    const mapped=map(intake,result.extraction);
+    assert.equal(result.extraction.applicationCandidateIndex,0);
+    assert.equal(mapped.record.applicationRoute.value.destination,intake.application.destination);
+    assert.equal(mapped.evidence.find(e=>e.applicationCandidate).applicationCandidate.index,intake.application.index);
+    assert.equal(calls,1);
+  }
+});
+
+test('model-written route indexes and destinations are rejected once, never stripped or repaired',async()=>{
+  const intake=plan.intakes[1];
+  for(const extra of [{applicationCandidateIndex:1},{applicationCandidateIndex:0},{applicationRoute:{destination:'electrical@employer.example'}}]){
+    let calls=0;
+    await assert.rejects(extractProgramme(candidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345',SKILVED_AI_FALLBACK:'true'},fetchImpl:async()=>{
+      calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({...programmeWire(candidate,intake),...extra})}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
+    }}),error=>{assert.equal(error.code,'AI_INVALID_EXTRACTION');assert.equal(error.usage.totalTokens,15);
+      assert.deepEqual(error.outputDiagnostic.unknownPropertyCounts,[{path:'',count:1}]);return true;});
+    assert.equal(calls,1);
+  }
 });

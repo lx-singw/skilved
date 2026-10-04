@@ -1,16 +1,24 @@
 import { createHash } from 'node:crypto';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { DomainError } from '../config.mjs';
 import { planRecentJobsProgrammes, programmePassage, programmeReviewPayload } from '../adapters/recentjobs-programmes.mjs';
 import { generateStructured, extractionConfiguration } from './provider.mjs';
-import { GROQ_EXTRACTION_INSTRUCTION, GROQ_EXTRACTION_SCHEMA, GroqExtractionSchema, groqExtractionPayload, decodeGroqExtraction } from './groq-schema.mjs';
+import { GROQ_EXTRACTION_INSTRUCTION, GroqExtractionSchema, groqExtractionPayload, decodeGroqExtraction } from './groq-schema.mjs';
 import { ExtractionSchema, mapExtraction } from './extraction.mjs';
 import { validationContract, validationPayload, validateAssessment } from './validation.mjs';
 import { allFacts } from '../worker-policy.mjs';
 import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v3';
-export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v3';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v4';
+export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v4';
+// Programme routes are resolved by the source planner, never selected by AI.
+// Strict parsing rejects old index-bearing outputs rather than repairing them.
+export const ProgrammeExtractionSchema = GroqExtractionSchema.omit({applicationCandidateIndex:true}).strict();
+const PROGRAMME_EXTRACTION_SCHEMA = zodToJsonSchema(ProgrammeExtractionSchema, { $refStrategy: 'root' });
+const programmeInstruction = GROQ_EXTRACTION_INSTRUCTION.replace(
+  'Select only an existing applicationCandidateIndex. Never invent a destination.',
+  'Code binds the selected intake to its source-verified application method. Do not output an application index, route or destination.');
 const GEMINI_VALIDATION_MAX_TOKENS = 6144;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new DomainError(code); };
@@ -100,7 +108,7 @@ export function mapProgrammeExtraction(candidate,id,input,options) {
 const scopeInstruction = `
 This is one explicitly selected apprenticeship trade inside a multi-programme notice.
 Use only includedSpans for this trade's facts. All original lines remain visible for context.
-Never cite another trade or the experiential programme. Select applicationCandidateIndex=0 only.
+Never cite another trade or the experiential programme. Application binding is owned by code; do not select a route.
 Copy selectedIntake.reference.value exactly, including spaces. Shared wording needs applicability review.
 WIL-only document instructions belong to the separate WIL intake, not this apprenticeship's requirements.
 formRequestInstructions identify standalone steps for obtaining a blank application form.
@@ -110,7 +118,7 @@ Do not concatenate separated source ranges into one span or quote. Missing manda
 
 const outputInstruction = `
 Return one opportunity DATA object. The schema below describes its permitted shape; do not return the schema itself.
-The root data keys are exactly: ${Object.keys(GroqExtractionSchema.shape).join(', ')}.
+The root data keys are exactly: ${Object.keys(ProgrammeExtractionSchema.shape).join(', ')}.
 Do not add schema keywords such as type, properties, required, additionalProperties, definitions or $schema to the data.
 For this programme task, a complete condition on one numbered source line is ONE requirement item.
 This rule takes precedence over examples that split alternatives: keep the entire single-line OR condition
@@ -122,23 +130,26 @@ Return only the data object, without explanations or a schema wrapper.`;
 export function programmeExtractionPayload(candidate,id) {
   const {intake} = scopeOf(candidate,id), view=programmeCandidate(candidate,id);
   return {...groqExtractionPayload(view),sourceLines:groqExtractionPayload(candidate).sourceLines,
-    selectedIntake:intake,programmeScope:view.programmeScope,formRequestInstructions:formRequestInstructions(candidate,id)};
+    selectedIntake:{...intake,application:{method:intake.application.method,destination:intake.application.destination,
+      originalText:intake.application.originalText,span:intake.application.span}},
+    programmeScope:view.programmeScope,formRequestInstructions:formRequestInstructions(candidate,id)};
 }
 export async function extractProgramme(candidate,id,options={}) {
   const result = await generateStructured(programmeExtractionPayload(candidate,id),
-    {instruction:GROQ_EXTRACTION_INSTRUCTION+scopeInstruction+outputInstruction,schema:GROQ_EXTRACTION_SCHEMA,version:PROGRAMME_EXTRACTION_VERSION},options);
+    {instruction:programmeInstruction+scopeInstruction+outputInstruction,schema:PROGRAMME_EXTRACTION_SCHEMA,version:PROGRAMME_EXTRACTION_VERSION},options);
   try {
-    const parsed = GroqExtractionSchema.safeParse(result.extraction);
+    const parsed = ProgrammeExtractionSchema.safeParse(result.extraction);
     if (!parsed.success) {
       const error = new DomainError('AI_INVALID_EXTRACTION');
-      error.outputDiagnostic = rejectedOutputDiagnostic(JSON.stringify(result.extraction),GROQ_EXTRACTION_SCHEMA);
+      error.outputDiagnostic = rejectedOutputDiagnostic(JSON.stringify(result.extraction),PROGRAMME_EXTRACTION_SCHEMA);
       throw error;
     }
     const wire = parsed.data;
     const spans = [wire.categorySpan,...['issuer','summary','intake','location','residence','experience','deadline','practicalConditions'].map(k=>wire[k]?.span),
       ...wire.compensation.map(f=>f.span),...wire.requirements.items.map(i=>i.span)].filter(Boolean);
     for (const span of spans) programmePassage(candidate,id,span);
-    const extraction = decodeGroqExtraction(wire,{...candidate,applicationCandidates:programmeCandidate(candidate,id).applicationCandidates});
+    // The strict wire has no selector; only trusted code supplies the scoped index.
+    const extraction = decodeGroqExtraction({...wire,applicationCandidateIndex:0},{...candidate,applicationCandidates:programmeCandidate(candidate,id).applicationCandidates});
     return {...result,extraction};
   } catch (error) {error.usage=result.provenance.usage;throw error;}
 }

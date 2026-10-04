@@ -11,7 +11,7 @@ export function programmeWire(candidate,intake) {
     summary:{state:'stated',value:'Fictional Workshop invites applicants for its training programmes.',span:span('Fictional Workshop invites applicants for its training programmes.')},
     intake:{state:'stated',value:intake.reference.value,span:intake.reference.span},location:null,residence:null,experience:null,
     deadline:{state:'stated',value:{kind:'date',localDate:'2026-10-30',localTime:null,timezone:null,utcInstant:null},span:span('Closing date: 30 October 2026')},
-    compensation:[],practicalConditions:{state:'stated',value:lines.slice(preparation-1,last).join('\n'),span:[preparation,last]},applicationCandidateIndex:0,
+    compensation:[],practicalConditions:{state:'stated',value:lines.slice(preparation-1,last).join('\n'),span:[preparation,last]},
     requirements:{items:[{id:'r1',kind:'education',level:'required',state:'stated',span:span(education)},
       {id:'r2',kind:'document',level:'required',state:'stated',span:span('Applicants must submit an updated CV.')}],expression:'all(r1,r2)'}};
 }

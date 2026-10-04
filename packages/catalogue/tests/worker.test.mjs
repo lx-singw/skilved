@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
 import { Catalogue } from '../src/store.mjs';
@@ -692,4 +692,22 @@ test('published notices are rechecked even when category discovery no longer fin
   const next = detailResult(await f.restart().run(f.sourceId));
   assert.equal(next.recordId, first.recordId); assert.equal(next.published, true);
   assert.equal((await f.catalogue.detail(first.recordId)).opportunity.revision, 2);
+});
+
+test('a programme model cannot override the source-bound route and a valid sibling still completes',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),answer=programmeResponse(input,candidate);
+    if(!input.extracted&&input.selectedIntake.reference.value.startsWith('Electrical'))answer.applicationCandidateIndex=1;
+    return geminiAnswer(answer);
+  }));
+  const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(result.programmes[0].reason,'AI_INVALID_EXTRACTION');assert.equal(result.programmes[1].state,'draft');assert.equal(calls,3);
+  const held=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).find(d=>d.sourceId===f.sourceId&&d.decision==='exception');
+  assert.equal((await worker.ref('drafts',createHash('sha256').update(`${f.sourceId}:${held.intakeId}`).digest('hex')).get()).exists,false);
+  const draft=value(await worker.ref('drafts',result.programmes[1].recordId).get());
+  assert.equal(draft.applicationRoute.value.destination,'plumbing@employer.example');
+  assert.equal((await worker.ref('public',draft.id).get()).exists,false);
 });
