@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {parseRecentJobsDetail} from '../src/adapters/recentjobs.mjs';
 import {planRecentJobsProgrammes} from '../src/adapters/recentjobs-programmes.mjs';
 import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
-import {programmeCandidate,programmeExtractionPayload,mapProgrammeExtraction,extractProgramme,validateProgrammeAssessment} from '../src/ai/programme-extraction.mjs';
+import {programmeCandidate,programmeExtractionPayload,mapProgrammeExtraction,extractProgramme,validateProgrammeAssessment,PROGRAMME_EXTRACTION_VERSION} from '../src/ai/programme-extraction.mjs';
 import {programmeWire} from './fixtures/programme-model.mjs';
 
 const html=await readFile(new URL('./fixtures/recentjobs-programmes.html',import.meta.url),'utf8');
@@ -69,4 +69,31 @@ test('raw provider spans from another trade are rejected before canonical conver
   await assert.rejects(extractProgramme(candidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{
     calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{totalTokenCount:15}});
   }}),/OUTSIDE_SCOPE/);assert.equal(calls,1);
+});
+
+test('schema keywords returned as data fail once with bounded diagnostics and preserved usage',async()=>{
+  const intake=plan.intakes[0],wire={...programmeWire(candidate,intake),type:'object',provider_secret_field:'private value'};let calls=0;
+  await assert.rejects(extractProgramme(candidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{
+    calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
+  }}),error=>{
+    assert.equal(error.code,'AI_INVALID_EXTRACTION');assert.equal(error.usage.totalTokens,15);
+    assert.deepEqual(error.outputDiagnostic.unknownPropertyCounts,[{path:'',count:2}]);
+    assert.doesNotMatch(JSON.stringify(error.outputDiagnostic),/provider_secret_field|private value/);return true;
+  });assert.equal(calls,1);
+});
+
+test('single-line OR remains one verbatim condition while duplicate alternative passages are rejected',async()=>{
+  const intake=plan.intakes[0],wire=programmeWire(candidate,intake),env={SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'};let calls=0;
+  const fetchImpl=async(_url,init)=>{
+    calls++;const body=JSON.parse(init.body);
+    assert.match(body.systemInstruction.parts[0].text,/root data keys are exactly:/);
+    assert.match(body.systemInstruction.parts[0].text,/single-line OR condition/);
+    return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
+  };
+  const result=await extractProgramme(candidate,intake.id,{env,fetchImpl});
+  assert.equal(result.provenance.extractionVersion,PROGRAMME_EXTRACTION_VERSION);
+  const mapped=map(intake,result.extraction);
+  assert.equal(mapped.record.requirements.requirements[0].fact.originalText,'Applicants require Grade 12 with Mathematics OR N3 Electrical.');
+  wire.requirements.items.push({...wire.requirements.items[0],id:'r3'});wire.requirements.expression='all(any(r1,r3),r2)';
+  await assert.rejects(extractProgramme(candidate,intake.id,{env,fetchImpl}),/AI_DUPLICATE_REQUIREMENT_PASSAGE/);assert.equal(calls,2);
 });

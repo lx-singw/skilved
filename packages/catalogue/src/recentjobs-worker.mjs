@@ -439,7 +439,8 @@ export class RecentJobsWorker {
         const reason=/^[A-Z_]+$/.test(error.code??'')?error.code:'PROGRAMME_STAGE_FAILED';
         await this.transaction(claim.sourceId,'worker.programme.exception',async(tx,source)=>{
           await this.assertClaim(tx,source,claim);tx.set(this.ref('worker_programme_decisions',decisionId),payload({sourceId:source.id,
-            jobId:claim.id,intakeId:intake.id,snapshotId:captured.snapshotId,decision:'exception',reason,at:this.now()}));
+            jobId:claim.id,intakeId:intake.id,snapshotId:captured.snapshotId,decision:'exception',reason,
+            ...(error.outputDiagnostic?{outputDiagnostic:error.outputDiagnostic}:{}),at:this.now()}));
         });
         results.push({intakeId:intake.id,state:'exception',reason});
       }

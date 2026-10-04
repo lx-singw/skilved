@@ -394,6 +394,23 @@ test('cross-trade extraction fails locally without fallback while a valid siblin
   assert.equal(result.programmes[0].reason,'PROGRAMME_EVIDENCE_OUTSIDE_SCOPE');assert.equal(result.programmes[1].state,'draft');assert.equal(result.draftCount,1);assert.equal(calls,3);
 });
 
+test('malformed programme data records structural diagnostics privately and continues a valid sibling',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),answer=programmeResponse(input,candidate);
+    if(!input.extracted&&input.selectedIntake.reference.value.startsWith('Electrical'))answer.private_provider_key='sensitive provider value';
+    return geminiAnswer(answer);
+  }));
+  const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(result.programmes[0].reason,'AI_INVALID_EXTRACTION');assert.equal(result.programmes[1].state,'draft');assert.equal(calls,3);
+  const rejected=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).find(d=>d.sourceId===f.sourceId&&d.decision==='exception');
+  assert.deepEqual(rejected.outputDiagnostic.unknownPropertyCounts,[{path:'',count:1}]);
+  assert.doesNotMatch(JSON.stringify(rejected),/private_provider_key|sensitive provider value/);
+  assert.equal((await worker.ref('public',result.programmes[1].recordId).get()).exists,false);
+});
+
 test('semantic validation rejection holds one child without approving it or blocking a valid sibling',async()=>{
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
   f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));

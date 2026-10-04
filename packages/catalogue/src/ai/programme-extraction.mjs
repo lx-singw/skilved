@@ -7,8 +7,9 @@ import { ExtractionSchema, mapExtraction } from './extraction.mjs';
 import { validationContract, validationPayload, validateAssessment } from './validation.mjs';
 import { allFacts } from '../worker-policy.mjs';
 import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
+import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v1';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v2';
 export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v1';
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new DomainError(code); };
@@ -88,6 +89,17 @@ Copy selectedIntake.reference.value exactly, including spaces. Shared wording ne
 WIL-only document instructions belong to the separate WIL intake, not this apprenticeship's requirements.
 Do not concatenate separated source ranges into one span or quote. Missing mandatory conditions fail.`;
 
+const outputInstruction = `
+Return one opportunity DATA object. The schema below describes its permitted shape; do not return the schema itself.
+The root data keys are exactly: ${Object.keys(GroqExtractionSchema.shape).join(', ')}.
+Do not add schema keywords such as type, properties, required, additionalProperties, definitions or $schema to the data.
+For this programme task, a complete condition on one numbered source line is ONE requirement item.
+This rule takes precedence over examples that split alternatives: keep the entire single-line OR condition
+in one item and cite that line once. Its verbatim wording preserves the internal alternatives.
+Use any(...) only between alternatives that have separately citable, distinct source passages.
+Before returning, check that every item has a unique source span and every required root key is present.
+Return only the data object, without explanations or a schema wrapper.`;
+
 export function programmeExtractionPayload(candidate,id) {
   const {intake} = scopeOf(candidate,id), view=programmeCandidate(candidate,id);
   return {...groqExtractionPayload(view),sourceLines:groqExtractionPayload(candidate).sourceLines,
@@ -95,9 +107,15 @@ export function programmeExtractionPayload(candidate,id) {
 }
 export async function extractProgramme(candidate,id,options={}) {
   const result = await generateStructured(programmeExtractionPayload(candidate,id),
-    {instruction:GROQ_EXTRACTION_INSTRUCTION+scopeInstruction,schema:GROQ_EXTRACTION_SCHEMA,version:PROGRAMME_EXTRACTION_VERSION},options);
+    {instruction:GROQ_EXTRACTION_INSTRUCTION+scopeInstruction+outputInstruction,schema:GROQ_EXTRACTION_SCHEMA,version:PROGRAMME_EXTRACTION_VERSION},options);
   try {
-    const wire = GroqExtractionSchema.parse(result.extraction);
+    const parsed = GroqExtractionSchema.safeParse(result.extraction);
+    if (!parsed.success) {
+      const error = new DomainError('AI_INVALID_EXTRACTION');
+      error.outputDiagnostic = rejectedOutputDiagnostic(JSON.stringify(result.extraction),GROQ_EXTRACTION_SCHEMA);
+      throw error;
+    }
+    const wire = parsed.data;
     const spans = [wire.categorySpan,...['issuer','summary','intake','location','residence','experience','deadline','practicalConditions'].map(k=>wire[k]?.span),
       ...wire.compensation.map(f=>f.span),...wire.requirements.items.map(i=>i.span)].filter(Boolean);
     for (const span of spans) programmePassage(candidate,id,span);
