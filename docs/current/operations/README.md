@@ -55,6 +55,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Programme boundary plans and fresh-notice screening](54_PROGRAMME_BOUNDARY_PLANS_AND_FRESH_NOTICE_SCREENING_2026-10-03.md)
 - [Per-intake AI extraction, private drafts and bounded live canary](55_PER_INTAKE_AI_EXTRACTION_AND_PRIVATE_DRAFTS_2026-10-04.md)
 - [Programme output reliability, private diagnostics and wider source screening](56_PROGRAMME_OUTPUT_RELIABILITY_AND_SOURCE_SCREENING_2026-10-04.md)
+- [Form preparation, model cooldowns and cached private draft completion](57_FORM_PREPARATION_MODEL_COOLDOWNS_AND_CACHED_COMPLETION_2026-10-04.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

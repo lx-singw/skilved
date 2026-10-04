@@ -12,7 +12,7 @@ export function extractionConfiguration(env = process.env) {
 export function generateStructured(payload, contract, options = {}) {
   const config = extractionConfiguration(options.env ?? process.env);
   return config.provider === 'gemini'
-    ? gemini.generateStructured(payload, {...contract, outputMode:'json_object'}, {...options, maxOutputTokens:3072})
+    ? gemini.generateStructured(payload, {...contract, outputMode:'json_object'}, {...options, maxOutputTokens:options.maxOutputTokens ?? 3072})
     : groq.generateStructured(payload, contract, options);
 }
 

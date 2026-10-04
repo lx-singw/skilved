@@ -103,7 +103,7 @@ test('Gemini shadow extraction and validation reserve every fallback call, prese
     return geminiAnswer(validation?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]}:compactWire());
   });
   const worker=f.restart(options),result=detailResult(await worker.run(f.sourceId));assert.ok(result);assert.equal(result.published,false);
-  assert.deepEqual(requests.map(r=>r.model),['gemini-3.8-flash','gemini-3.7-flash','gemini-3.8-flash','gemini-3.7-flash']);
+  assert.deepEqual(requests.map(r=>r.model),['gemini-3.8-flash','gemini-3.7-flash','gemini-3.7-flash','gemini-3.6-flash']);
   assert.deepEqual(requests.map(r=>r.thinking),['LOW','LOW','MEDIUM','MEDIUM']);
   const draft=value(await worker.ref('drafts',result.recordId).get());assert.equal(draft.publication.approved,false);
   assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');
@@ -111,7 +111,8 @@ test('Gemini shadow extraction and validation reserve every fallback call, prese
   const rows=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
   assert.equal(rows.length,4);assert.deepEqual(rows.map(r=>r.providerStatus).sort(),[null,null,429,503].sort());assert.ok(rows.every(r=>r.provider==='gemini'));
   const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);
-  assert.equal(budget.calls,4);assert.ok(budget.nextCallByModel['gemini-3.8-flash']);assert.equal(budget.nextCallAt,undefined);
+  assert.equal(budget.calls,4);assert.equal(budget.nextCallByModel['gemini-3.8-flash'],new Date(Date.parse(f.now())+120000).toISOString());
+  assert.equal(budget.nextCallByModel['gemini-3.7-flash'],new Date(Date.parse(f.now())+90000).toISOString());assert.equal(budget.nextCallAt,undefined);
   f.advance(24*3600000);assert.equal(detailResult(await f.restart(options).run(f.sourceId)).published,false);assert.equal(requests.length,4);
 });
 
@@ -120,6 +121,43 @@ test('Gemini fallback stops at the daily budget before sending the next model',a
   const worker=f.restart(geminiOptions(async()=>{sends++;return new Response(null,{status:503});}));
   assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='MODEL_BUDGET_EXHAUSTED'));assert.equal(sends,1);
   assert.equal((await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,1);
+});
+
+test('a Gemini availability cooldown delays retry and cached extraction avoids another extraction call',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:3}),requests=[];
+  const options=geminiOptions(async(url,init)=>{
+    const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);requests.push({model:url.split('/models/')[1].split(':')[0],validation:!!input.extracted});
+    if(requests.length===2)return new Response(null,{status:503});
+    return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]}:compactWire());
+  });options.env={...geminiEnv,SKILVED_AI_FALLBACK:'false'};
+  const worker=f.restart(options),initial=await worker.run(f.sourceId);
+  assert.ok(initial.results.some(r=>r.state==='pending'&&r.reason==='AI_PROVIDER_REJECTED'));
+  const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');
+  assert.equal(job.nextAt,new Date(Date.parse(f.now())+120000).toISOString());
+  f.advance(119999);await assert.rejects(worker.runJob(f.sourceId,job.id),/JOB_UNAVAILABLE/);assert.equal(requests.length,2);
+  f.advance(2);const result=await worker.runJob(f.sourceId,job.id);assert.equal(result.published,false);
+  assert.deepEqual(requests.map(r=>r.validation),[false,true,true]);assert.ok(requests.every(r=>r.model==='gemini-3.8-flash'));
+  assert.equal(value(await worker.ref('drafts',result.recordId).get()).publication.approved,false);
+  const receipts=(await db.collection('m0_model_calls').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(receipts.length,3);
+  assert.equal((await worker.ref('public',result.recordId).get()).exists,false);
+});
+
+test('Gemini authentication and invalid-request failures do not create availability cooldowns or fallback calls',async()=>{
+  for(const status of [400,401,403]){
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});let calls=0;
+    const worker=f.restart(geminiOptions(async()=>{calls++;return new Response(null,{status});}));
+    assert.ok((await worker.run(f.sourceId)).results.some(r=>r.state==='exception'&&r.reason==='AI_PROVIDER_REJECTED'));assert.equal(calls,1);
+    const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);
+    assert.equal(budget.nextCallByModel,undefined);assert.equal(budget.calls,1);
+  }
+});
+
+test('Gemini availability cooldown honours a longer provider Retry-After',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false}),options=geminiOptions(async()=>new Response(null,{status:503,headers:{'Retry-After':'300'}}));
+  options.env={...geminiEnv,SKILVED_AI_FALLBACK:'false'};const worker=f.restart(options);
+  assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='AI_PROVIDER_REJECTED'));
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);
+  assert.equal(budget.nextCallByModel['gemini-3.8-flash'],new Date(Date.parse(f.now())+300000).toISOString());
 });
 
 test('Gemini local schema rejection stops without fallback and does not reuse a Groq cache',async()=>{
@@ -349,17 +387,20 @@ test('opt-in programme extraction creates two isolated private drafts with per-a
     const body=JSON.parse(init.body),input=JSON.parse(body.contents[0].parts[0].text);
     calls.push({model:url.split('/models/')[1].split(':')[0],validation:!!input.extracted,intake:input.selectedIntake.id});
     assert.equal(body.generationConfig.thinkingConfig.thinkingLevel,input.extracted?'MEDIUM':'LOW');
+    assert.equal(body.generationConfig.maxOutputTokens,input.extracted?6144:3072);
     if(calls.length===1)return new Response(null,{status:503});
     return geminiAnswer(programmeResponse(input,candidate));
   }));
   const first=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
   assert.equal(first.draftCount,2,JSON.stringify(first));assert.equal(first.published,false);assert.equal(calls.length,5);
   assert.equal(calls[0].model,'gemini-3.8-flash');assert.equal(calls[1].model,'gemini-3.7-flash');
+  assert.ok(calls.slice(1).every(c=>c.model==='gemini-3.7-flash'));
   const drafts=await Promise.all(first.programmes.map(r=>worker.ref('drafts',r.recordId).get().then(value)));
   assert.deepEqual(drafts.map(d=>d.intake.value),['Electrical TEST/01','Plumbing TEST/02']);
   assert.deepEqual(drafts.map(d=>d.applicationRoute.value.destination),['electrical@employer.example','plumbing@employer.example']);
   assert.equal(drafts[0].requirements.requirements[0].fact.originalText,'Applicants require Grade 12 with Mathematics OR N3 Electrical.');
   assert.equal(drafts[1].requirements.requirements[0].fact.originalText,'Applicants require N2 Plumbing.');
+  assert.ok(drafts.every(d=>d.practicalConditions.value.includes('Request an application form from forms@employer.example.')));
   assert.ok(drafts.every(d=>d.requirements.requirements.length===2&&!d.publication.approved&&d.lifecycle==='review'));
   for(const row of first.programmes)assert.equal((await worker.ref('public',row.recordId).get()).exists,false);
   const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,5);

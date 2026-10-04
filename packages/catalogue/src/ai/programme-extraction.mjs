@@ -9,8 +9,9 @@ import { allFacts } from '../worker-policy.mjs';
 import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v2';
-export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v1';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v3';
+export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v3';
+const GEMINI_VALIDATION_MAX_TOKENS = 6144;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new DomainError(code); };
 const scopeOf = (candidate,id) => {
@@ -19,6 +20,16 @@ const scopeOf = (candidate,id) => {
   return {plan,intake};
 };
 const inside = (intake,line) => intake.includedSpans.some(([first,last]) => first <= line && line <= last);
+
+// Only standalone instructions for obtaining a blank form are classified here.
+// Mixed clauses about completed forms/submission stay subject to semantic review.
+function formRequestInstructions(candidate,id) {
+  const {intake}=scopeOf(candidate,id);
+  return `${candidate.title}\n${candidate.sourceText}`.split('\n').flatMap((text,index)=>
+    inside(intake,index+1) && /^(?:Request|Obtain|Download)\s+(?:(?:an?|the)\s+)?application\s+form\s+(?:from|via|at)\s+.{1,300}$/i.test(text.trim()) &&
+    !/\b(?:submit|return|attach|completed|required|compulsory|must)\b/i.test(text)
+      ? [{originalText:text,span:[index+1,index+1]}] : []);
+}
 
 // A local coverage view only. Providers and stored evidence retain the full original source.
 export function programmeCandidate(candidate,id) {
@@ -58,6 +69,11 @@ export function mapProgrammeExtraction(candidate,id,input,options) {
   // This narrow planner selects apprenticeship trades, not the separate WIL intake.
   // Keep WIL-only shared wording in the source audit; abstain if it becomes a trade requirement.
   if (extraction.requirements.items.some(i=>/\bfor WIL applicants\b/i.test(i.fact.quote ?? ''))) fail('PROGRAMME_SHARED_CONDITION_UNRESOLVED');
+  for (const instruction of formRequestInstructions(candidate,id)) {
+    if (extraction.requirements.items.some(i=>i.fact.quote?.includes(instruction.originalText))) fail('PROGRAMME_FORM_REQUEST_MISCLASSIFIED');
+    if (extraction.practicalConditions.state !== 'stated' || !extraction.practicalConditions.quote?.includes(instruction.originalText) ||
+        !extraction.practicalConditions.value?.includes(instruction.originalText)) fail('PROGRAMME_FORM_REQUEST_COVERAGE');
+  }
   const lines = `${candidate.title}\n${candidate.sourceText}`.split('\n');
   const conditionLines = lines.filter((line,index)=>inside(intake,index+1) &&
     /^(?:Applicants? must submit|Applicants? (?:must have|require)|Requirements include)\b/i.test(line.trim()));
@@ -87,6 +103,9 @@ Use only includedSpans for this trade's facts. All original lines remain visible
 Never cite another trade or the experiential programme. Select applicationCandidateIndex=0 only.
 Copy selectedIntake.reference.value exactly, including spaces. Shared wording needs applicability review.
 WIL-only document instructions belong to the separate WIL intake, not this apprenticeship's requirements.
+formRequestInstructions identify standalone steps for obtaining a blank application form.
+Preserve each instruction verbatim, including its recipient, in practicalConditions. Do not make it a requirement item.
+The form-request recipient is not the submission destination. Required completed-form submission remains a document requirement.
 Do not concatenate separated source ranges into one span or quote. Missing mandatory conditions fail.`;
 
 const outputInstruction = `
@@ -103,7 +122,7 @@ Return only the data object, without explanations or a schema wrapper.`;
 export function programmeExtractionPayload(candidate,id) {
   const {intake} = scopeOf(candidate,id), view=programmeCandidate(candidate,id);
   return {...groqExtractionPayload(view),sourceLines:groqExtractionPayload(candidate).sourceLines,
-    selectedIntake:intake,programmeScope:view.programmeScope};
+    selectedIntake:intake,programmeScope:view.programmeScope,formRequestInstructions:formRequestInstructions(candidate,id)};
 }
 export async function extractProgramme(candidate,id,options={}) {
   const result = await generateStructured(programmeExtractionPayload(candidate,id),
@@ -127,9 +146,11 @@ export async function extractProgramme(candidate,id,options={}) {
 export async function validateProgramme(input,candidate,id,options={}) {
   const scope=programmeReviewPayload(candidate,id),config=extractionConfiguration(options.env ?? process.env);
   const contract=validationContract(null);
-  const result = await generateStructured({...validationPayload(input),selectedIntake:scope.intake,programmeScope:scope.intake.includedSpans},
+  const result = await generateStructured({...validationPayload(input),selectedIntake:scope.intake,programmeScope:scope.intake.includedSpans,
+    formRequestInstructions:formRequestInstructions(candidate,id)},
     {...contract,instruction:contract.instruction+scopeInstruction,version:PROGRAMME_VALIDATION_VERSION},
-    {...options,env:{...(options.env ?? process.env),SKILVED_AI_THINKING:config.validationThinking}});
+    {...options,...(config.provider==='gemini'?{maxOutputTokens:GEMINI_VALIDATION_MAX_TOKENS}:{}),
+      env:{...(options.env ?? process.env),SKILVED_AI_THINKING:config.validationThinking}});
   try {
     const assessment=validateAssessment(result.extraction,input.recentjobsText);
     if (assessment.supported) for (const e of assessment.evidence) originalPosition(candidate,scope.intake,e.quote);

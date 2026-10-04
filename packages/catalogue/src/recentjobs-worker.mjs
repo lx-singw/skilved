@@ -26,6 +26,7 @@ const payload = input => ({ json: JSON.stringify(input) });
 const value = snap => snap.exists ? JSON.parse(snap.data().json) : null;
 const fail = code => { throw new DomainError(code); };
 const LEASE_MS = 600_000;
+const GEMINI_UNAVAILABLE_MS = 120_000;
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
   'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'ABORT_ERR'].includes(error.code);
@@ -167,11 +168,14 @@ export class RecentJobsWorker {
     });
     let result, error;
     try { result = await work(); } catch (caught) { error = caught; }
+    const unavailable = this.provider === 'gemini' && error?.code === 'AI_PROVIDER_REJECTED' &&
+      [404,500,502,503,504].includes(error.providerStatus);
+    if (unavailable) error.retryAfterMs = Math.max(GEMINI_UNAVAILABLE_MS,error.retryAfterMs ?? 0);
     // Reserve is not refunded on failure/crash: the provider may already have billed.
     await this.transaction(claim.sourceId, 'worker.model.result', async (tx, source) => {
       await this.assertClaim(tx, source, claim);
       const budgetRef = this.ref('model_budgets', hash(`${source.id}:${dayInSA(this.now())}`));
-      const budget = error?.code === 'AI_RATE_LIMITED' ? value(await tx.get(budgetRef)) : null;
+      const budget = error?.code === 'AI_RATE_LIMITED' || unavailable ? value(await tx.get(budgetRef)) : null;
       if (budget) {
         const until = new Date(Date.parse(this.now()) + Math.max(60000, error.retryAfterMs ?? 0)).toISOString();
         tx.set(budgetRef, payload({...budget, ...(this.provider === 'gemini'
@@ -301,7 +305,7 @@ export class RecentJobsWorker {
     const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
-    const policy = this.provider === 'gemini' ? `:json_object:chain_v1:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}` : '';
+    const policy = this.provider === 'gemini' ? `:json_object:chain_v1:availability_v1:${GEMINI_UNAVAILABLE_MS}:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}` : '';
     const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}`;
     let extraction;
     if (this.extractionMode === 'split') {
@@ -390,7 +394,7 @@ export class RecentJobsWorker {
     // A closed/unsupported common deadline stops the whole notice before AI.
     preflightCandidate(claim.source,programmeCandidate(candidate,plan.intakes[0].id),this.now());
     const results=[];
-    const providerPolicy=this.provider==='gemini'?`:json_object:chain_v1:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}`:'';
+    const providerPolicy=this.provider==='gemini'?`:json_object:chain_v1:availability_v1:${GEMINI_UNAVAILABLE_MS}:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}`:'';
     for(const intake of plan.intakes) {
       const decisionId=hash(`${claim.id}:${intake.id}`),view=programmeCandidate(candidate,intake.id);
       try {
