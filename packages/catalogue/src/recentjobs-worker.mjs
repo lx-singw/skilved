@@ -8,6 +8,8 @@ import { DomainError } from './config.mjs';
 import { retrieve } from './fetch.mjs';
 import { parseRecentJobsList, parseRecentJobsDetail } from './adapters/recentjobs.mjs';
 import { planRecentJobsProgrammes } from './adapters/recentjobs-programmes.mjs';
+import { programmeCandidate, mapProgrammeExtraction, extractProgramme, validateProgramme, validateProgrammeAssessment,
+  PROGRAMME_EXTRACTION_VERSION, PROGRAMME_VALIDATION_VERSION } from './ai/programme-extraction.mjs';
 import { parsePrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { mapExtraction, EXTRACTION_VERSION } from './ai/extraction.mjs';
 import { GROQ_MODEL } from './ai/groq.mjs';
@@ -16,7 +18,7 @@ import { extractWithProvider } from './ai/provider.mjs';
 import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
 import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs';
-import { validateExtraction, validateAssessment, VALIDATION_VERSION } from './ai/validation.mjs';
+import { validateExtraction, validateAssessment, validationPayload, VALIDATION_VERSION } from './ai/validation.mjs';
 import { RECENTJOBS_INDEX, assertSourceTarget, approvedIssuer, preflightCandidate, publicationGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
@@ -33,7 +35,8 @@ export class RecentJobsWorker {
   constructor(db, principal, { now = () => new Date().toISOString(), fetcher = retrieve, extractor = extractWithProvider,
     extractionMode = 'single', metadataExtractor = extractMetadata, requirementsExtractor = extractRequirements,
     validator = validateExtraction, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), thinking = 'low', validationThinking = 'medium',
-    provider = 'groq', model, env = process.env } = {}) {
+    provider = 'groq', model, env = process.env, programmeExtraction = false,
+    programmeExtractor = extractProgramme, programmeValidator = validateProgramme } = {}) {
     if (typeof principal !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(principal)) fail('WORKER_UNAUTHORIZED');
     this.db = db; this.principal = principal; this.actor = `worker_${hash(principal).slice(0, 40)}`;
     this.now = now; this.fetcher = fetcher; this.extractor = extractor; this.validator = validator; this.sleep = sleep;
@@ -46,6 +49,8 @@ export class RecentJobsWorker {
     if (!(provider === 'gemini' ? GEMINI_MODEL_CHAIN : [GROQ_MODEL, 'openai/gpt-oss-20b']).includes(model)) fail('AI_CONFIGURATION_REQUIRED'); this.model = model;
     if (provider === 'gemini' && !['true','false'].includes(env.SKILVED_AI_FALLBACK ?? 'true')) fail('AI_CONFIGURATION_REQUIRED');
     this.env = {...env}; this.fallback = (env.SKILVED_AI_FALLBACK ?? 'true') === 'true';
+    if (typeof programmeExtraction !== 'boolean' || programmeExtraction && extractionMode !== 'single') fail('AI_CONFIGURATION_REQUIRED');
+    this.programmeExtraction=programmeExtraction;this.programmeExtractor=programmeExtractor;this.programmeValidator=programmeValidator;
     this.catalogue = new Catalogue(db, null, now);
   }
   ref(collection, id) { IdSchema.parse(id); return this.db.collection(`m0_${collection}`).doc(id); }
@@ -60,6 +65,7 @@ export class RecentJobsWorker {
       const source = Source.parse(raw);
       if (this.provider === 'gemini' && source.automation?.mode !== 'shadow') fail('GEMINI_SHADOW_ONLY');
       if (this.extractionMode === 'split' && source.automation?.mode !== 'shadow') fail('SPLIT_EXTRACTION_SHADOW_ONLY');
+      if (this.programmeExtraction && source.automation?.mode !== 'shadow') fail('PROGRAMME_EXTRACTION_SHADOW_ONLY');
       if (source.paused || source.permission.method !== 'recentjobs_html' || !source.automation || source.automation.mode === 'disabled') fail('SOURCE_PAUSED');
       if (!source.categories.includes('apprenticeship') || !source.urls.includes(RECENTJOBS_INDEX)) fail('SOURCE_POLICY_REQUIRED');
       const result = await work(tx, source);
@@ -289,6 +295,7 @@ export class RecentJobsWorker {
           snapshotId:captured.snapshotId,plan,at:this.now()}));
         tx.set(this.ref('worker_jobs',claim.id),payload({...job,programmePlanId:claim.id}));
       });
+      if (this.programmeExtraction) return this.programmes(claim,candidate,captured,plan);
     }
     const pendingRoute = preflightCandidate(claim.source, candidate, this.now());
     const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
@@ -377,6 +384,68 @@ export class RecentJobsWorker {
         nextCheckAt: currentGate.nextCheckAt, stopAt: new Date(Date.parse(`${record.deadline.value.localDate}T00:00:00.000+02:00`)).toISOString() });
       this.catalogue.writePublication(tx, record, projection, state.revision + 1, published ? 'worker.publish' : 'worker.shadow', this.actor);
     });
+  }
+  async programmes(claim,candidate,captured,plan) {
+    if (plan.state !== 'review_required') fail(plan.reason);
+    // A closed/unsupported common deadline stops the whole notice before AI.
+    preflightCandidate(claim.source,programmeCandidate(candidate,plan.intakes[0].id),this.now());
+    const results=[];
+    const providerPolicy=this.provider==='gemini'?`:json_object:chain_v1:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}`:'';
+    for(const intake of plan.intakes) {
+      const decisionId=hash(`${claim.id}:${intake.id}`),view=programmeCandidate(candidate,intake.id);
+      try {
+        preflightCandidate(claim.source,view,this.now());
+        const recordId=hash(`${claim.sourceId}:${intake.id}`);
+        const previous=await this.transaction(claim.sourceId,'worker.programme.read',async(tx,source)=>{
+          await this.assertClaim(tx,source,claim);return value(await tx.get(this.ref('drafts',recordId)));
+        });
+        if(previous?.publication.previouslyPublic || previous?.publication.approved) fail('PROGRAMME_PUBLIC_RECORD_UNSUPPORTED');
+        if(['withdrawn','closed','archived'].includes(previous?.lifecycle) || previous?.publication.disposition==='withheld') fail('RESTORE_REQUIRES_REVIEW');
+        const key=`${claim.sourceId}:${claim.sourceRevision}:${view.contentHash}:${this.provider}:${this.model}${providerPolicy}:${this.thinking}:${PROGRAMME_EXTRACTION_VERSION}`;
+        const extraction=await this.cache(claim,hash(key),()=>this.modelStage(claim,`programme_extraction:${intake.id}`,
+          options=>this.programmeExtractor(candidate,intake.id,options)));
+        const mapped=mapProgrammeExtraction(candidate,intake.id,extraction.extraction,{sourceId:claim.sourceId,now:this.now()});
+        assertMaterialFacts(mapped.record);approvedIssuer(claim.source,mapped.record);
+        await this.transaction(claim.sourceId,'worker.programme.candidate',async(tx,source)=>{
+          await this.assertClaim(tx,source,claim);tx.set(this.ref('worker_programme_candidates',decisionId),payload({sourceId:source.id,
+            jobId:claim.id,intakeId:intake.id,snapshotId:captured.snapshotId,record:mapped.record,evidence:mapped.evidence,
+            scope:mapped.programmeScope,provenance:extraction.provenance}));
+        });
+        const input={record:mapped.record,recentjobsText:mapped.snapshot.text,primary:null,applicationCandidates:view.applicationCandidates};
+        const assessment=await this.cache(claim,hash(`${key}:${PROGRAMME_VALIDATION_VERSION}:${this.validationThinking}:${hash(JSON.stringify(validationPayload(input)))}`),
+          ()=>this.modelStage(claim,`programme_validation:${intake.id}`,options=>this.programmeValidator(input,candidate,intake.id,options)));
+        const parsed=validateProgrammeAssessment({supported:assessment.supported,issues:assessment.issues,evidence:assessment.evidence},candidate,intake.id);
+        // Email-only planned intakes use source/issuer checks; employer crawling is optional and causes no mail/HTTP probes.
+        const gate=publicationGate(claim.source,view,mapped.record,null,parsed,this.now());
+        await this.transaction(claim.sourceId,'worker.programme.shadow',async(tx,source)=>{
+          await this.assertClaim(tx,source,claim);
+          const old=value(await tx.get(this.ref('drafts',recordId))),state=value(await tx.get(this.ref('state','current')))??{revision:1};
+          if((old?.revision??null)!==(previous?.revision??null))fail('CONFLICT');
+          if(old?.publication.previouslyPublic || old?.publication.approved)fail('PROGRAMME_PUBLIC_RECORD_UNSUPPORTED');
+          if(['withdrawn','closed','archived'].includes(old?.lifecycle)||old?.publication.disposition==='withheld')fail('RESTORE_REQUIRES_REVIEW');
+          publicationGate(source,view,mapped.record,null,parsed,this.now());
+          const record=mapped.record;record.revision=(old?.revision??0)+1;record.requirements.revision=record.revision;
+          record.createdAt=old?.createdAt??record.createdAt;record.updatedAt=this.now();OpportunityRecordSchema.parse(record);
+          tx.set(this.ref('worker_programme_decisions',decisionId),payload({sourceId:source.id,jobId:claim.id,intakeId:intake.id,
+            snapshotId:captured.snapshotId,scope:mapped.programmeScope,recordId,recordRevision:record.revision,
+            decision:'shadow_pass',extraction:extraction.provenance,validation:assessment.provenance,
+            evidence:[...mapped.evidence,...parsed.evidence],nextCheckAt:gate.nextCheckAt,at:this.now()}));
+          this.catalogue.writePublication(tx,record,{kind:'not_public'},state.revision+1,'worker.programme_shadow',this.actor);
+        });
+        results.push({intakeId:intake.id,recordId,state:'draft',published:false});
+      } catch(error) {
+        // Stop before further siblings on quota/provider/system failures. Semantic failures stay isolated.
+        if(error.retryable || /^(?:AI_(?:PROVIDER|TRANSPORT|TIMEOUT|RATE|CONFIGURATION|DISABLED)|MODEL_BUDGET|WORKER_|SOURCE_|STALE_LEASE)/.test(error.code??''))throw error;
+        const reason=/^[A-Z_]+$/.test(error.code??'')?error.code:'PROGRAMME_STAGE_FAILED';
+        await this.transaction(claim.sourceId,'worker.programme.exception',async(tx,source)=>{
+          await this.assertClaim(tx,source,claim);tx.set(this.ref('worker_programme_decisions',decisionId),payload({sourceId:source.id,
+            jobId:claim.id,intakeId:intake.id,snapshotId:captured.snapshotId,decision:'exception',reason,at:this.now()}));
+        });
+        results.push({intakeId:intake.id,state:'exception',reason});
+      }
+    }
+    return this.finish(claim,{programmes:results,programmeCount:results.length,draftCount:results.filter(r=>r.state==='draft').length,
+      published:false,snapshotId:captured.snapshotId});
   }
   async runJob(sourceId, id) {
     const claim = await this.claim(sourceId, id); if (!claim) return { state: 'exception', reason: 'ATTEMPTS_EXHAUSTED' };

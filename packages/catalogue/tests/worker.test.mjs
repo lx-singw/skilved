@@ -11,6 +11,9 @@ import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
 import { GroqError } from '../src/ai/groq.mjs';
 import {extractWithProvider} from '../src/ai/provider.mjs';
 import {validateExtraction} from '../src/ai/validation.mjs';
+import {extractProgramme,validateProgramme} from '../src/ai/programme-extraction.mjs';
+import {programmeWire} from './fixtures/programme-model.mjs';
+import {parseRecentJobsDetail} from '../src/adapters/recentjobs.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -82,6 +85,12 @@ const geminiAnswer = data => Response.json({candidates:[{finishReason:'STOP',con
 const geminiOptions = fetchImpl => ({provider:'gemini',env:geminiEnv,
   extractor:(candidate,options)=>extractWithProvider(candidate,{...options,fetchImpl}),
   validator:(input,options)=>validateExtraction(input,{...options,fetchImpl})});
+const programmeOptions=fetchImpl=>({provider:'gemini',env:geminiEnv,programmeExtraction:true,
+  programmeExtractor:(candidate,id,options)=>extractProgramme(candidate,id,{...options,fetchImpl}),
+  programmeValidator:(input,candidate,id,options)=>validateProgramme(input,candidate,id,{...options,fetchImpl})});
+const programmeResponse=(input,candidate)=>input.extracted
+  ? {supported:true,issues:[],evidence:[{source:'recentjobs',quote:input.selectedIntake.reference.originalText}]}
+  : programmeWire(candidate,input.selectedIntake);
 
 test('Gemini shadow extraction and validation reserve every fallback call, preserve routes and cache without publishing',async()=>{
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:4}), requests=[];
@@ -329,6 +338,98 @@ test('unsupported multi-route layouts save an explicit unsupported plan only in 
     if(plans.length){assert.equal(plans[0].plan.state,'unsupported');assert.deepEqual(plans[0].plan.intakes,[]);}
     assert.equal(f.state.modelCalls,0);
   }
+});
+
+test('opt-in programme extraction creates two isolated private drafts with per-attempt fallback accounting and cache reuse',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:true,calls:5});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl}),calls=[];
+  const worker=f.restart(programmeOptions(async(url,init)=>{
+    const body=JSON.parse(init.body),input=JSON.parse(body.contents[0].parts[0].text);
+    calls.push({model:url.split('/models/')[1].split(':')[0],validation:!!input.extracted,intake:input.selectedIntake.id});
+    assert.equal(body.generationConfig.thinkingConfig.thinkingLevel,input.extracted?'MEDIUM':'LOW');
+    if(calls.length===1)return new Response(null,{status:503});
+    return geminiAnswer(programmeResponse(input,candidate));
+  }));
+  const first=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(first.draftCount,2,JSON.stringify(first));assert.equal(first.published,false);assert.equal(calls.length,5);
+  assert.equal(calls[0].model,'gemini-3.8-flash');assert.equal(calls[1].model,'gemini-3.7-flash');
+  const drafts=await Promise.all(first.programmes.map(r=>worker.ref('drafts',r.recordId).get().then(value)));
+  assert.deepEqual(drafts.map(d=>d.intake.value),['Electrical TEST/01','Plumbing TEST/02']);
+  assert.deepEqual(drafts.map(d=>d.applicationRoute.value.destination),['electrical@employer.example','plumbing@employer.example']);
+  assert.equal(drafts[0].requirements.requirements[0].fact.originalText,'Applicants require Grade 12 with Mathematics OR N3 Electrical.');
+  assert.equal(drafts[1].requirements.requirements[0].fact.originalText,'Applicants require N2 Plumbing.');
+  assert.ok(drafts.every(d=>d.requirements.requirements.length===2&&!d.publication.approved&&d.lifecycle==='review'));
+  for(const row of first.programmes)assert.equal((await worker.ref('public',row.recordId).get()).exists,false);
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,5);
+  const receipts=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(receipts.length,5);assert.equal(new Set(receipts.map(c=>c.stage)).size,4);
+  assert.equal(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')),true);
+  f.advance(24*3600000);const second=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.deepEqual(second.programmes.map(r=>r.recordId),first.programmes.map(r=>r.recordId));assert.equal(calls.length,5);
+});
+
+test('programme budget exhaustion stops the next validation request and preserves only completed sibling drafts',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:3});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{calls++;return geminiAnswer(programmeResponse(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),candidate));}));
+  const result=await worker.run(f.sourceId);assert.ok(result.results.some(r=>r.reason==='MODEL_BUDGET_EXHAUSTED'));assert.equal(calls,3);
+  const decisions=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).filter(d=>d.sourceId===f.sourceId);
+  assert.equal(decisions.length,1);assert.equal(decisions[0].decision,'shadow_pass');
+  assert.equal((await worker.ref('drafts',decisions[0].recordId).get()).exists,true);assert.equal((await worker.ref('public',decisions[0].recordId).get()).exists,false);
+});
+
+test('cross-trade extraction fails locally without fallback while a valid sibling continues',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),answer=programmeResponse(input,candidate);
+    if(!input.extracted&&input.selectedIntake.reference.value.startsWith('Electrical'))answer.requirements.items[0].span=[11,11];
+    return geminiAnswer(answer);
+  }));
+  const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(result.programmes[0].reason,'PROGRAMME_EVIDENCE_OUTSIDE_SCOPE');assert.equal(result.programmes[1].state,'draft');assert.equal(result.draftCount,1);assert.equal(calls,3);
+});
+
+test('semantic validation rejection holds one child without approving it or blocking a valid sibling',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),answer=programmeResponse(input,candidate);
+    if(input.extracted&&input.selectedIntake.reference.value.startsWith('Electrical')){answer.supported=false;answer.issues=[{field:'requirements',reason:'Synthetic semantic mismatch'}];}
+    return geminiAnswer(answer);
+  }));
+  const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);
+  assert.equal(result.programmes[0].reason,'SEMANTIC_VALIDATION_FAILED');assert.equal(result.programmes[1].state,'draft');assert.equal(calls,4);
+});
+
+test('expired programme notices stop before all model work even when programme extraction is enabled',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml.replace('30 October 2026','25 September 2026');
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));let calls=0;
+  const worker=f.restart(programmeOptions(async()=>{calls++;assert.fail('Expired notice reached AI');}));
+  assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='NOTICE_NOT_OPEN'));assert.equal(calls,0);
+});
+
+test('programme extraction rejects automatic publication and incompatible split mode before effects',async()=>{
+  const f=await fixture({mode:'automatic'});const worker=f.restart({programmeExtraction:true});
+  await assert.rejects(worker.run(f.sourceId),/PROGRAMME_EXTRACTION_SHADOW_ONLY/);assert.equal(f.state.requests.length,0);
+  assert.throws(()=>f.restart({programmeExtraction:true,extractionMode:'split'}),/AI_CONFIGURATION_REQUIRED/);
+});
+
+test('source pause during a programme request prevents receipt persistence, child drafts and later sibling calls',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
+  f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let calls=0;
+  const worker=f.restart(programmeOptions(async(_url,init)=>{
+    calls++;f.source.paused=true;await worker.ref('sources',f.sourceId).set(payload(f.source));
+    return geminiAnswer(programmeResponse(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),candidate));
+  }));
+  await assert.rejects(worker.run(f.sourceId),/SOURCE_PAUSED/);assert.equal(calls,1);
+  assert.equal((await db.collection('m0_worker_programme_decisions').get()).docs.map(value).filter(d=>d.sourceId===f.sourceId).length,0);
 });
 
 test('physical submission alternatives require review even beside a qualified website route',async()=>{

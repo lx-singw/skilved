@@ -53,6 +53,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Gemini worker integration, per-attempt budgets and one private draft](52_GEMINI_WORKER_INTEGRATION_AND_PRIVATE_DRAFT_PILOT_2026-10-03.md)
 - [Plain-text application emails and physical submission review](53_PLAIN_TEXT_APPLICATION_EMAILS_AND_PHYSICAL_SUBMISSION_REVIEW_2026-10-03.md)
 - [Programme boundary plans and fresh-notice screening](54_PROGRAMME_BOUNDARY_PLANS_AND_FRESH_NOTICE_SCREENING_2026-10-03.md)
+- [Per-intake AI extraction, private drafts and bounded live canary](55_PER_INTAKE_AI_EXTRACTION_AND_PRIVATE_DRAFTS_2026-10-04.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
