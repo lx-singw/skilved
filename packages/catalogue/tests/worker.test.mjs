@@ -760,3 +760,17 @@ test('explicit qualification uncertainty stops before candidate storage, validat
   const decisions=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);
   assert.equal(decisions.length,2);assert.ok(decisions.every(d=>d.reason==='MATERIAL_FACTS_UNRESOLVED'));
 });
+
+test('unsupported location metadata stops programme worker before candidate storage or validation',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=subjectProgrammeHtml;
+ f.source.automation.issuers[0].emailAddresses=['jobs@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+ const candidate=parseRecentJobsDetail({html:f.state.html,url:detailUrl});let calls=0;
+ const worker=f.restart(programmeOptions(async(_url,init)=>{
+  calls++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);assert.equal(input.extracted,undefined,'Validation must not run for unsupported location');
+  const wire=subjectProgrammeWire(candidate,input.selectedIntake);wire.location.value.attendance='in_person';return geminiAnswer(wire);
+ }));
+ const result=(await worker.run(f.sourceId)).results.find(r=>r.programmes);assert.equal(calls,2);assert.equal(result.draftCount,0);
+ assert.ok(result.programmes.every(r=>r.reason==='AI_LOCATION_EVIDENCE_UNRESOLVED'));
+ const candidates=(await db.collection('m0_worker_programme_candidates').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(candidates.length,0);
+ const decisions=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(decisions.length,2);assert.ok(decisions.every(r=>r.reason==='AI_LOCATION_EVIDENCE_UNRESOLVED'));
+});

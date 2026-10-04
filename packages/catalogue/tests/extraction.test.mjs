@@ -344,3 +344,10 @@ test('input checks run before billing; date observation uses the South African c
   assert.ok(nextDay.issues.includes('source_deadline_before_observation'));
   assert.equal(nextDay.snapshot.sourceRetrievedAt, null);
 });
+
+test('ordinary extraction rejects invented location arrangements without another model call',async()=>{
+ for(const patch of [{coverage:'local'},{attendance:'in_person'},{places:[{city:'Fictional Town',province:'gauteng',country:'ZA'}]}]){
+  const data=extracted();data.location=stated({places:[{country:null,province:null,city:'Fictional Town'}],coverage:'not_stated',attendance:'not_stated',relocation:null,...patch},'Location: Fictional Town');
+  let calls=0;await assert.rejects(extractRecentJobs({...input,html:html(body+'<p>Location: Fictional Town</p>')},{model:async()=>{calls++;return {extraction:data,provenance:{}};}}),/AI_LOCATION_EVIDENCE_UNRESOLVED/);assert.equal(calls,1);
+ }
+});

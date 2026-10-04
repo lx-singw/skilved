@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LOCATION_EVIDENCE_INSTRUCTION } from './location-evidence.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { CompensationSchema } from '@skilved/types/opportunities';
 import { LocationSchema } from '@skilved/types/opportunities/internal';
@@ -64,7 +65,7 @@ A list introduced by one of the following is ANY.
 Separate alternatives into items; subjects required together stay in the same item's span as their qualification.
 Example: Grade 12 with Maths OR N3 with Maths and Science means two items under ANY, not three independent subject alternatives.
 If source logic is genuinely unclear use "unknown(firstLine,lastLine)" citing its actual line numbers and empty items.
-Do not use unknown to avoid a clear list of alternatives.`;
+Do not use unknown to avoid a clear list of alternatives.${LOCATION_EVIDENCE_INSTRUCTION}`;
 
 function sourceLines(candidate) {
   if (typeof candidate?.title !== 'string' || typeof candidate?.sourceText !== 'string') throw new DomainError('AI_INVALID_SOURCE');

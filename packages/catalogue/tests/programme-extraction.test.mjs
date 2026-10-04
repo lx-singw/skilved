@@ -220,3 +220,11 @@ test('short subject trade titles cite their bound heading even when repeated in 
   assert.equal(title.start,lines.slice(0,intake.heading.span[0]-1).reduce((n,line)=>n+line.length+1,0));
   assert.equal(mapped.snapshot.text.slice(title.start,title.end),'Electrical');
 });
+
+test('programme mapping rejects unsourced location metadata before canonical candidate creation',()=>{
+ const intake=subjectPlan.intakes[0];
+ for(const patch of [{coverage:'local'},{attendance:'in_person'},{places:[{city:'Test City',province:'gauteng',country:null}]}]){
+  const input=subjectCanonical(intake);Object.assign(input.location.value,patch);
+  assert.throws(()=>subjectMap(intake,input),/AI_LOCATION_EVIDENCE_UNRESOLVED/);
+ }
+});

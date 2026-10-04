@@ -7,11 +7,12 @@ import { GROQ_EXTRACTION_INSTRUCTION, GroqExtractionSchema, groqExtractionPayloa
 import { ExtractionSchema, mapExtraction } from './extraction.mjs';
 import { validationContract, validationPayload, validateAssessment } from './validation.mjs';
 import { allFacts } from '../worker-policy.mjs';
+import { LOCATION_EVIDENCE_INSTRUCTION } from './location-evidence.mjs';
 import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v5';
-export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v5';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v6';
+export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v6';
 // Programme routes are resolved by the source planner, never selected by AI.
 // Strict parsing rejects old index-bearing outputs rather than repairing them.
 export const ProgrammeExtractionSchema = GroqExtractionSchema.omit({applicationCandidateIndex:true}).strict();
@@ -187,7 +188,7 @@ export async function validateProgramme(input,candidate,id,options={}) {
   const contract=validationContract(null);
   const result = await generateStructured({...validationPayload(input),selectedIntake:scope.intake,programmeScope:scope.intake.includedSpans,
     formRequestInstructions:formRequestInstructions(candidate,id)},
-    {...contract,instruction:contract.instruction+scopeInstruction,version:PROGRAMME_VALIDATION_VERSION},
+    {...contract,instruction:contract.instruction+scopeInstruction+LOCATION_EVIDENCE_INSTRUCTION,version:PROGRAMME_VALIDATION_VERSION},
     {...options,...(config.provider==='gemini'?{maxOutputTokens:GEMINI_VALIDATION_MAX_TOKENS}:{}),
       env:{...(options.env ?? process.env),SKILVED_AI_THINKING:config.validationThinking}});
   try {
