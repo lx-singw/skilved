@@ -7,6 +7,7 @@ import { ExtractionSchema, EXTRACTION_VERSION } from './extraction.mjs';
 import { DomainError } from '../config.mjs';
 import { promotionalLineNumbers } from './source-lines.mjs';
 import { requirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
+import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,96}$/);
 const text = z.string().min(1).max(4000);
@@ -64,13 +65,16 @@ Expression is a short string using item ids and only all(...), any(...), if(...)
 Examples: "any(a,b,c)" means one of three alternatives; "all(a,b,any(c,d))" means a AND b AND (c OR d).
 For a conditional use "if(a,b,c)" with condition item a, then item/expression b, otherwise item/expression c;
 use "none" only for an unstated otherwise branch: "if(a,b,none)".
+Never use none as a standalone reference or a child of all/any; any(preferredItem,none) is invalid.
+For required alternatives r1/r2 and independent preferred items r3/r4, use
+"all(any(r1,r2),r3,r4)" while keeping r1/r2 level required and r3/r4 level preferred.
 For a single item use its id. Use every item; at most four nested groups; no operators other than those shown.
 Item ids should be r1,r2,etc, never operator names. Do not create items for groups or expression operators.
 A list introduced by one of the following is ANY.
 Separate alternatives into items; subjects required together stay in the same item's span as their qualification.
 Example: Grade 12 with Maths OR N3 with Maths and Science means two items under ANY, not three independent subject alternatives.
 If source logic is genuinely unclear use "unknown(firstLine,lastLine)" citing its actual line numbers and empty items.
-Do not use unknown to avoid a clear list of alternatives.${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}`;
+Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}`;
 
 function sourceLines(candidate) {
   if (typeof candidate?.title !== 'string' || typeof candidate?.sourceText !== 'string') throw new DomainError('AI_INVALID_SOURCE');

@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
+import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v7';
+export const VALIDATION_VERSION = 'recentjobs_validation_v8';
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
   evidence: z.array(z.object({ source: z.enum(['recentjobs', 'primary']), quote: z.string().min(1).max(4000) }).strict()).min(1).max(30),
@@ -40,7 +41,11 @@ Never replace line breaks with spaces or commas, or combine separated passages i
 Every recentjobs evidence quote must appear inside recentjobsText itself. Candidate destination URLs
 are structured evidence for checking the route, not text to quote unless literally in recentjobsText.
 For a link whose visible label is Apply now, quote that label; do not quote its hidden href URL.
-Agreement is an evidence-based model assessment, not authority to publish or a guarantee of truth.`;
+Agreement is an evidence-based model assessment, not authority to publish or a guarantee of truth.
+${PREFERRED_EXPRESSION_INSTRUCTION}
+Audit strength using each item's level together with its source wording. Fail changed strengths,
+invented conditions or unsupported alternatives. A preferred-labelled reference under ALL is
+not by itself a claim of mandatory eligibility; check the actual source and the complete record.`;
 
 export function validateAssessment(input, recentjobsText, primary = null) {
   const result = ValidationSchema.parse(input);
