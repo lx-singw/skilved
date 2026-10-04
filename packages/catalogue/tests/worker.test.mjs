@@ -711,3 +711,19 @@ test('a programme model cannot override the source-bound route and a valid sibli
   assert.equal(draft.applicationRoute.value.destination,'plumbing@employer.example');
   assert.equal((await worker.ref('public',draft.id).get()).exists,false);
 });
+
+test('shared email with distinct explicit trade subjects cannot enter a single-notice extraction path',async()=>{
+  for(const [mode,programmes] of [['automatic',false],['shadow',false],['shadow',true]]){
+    const f=await fixture({mode,publisher:mode==='automatic',employerCrawl:false});
+    f.state.html=detailHtml.replace('<a href="https://employer.example/apply">Apply now</a>',
+      '<h2>How to apply</h2><p>Send an email to:</p><p>jobs@employer.example</p><p>Use the correct subject line:</p><p>Electrical — if applying for Electrical</p><p>Plumbing — if applying for Plumbing</p>');
+    f.source.automation.issuers[0].emailAddresses=['jobs@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+    const worker=programmes?f.restart(programmeOptions(async()=>assert.fail('Unsupported subjects reached AI'))):f.worker;
+    const result=await worker.run(f.sourceId);
+    assert.ok(result.results.some(r=>r.reason===(programmes?'PROGRAMME_LAYOUT_UNSUPPORTED':'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED')));
+    assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+    const receipts=(await db.collection('m0_model_calls').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);assert.equal(receipts.length,0);
+    const plans=(await db.collection('m0_worker_programme_plans').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);
+    assert.equal(plans.length,mode==='shadow'?1:0);if(plans.length)assert.equal(plans[0].plan.state,'unsupported');
+  }
+});

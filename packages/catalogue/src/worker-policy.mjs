@@ -37,6 +37,7 @@ export function approvedRoute(source, route) {
 /** Cheap source checks before model work; route scope alone does not establish the issuer. */
 export function preflightCandidate(source, candidate, now) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
+  if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
   if (candidate.applicationCandidates.length !== 1) fail('NOTICE_PRECISION_UNSUPPORTED');
   const deadline = candidateDeadline(candidate);
   if (deadline <= dayInSA(now)) fail('NOTICE_NOT_OPEN');
@@ -68,6 +69,7 @@ export function assertMaterialFacts(record) {
 
 export function publicationGate(source, candidate, record, primary, assessment, now) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
+  if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
   const issuer = approvedIssuer(source, record);
   if (primary && !issuerNames(issuer).includes(nameKey(primary.issuer))) fail('PRIMARY_ISSUER_MISMATCH');
   assertMaterialFacts(record);

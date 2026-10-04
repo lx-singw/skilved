@@ -120,10 +120,32 @@ function dateOnly(raw) {
 }
 
 function deadlines(body) {
-  const pattern = /(?:closing\s*date|application\s*deadline|apply\s*by)\s*[:;\-]?\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4}|\d{1,2}\s+[a-z]+\s+\d{4}|not\s+specified|not\s+stated|until\s+filled)/gi;
-  return [...body.matchAll(pattern)].map(m => ({ originalText: m[0], localDate: dateOnly(m[1]), timezone: null }));
+  const pattern = /(?:closing\s*date|application\s*deadline|apply\s*by)\s*[:;\-]?\s*(?:(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*,?\s+)?(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4}|\d{1,2}\s+[a-z]+\s+\d{4}|not\s+specified|not\s+stated|until\s+filled)/gi;
+  const weekdays = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  return [...body.matchAll(pattern)].map(m => {
+    let localDate = dateOnly(m[2]);
+    // A conflicting written weekday is unresolved, not silently discarded.
+    if (localDate && m[1] && new Date(`${localDate}T00:00:00.000Z`).getUTCDay() !== weekdays.indexOf(m[1].toLowerCase())) localDate = null;
+    return { originalText:m[0], localDate, timezone:null };
+  });
 }
 
+// Explicit per-trade email subjects still represent separate intakes even when
+// the recipient is shared. Flag this narrow layout until its scope is supported.
+function multipleApplicationSubjects(body) {
+  const lines = body.split('\n');
+  for (const [index,line] of lines.entries()) {
+    if (!/^Use the correct subject line\s*:$/i.test(line.trim())) continue;
+    const subjects = new Set();
+    for (let at=index+1;at<lines.length;at++) {
+      const match = /^(.{1,120}?)\s+[—–-]\s+if applying for\s+(.{1,120})$/i.exec(lines[at].trim());
+      if (!match || match[1].trim().toLowerCase() !== match[2].trim().toLowerCase()) break;
+      subjects.add(match[1].trim().toLowerCase());
+    }
+    if (subjects.size > 1) return true;
+  }
+  return false;
+}
 function applicationCandidate(anchor, source) {
   const label = text(anchor);
   if (!/\b(?:apply|application)\b/i.test(label) || /\b(?:share|whatsapp|group|channel)\b/i.test(label)) return null;
@@ -164,6 +186,7 @@ export function parseRecentJobsDetail({ html, url, observedOn = null }) {
   if (!applicationCandidates.length) issues.push('application_route_missing');
   if (applicationCandidates.length > 1) issues.push('multiple_application_routes');
   if (methods.instructions.length) issues.push('physical_application_requires_review');
+  if (multipleApplicationSubjects(sourceText)) issues.push('programme_subject_scope_review_required');
   if (!deadlineCandidates.length || deadlineCandidates.some(d => !d.localDate)) issues.push('deadline_needs_review');
   if (new Set(deadlineCandidates.map(d => d.localDate).filter(Boolean)).size > 1) issues.push('conflicting_deadlines');
   if (observedOn && deadlineCandidates.some(d => d.localDate && d.localDate < observedOn)) issues.push('source_deadline_before_observation');

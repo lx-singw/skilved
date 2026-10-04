@@ -291,7 +291,8 @@ export class RecentJobsWorker {
     const response = await this.request(claim, claim.url, 'html');
     const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
     const captured = await this.capture(claim, candidate);
-    if (claim.source.automation.mode === 'shadow' && candidate.applicationCandidates.length > 1) {
+    if (claim.source.automation.mode === 'shadow' && (candidate.applicationCandidates.length > 1 ||
+        candidate.issues.includes('programme_subject_scope_review_required'))) {
       const plan = planRecentJobsProgrammes(candidate);
       await this.transaction(claim.sourceId, 'worker.programme_plan', async (tx, source) => {
         const job = await this.assertClaim(tx, source, claim);

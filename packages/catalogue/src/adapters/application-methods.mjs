@@ -9,7 +9,15 @@ const excluded = /\b(?:enquir\w*|inquir\w*|queries|contact|request|forms?|do not
 /** Conservative discovery only: no recipient probes, inferred programme scope or approvals. */
 export function applicationMethods(sourceText) {
   const candidates = [], instructions = [];
-  for (const line of sourceText.split('\n')) {
+  const lines = sourceText.split('\n');
+  for (const [index,line] of lines.entries()) {
+    // A bare next-line email is accepted only under an immediately preceding
+    // application heading and an exact send-email instruction, never by proximity.
+    if (/^(?:\d+\.\s*)?How to apply\s*:?$/i.test(lines[index-1]?.trim() ?? '') &&
+        /^Send an e-?mail to\s*:?$/i.test(line.trim()) && email.safeParse(lines[index+1]?.trim()).success) {
+      candidates.push({method:'email',destination:lines[index+1].trim(),
+        originalText:lines.slice(index-1,index+2).join('\n'),check:'pending'});
+    }
     if (line.length > 1000) continue;
     const hand = /\b(?:hand[ -]deliver(?:ed|y)?|in[ -]person)\b/i.test(line);
     const courier = /\bcourier(?:ed)?\b/i.test(line);

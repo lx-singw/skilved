@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parsePrimaryJobPosting } from '../src/adapters/primary-jobposting.mjs';
 import { validateExtraction, validateAssessment } from '../src/ai/validation.mjs';
 import { workerPrincipal } from '../src/worker-identity.mjs';
-import { approvedIssuer, enforceAutomaticFreshness } from '../src/worker-policy.mjs';
+import { approvedIssuer, enforceAutomaticFreshness, preflightCandidate, publicationGate } from '../src/worker-policy.mjs';
 import { makeRecord } from '../../types/tests/fixtures/opportunities.mjs';
 import { projectOpportunity } from '@skilved/types/opportunities/internal';
 
@@ -96,4 +96,10 @@ test('synthetic machine identity is available only in explicit demo emulation', 
   await assert.rejects(workerPrincipal({ mode: 'emulator', projectId: 'real-project' }, env), /WORKER_UNAUTHORIZED/);
   await assert.rejects(workerPrincipal({ mode: 'emulator', projectId: 'demo-fixture' }, { ...env, NODE_ENV: 'production' }), /WORKER_UNAUTHORIZED/);
   await assert.rejects(workerPrincipal({ mode: 'cloud', projectId: 'real-project' }, env), /WORKER_UNAUTHORIZED/);
+});
+
+test('explicit unresolved programme subjects block preflight and publication before model support can approve them',()=>{
+  const candidate={issues:['programme_subject_scope_review_required'],applicationCandidates:[{method:'email',destination:'jobs@employer.example'}],deadlineCandidates:[{localDate:'2026-10-13'}]};
+  assert.throws(()=>preflightCandidate({},candidate,'2026-10-04T10:00:00.000Z'),/NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED/);
+  assert.throws(()=>publicationGate({},candidate,makeRecord(),null,{supported:true,issues:[]},'2026-10-04T10:00:00.000Z'),/NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED/);
 });

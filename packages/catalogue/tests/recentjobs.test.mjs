@@ -172,3 +172,39 @@ test('oversized bodies and deeply nested trees fail within bounded input', () =>
   assert.throws(() => parseDetail('x'.repeat(500_001)), /BODY_LIMIT/);
   assert.throws(() => parseDetail('<div>'.repeat(110) + 'test' + '</div>'.repeat(110)), /TREE_LIMIT/);
 });
+
+test('a next-line email needs an adjacent application heading and exact send instruction',()=>{
+  const originalText='5. How to apply\nSend an email to:\njobs@employer.example';
+  const result=parseDetail('<h2>5. How to apply</h2><p>Send an email to:</p><p>jobs@employer.example</p><p>Subject: Electrical</p>');
+  assert.deepEqual(result.applicationCandidates,[{method:'email',destination:'jobs@employer.example',originalText,check:'pending'}]);
+  assert.ok(result.sourceText.includes(originalText));
+  for(const body of [
+    '<p>Send an email to:</p><p>jobs@employer.example</p>',
+    '<h2>Enquiries</h2><p>Send an email to:</p><p>jobs@employer.example</p>',
+    '<h2>How to apply</h2><p>Request an application form from:</p><p>forms@employer.example</p>',
+    '<h2>How to apply</h2><p>Do not send an email to:</p><p>jobs@employer.example</p>',
+    '<h2>How to apply</h2><p>Send an email to:</p><p>Enquiries</p><p>jobs@employer.example</p>',
+    '<h2>How to apply</h2><p>Send an email to:</p><p>jobs@employer.example and forms@employer.example</p>',
+    '<h2>How to apply</h2><p>Send an email to:</p><p>https://jobs@employer.example/</p>',
+  ]) assert.deepEqual(parseDetail(body).applicationCandidates,[],body);
+});
+
+test('weekday-prefixed closing dates retain their wording and inconsistent weekdays stay unresolved',()=>{
+  const originalText='Closing date\nTuesday, 13 October 2026',result=parseDetail('<h2>Closing date</h2><p>Tuesday, 13 October 2026</p>');
+  assert.deepEqual(result.deadlineCandidates,[{originalText,localDate:'2026-10-13',timezone:null}]);
+  assert.equal(result.issues.includes('deadline_needs_review'),false);
+  assert.equal(parseDetail('<p>Apply by: Wednesday 2026/10/07</p>').deadlineCandidates[0].localDate,'2026-10-07');
+  for(const date of ['Monday, 13 October 2026','Tuesday, 31 February 2026']){
+    const result=parseDetail(`<p>Closing date: ${date}</p>`);
+    assert.equal(result.deadlineCandidates[0].localDate,null);assert.ok(result.issues.includes('deadline_needs_review'));
+  }
+});
+
+test('distinct explicit trade subjects stay held even with a single shared application email',()=>{
+  const apply='<h2>How to apply</h2><p>Send an email to:</p><p>jobs@employer.example</p><p>Use the correct subject line:</p>';
+  const result=parseDetail(apply+'<p>Electrical — if applying for Electrical</p><p>Plumbing — if applying for Plumbing</p>');
+  assert.equal(result.applicationCandidates.length,1);assert.ok(result.issues.includes('programme_subject_scope_review_required'));
+  for(const suffix of ['<p>Electrical — if applying for Electrical</p>',
+    '<p>Electrical — if applying for Electrical</p><p>Electrical — if applying for Electrical</p>'])
+    assert.equal(parseDetail(apply+suffix).issues.includes('programme_subject_scope_review_required'),false);
+});
