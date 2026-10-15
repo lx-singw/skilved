@@ -27,7 +27,7 @@ export function parseReadQuery(params: URLSearchParams): { ok: true; query: Read
   return result.success ? { ok: true, query: result.data } : { ok: false, error: { code: 'INVALID_QUERY' } };
 }
 const PositionSchema = z.object({ updatedAt: InstantSchema, id: IdSchema }).strict();
-const CursorSchema = z.object({ v: z.literal(1), query: z.string().max(1500), catalogueRevision: RevisionSchema,
+const CursorSchema = z.object({ v: z.literal(1), query: z.string().max(2000), catalogueRevision: RevisionSchema,
   after: PositionSchema,
 }).strict();
 function fingerprint(query: ReadQuery) {

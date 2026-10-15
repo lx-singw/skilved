@@ -4,6 +4,8 @@ Updated: 26 September 2026. This is the current implementation-status record for
 
 ## 1. Current position
 
+15 October final cursor correction: maximum accepted escaped/Unicode queries now round-trip within bounded cursors. [Actual final evidence](../operations/78_STAGE_FILTER_AND_SOURCE_WORDING_2026-10-15.md) records 32 contract, 52 web and 20 adapter tests passing on integrated main, plus build; UI input comparison and the earlier browser evidence remain explicit.
+
 15 October stage-discovery packet: [exact stage filters and sourced detail](../operations/78_STAGE_FILTER_AND_SOURCE_WORDING_2026-10-15.md) are implemented in isolation. All 31 contract, 52 web and 20 affected emulator tests pass with lint/typecheck/build and synthetic mobile/wide browser checks. Legacy unknowns, old cursors and source wording are preserved. Remaining B04 detail/correction/loading/limited-seasonal reconciliation and formal G2 stay open; no real stage inventory or release is claimed.
 
 15 October entry-stage prerequisite: [reviewed stage contract](../operations/76_SOURCE_STATED_ENTRY_STAGE_CONTRACT_2026-10-15.md) is locally implemented with legacy unknown fallback, complete fact traversal and an automatic-publication hold. All 29 contract, 491 catalogue and 48 web tests pass with lint/typecheck/build. Query/UI filtering and detail/correction reconciliation remain before B05. Older strict clients require a coordinated update; no release or real stage-inventory qualification is claimed. G2 remains open.

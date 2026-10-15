@@ -22,6 +22,12 @@ Actual in-app browser checks use synthetic demo-emulator records. At 375×812, G
 
 Command logs, input hashes, browser DOM states/results and screenshot remain ignored under .artifacts/sprint-loop/b04-stage-discovery-2026-10-15/. No participant, physical-device or screen-reader observation is claimed.
 
+## Final cursor-bound correction
+
+Final review observed an accepted maximum-length q/field/stage query that could not be encoded because its JSON fingerprint exceeded 1,500 characters. One bounded correction raises only that internal fingerprint allowance to 2,000; input bounds and the outer 4,096-character cursor limit remain unchanged. A new contract regression round-trips maximum-length escaped/control and Unicode values with a maximum-length position ID and still rejects a changed stage.
+
+On integrated main after source sprint b10e0a2, all **32 contract tests, 52 web tests and 20 adapter integration tests** pass, together with the production build. Isolated lint/typecheck also passed. The browser journey above predates this numeric-bound correction; all UI inputs match, and only the API bound plus its added regression differ from the checked candidate. No additional browser observation is claimed for the larger cursor. The final boundary behavior has actual contract and diagnostic evidence.
+
 ## Integration and next work
 
 The separate source-review chat was active in the primary checkout. Its work was preserved; this packet used a Linux Git worktree. The app-created Windows worktree had incompatible Git metadata for WSL and its clean copy was queued for recoverable archival. The primary source sprint then pushed b10e0a2 and became idle before integration; its separate provider/source evidence is not this UI packet's acceptance.

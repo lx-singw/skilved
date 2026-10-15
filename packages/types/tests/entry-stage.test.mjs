@@ -139,3 +139,17 @@ test('stage cursor binding preserves existing field-only and unfiltered continua
     assert.equal(decodeCursor(token, selected, 4).error.code, 'STALE_CURSOR');
   }
 });
+
+test('maximum accepted query values fit stage cursors after JSON and UTF-8 encoding', () => {
+  const { parseReadQuery, encodeCursor, decodeCursor } = require('../dist/opportunities/index.js');
+  for (const text of ['\0'.repeat(120), '"'.repeat(120), '🛠'.repeat(60)]) {
+    const parsed = parseReadQuery(new URLSearchParams({ category:'graduate_programme', province:'kwazulu_natal',
+      coverage:'international', remote:'false', q:text, field:text, stage:'experienced', limit:'50' }));
+    assert.equal(parsed.ok, true);
+    const after = { id:'x'.repeat(96), updatedAt:NOW };
+    const token = encodeCursor(parsed.query, 3, after);
+    assert.ok(token.length <= 4096);
+    assert.deepEqual(decodeCursor(token, parsed.query, 3), { ok:true, after });
+    assert.equal(decodeCursor(token, { ...parsed.query, stage:'graduate' }, 3).error.code, 'INVALID_CURSOR');
+  }
+});
