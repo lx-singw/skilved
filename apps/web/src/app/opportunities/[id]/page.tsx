@@ -6,6 +6,7 @@ import { placeLabel } from "@/components/catalogue/PublicCatalogue"
 import { readOpportunity } from "@/lib/public-catalogue"
 import { PreparationChecklist } from "@/components/catalogue/PreparationChecklist"
 import { OpportunityReport } from "@/components/catalogue/OpportunityReport"
+import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/SourceEvidence"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       <p className="mt-4 text-sm text-muted-foreground">Follow the application method stated in the notice. Skilved rechecks the listing before opening a portal or your email app; you complete and submit the application yourself.</p>
     </section>
     <PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} />
+    <RequirementExplanation opportunity={o} />
     <section className="mt-8" aria-labelledby="conditions-heading">
       <h2 id="conditions-heading" className="text-xl font-semibold">Experience and practical conditions</h2>
       <dl className="mt-5 space-y-4">{[["Experience", o.experience], ["Residence", o.residence], ["Intake", o.intake], ["Practical conditions", o.practicalConditions]].map(([label, fact]) => {
@@ -48,12 +50,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
     <section className="mt-8" aria-labelledby="funding-heading"><h2 id="funding-heading" className="text-xl font-semibold">Pay and support</h2>
       {o.compensation.length ? <ul className="mt-3 list-disc space-y-2 pl-5">{o.compensation.map((f, i) => <li key={i}>{f.originalText ?? "Details not stated"}</li>)}</ul> : <p className="mt-3 text-muted-foreground">Pay and support are not stated in the notice.</p>}
     </section>
-    <section className="mt-8 border-t border-border pt-6" aria-labelledby="sources-heading"><h2 id="sources-heading" className="text-xl font-semibold">Sources and checks</h2>
-      <ul className="mt-3 space-y-2">{o.citations.map(c => <li key={c.id}><a href={c.url} rel="noreferrer noopener" className="text-primary underline">{c.label}</a></li>)}</ul>
-      {o.checks.some(c => c.method === "automatic") && <p className="mt-4 text-sm text-muted-foreground">This listing passed automated source and content checks. These checks do not guarantee eligibility or an application outcome.</p>}
-      <p className="mt-2 text-sm text-muted-foreground">Application instructions are taken from the cited source notices.</p>
-      <p className="mt-2 text-sm text-muted-foreground">Updated {new Date(o.updatedAt).toLocaleDateString("en-ZA", { timeZone: "Africa/Johannesburg", dateStyle: "long" })}. Confirm the issuer’s current instructions before applying.</p>
-    </section>
+    <SourceEvidence opportunity={o} />
     {process.env.SKILVED_CATALOGUE_REPORTS === "true" && <OpportunityReport id={o.id} />}
   </main></>
 }
