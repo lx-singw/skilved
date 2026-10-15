@@ -1,13 +1,16 @@
 import {DomainError} from '../config.mjs';
 import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
+import {assertNoPreparationEvidence} from './practical-evidence.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v5';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v6';
 export const REQUIREMENT_SOURCE_INSTRUCTION=`
 requirementSourcePolicy lists code-recognised bounded source passages, not new requirements.
 Cover every requiredLineNumbers line with its original requirement passage or exact unknown logic.
 layoutContextLineNumbers are recognised headings/table introductions, not standalone conditions.
 qualificationAlternatives lists complete route spans: one education item per route, with those
 item references as direct children of ANY. Keep shared conditions outside that ANY.
+Standalone subject pass-mark thresholds use kind subjects. A qualification and its attached
+subject list remain one complete education item; never split them to apply this standalone rule.
 submissionInstructions are explicit required attachment rules. Retain each full originalText as
 a required document item OR in BOTH practicalConditions.value and its contiguous evidence span.
 Do not omit them. Unknown logic or ambiguous facts remain holds, never authority to publish.
@@ -141,12 +144,17 @@ export function requirementSourcePolicy(candidate) {
    completeRequirementSpans.push({span:[index+1,index+3],kind:'other'});
   }
  }
+ // Only complete, explicit standalone subject thresholds receive this kind hint.
+ // Known qualification/table groups retain their education kind and scope.
+ for(const hint of lineHints)if(hint.kind===null&&!hint.conditional&&!completeRequirementSpans.some(group=>group.span[0]<=hint.line&&hint.line<=group.span[1])&&
+   /^(?:Mathematics|Physical Science) must have been passed with at least (?:100|[1-9]?\d)%[.]?$/i.test(label(lines[hint.line-1])))hint.kind='subjects';
  return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions,submissionInstructions,layoutContextLineNumbers:[...layoutContext],qualificationAlternatives};
 }
 const unknownPassages=node=>node.op==='unknown'?[node.originalText]:node.children?node.children.flatMap(unknownPassages):node.op==='if'?[...unknownPassages(node.then),...(node.otherwise?unknownPassages(node.otherwise):[])]:[];
 const anyGroups=node=>[...(node.op==='any'?[node.children]:[]),...(node.children?node.children.flatMap(anyGroups):node.op==='if'?[...anyGroups(node.then),...(node.otherwise?anyGroups(node.otherwise):[])]:[])];
 export function assertRequirementSourcePolicy(candidate,extraction) {
  const policy=requirementSourcePolicy(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+ for(const item of extraction.requirements.items)if(item.fact.state==='stated'&&item.fact.quote)assertNoPreparationEvidence(candidate,item.fact.quote);
  if(uncoveredRequirementLines(candidate,extraction,policy.requiredLineNumbers).length)throw new DomainError('AI_REQUIREMENT_COVERAGE');
  const unknown=unknownPassages(extraction.requirements.expression);
  for(const instruction of policy.submissionInstructions){

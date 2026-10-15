@@ -901,3 +901,38 @@ test('numbered-section attachment coverage gates validation and accepts a comple
   assert.ok(f.state.requests.every(request=>request.url.startsWith('https://recentjobs.co.za/')));
  }
 });
+
+test('practical evidence, preparation scope and standalone subject kind gate storage and validation',async()=>{
+ const attachment='Attach your qualifications and relevant academic records.',threshold='Mathematics must have been passed with at least 50%.';
+ for(const scenario of ['expanded_value','publisher_preparation','wrong_subject_kind','complete']){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+  f.state.html=detailHtml.replace('<p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p>',
+   '<p>2. Minimum requirements</p><p>Grade 12</p><p>'+threshold+'</p><p>'+attachment+'</p><p>3. Duties and responsibilities</p><p>Maintain tools.</p><p>4. Documents to prepare</p><p>Use this checklist before applying.</p><p>Updated CV</p><p>5. Why you should apply</p><p>Publisher advice.</p>');
+  f.worker.extractor=async()=>{
+   f.state.modelCalls++;const extraction=syntheticExtraction(),item=(id,quote,kind)=>({id,kind,level:'required',fact:{state:'stated',quote,value:{description:quote,qualification:null,document:null}}});
+   extraction.requirements={items:[item('q','Grade 12','education'),item('s',threshold,scenario==='wrong_subject_kind'?'education':'subjects')],expression:{op:'all',children:[{op:'ref',id:'q'},{op:'ref',id:'s'}]}};
+   extraction.practicalConditions={state:'stated',value:attachment,quote:attachment};
+   if(scenario==='expanded_value')extraction.practicalConditions.value+=' Updated CV';
+   if(scenario==='publisher_preparation'){
+    extraction.practicalConditions={state:'stated',value:'Updated CV',quote:'Updated CV'};
+    extraction.requirements.items.push(item('d',attachment,'document'));extraction.requirements.expression.children.push({op:'ref',id:'d'});
+   }
+   return {extraction,provenance:{usage:{totalTokens:20}}};
+  };
+  f.worker.validator=async()=>{f.state.validations++;return {supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12'}],provenance:{usage:{totalTokens:20}}};};
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+  const result=await f.worker.run(f.sourceId);assert.equal(f.state.modelCalls,1);
+  if(scenario==='complete'){
+   const record=detailResult(result);assert.ok(record,JSON.stringify(result.results));
+   const draft=value(await f.worker.ref('drafts',record.recordId).get());assert.equal(f.state.validations,1);
+   assert.equal(draft.practicalConditions.value,attachment);assert.equal(draft.practicalConditions.originalText,attachment);
+   assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+  }else{
+   const expected={expanded_value:'AI_PRACTICAL_EVIDENCE_UNRESOLVED',publisher_preparation:'AI_PUBLISHER_PREPARATION_UNRESOLVED',wrong_subject_kind:'AI_REQUIREMENT_KIND_UNRESOLVED'}[scenario];
+   assert.ok(result.results.some(row=>row.reason===expected));assert.equal(f.state.validations,0);
+   const exception=(await db.collection('m0_worker_exceptions').get()).docs.map(value).find(row=>row.sourceId===f.sourceId);
+   assert.equal((await f.worker.ref('worker_candidates',exception.jobId).get()).exists,false);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(row=>row.url.startsWith('https://recentjobs.co.za/')));
+ }
+});

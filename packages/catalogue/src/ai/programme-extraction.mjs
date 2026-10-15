@@ -10,9 +10,10 @@ import { allFacts } from '../worker-policy.mjs';
 import { LOCATION_EVIDENCE_INSTRUCTION } from './location-evidence.mjs';
 import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
+import {assertPracticalEvidence} from './practical-evidence.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v13';
-export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v10';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v14';
+export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v11';
 // Programme routes are resolved by the source planner, never selected by AI.
 // Strict parsing rejects old index-bearing outputs rather than repairing them.
 export const ProgrammeExtractionSchema = GroqExtractionSchema.omit({applicationCandidateIndex:true}).strict();
@@ -104,6 +105,7 @@ export function mapProgrammeExtraction(candidate,id,input,options) {
   const conditionLines = lines.filter((line,index)=>inside(intake,index+1) &&
     /^(?:Applicants? must submit|Applicants? (?:must have|require)|Requirements include)\b/i.test(line.trim()));
   if (conditionLines.some(line=>!quotes.some(quote=>quote.includes(line)))) fail('AI_REQUIREMENT_COVERAGE');
+  assertPracticalEvidence(candidate,extraction.practicalConditions);
   const mapped = mapExtraction(programmeCandidate(candidate,id),extraction,options);
   if (!mapped.record) fail('CATEGORY_UNRESOLVED');
   const parentSnapshot = hash(`${options.sourceId}:${candidate.sourceUrl}:${candidate.contentHash}`);

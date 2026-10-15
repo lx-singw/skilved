@@ -88,6 +88,7 @@ Status: current planning specifications. Implemented controls, customer results 
 
 - [Entry-stage filters, source wording and recovery](78_STAGE_FILTER_AND_SOURCE_WORDING_2026-10-15.md)
 - [Practical detail, internship routes and organisation roles](79_PRACTICAL_DETAIL_AND_INTERNSHIP_CONTEXT_2026-10-15.md)
+- [Practical evidence binding, publisher preparation holds and standalone subject marks](80_PRACTICAL_EVIDENCE_AND_SUBJECT_THRESHOLDS_2026-10-15.md)
 
 ## Using this discipline
 

@@ -8,8 +8,9 @@ import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION } from './locatio
 import { isPromotionalLine } from './source-lines.mjs';
 import { assertRequirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
+import {assertPracticalEvidence, PRACTICAL_EVIDENCE_INSTRUCTION} from './practical-evidence.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v12';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v13';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -84,7 +85,7 @@ which belong in practicalConditions. Never substitute a generic contact address.
 Listed submissionInstructions may be required document items or complete practicalConditions
 instructions; preserve each full originalText in the value and evidence of the chosen field.
 Put a stated recruitment reference number in intake. Classify qualification requirements as education.
-Return only the requested JSON. Do not add confidence, review, approval or publication fields.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}`;
+Return only the requested JSON. Do not add confidence, review, approval or publication fields.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}`;
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new DomainError(code); };
@@ -121,6 +122,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
     ...extracted.requirements.items.map(item => item.fact)];
   if (facts.some(f => f.quote?.split('\n').some(isPromotionalLine) ||
       typeof f.value === 'string' && f.value.split('\n').some(isPromotionalLine))) fail('AI_PROMOTIONAL_CONTENT');
+  assertPracticalEvidence(candidate,extracted.practicalConditions);
   const snapshotId = hash(`${sourceId}:${candidate.sourceUrl}:${candidate.contentHash}`);
   const evidence = [];
   let sequence = 0;

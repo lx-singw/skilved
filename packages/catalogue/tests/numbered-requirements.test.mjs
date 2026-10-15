@@ -16,7 +16,7 @@ const candidate=parseRecentJobsDetail({url:'https://recentjobs.co.za/2026/10/15/
 const lines=(candidate.title+'\n'+candidate.sourceText).split('\n'),span=quote=>{const first=lines.indexOf(quote.split('\n')[0])+1;assert.ok(first>0);return [first,first+quote.split('\n').length-1];};
 const item=(id,quote,kind='other',level='required')=>({id,kind,level,fact:{state:'stated',quote,value:{description:quote,qualification:null,document:null}}});
 function extraction(){
- const items=[...routes.map((r,i)=>item('r'+(i+1),r,'education')),...shared.map((q,i)=>item('s'+i,q)),item('d1',attachment,'document')];
+ const items=[...routes.map((r,i)=>item('r'+(i+1),r,'education')),...shared.map((q,i)=>item('s'+i,q,i===0?'subjects':'other')),item('d1',attachment,'document')];
  return {practicalConditions:{state:'not_stated',value:null,quote:null},requirements:{items,expression:{op:'all',children:[{op:'any',children:routes.map((_,i)=>({op:'ref',id:'r'+(i+1)}))},...shared.map((_,i)=>({op:'ref',id:'s'+i})),{op:'ref',id:'d1'}]}}};
 }
 function wire(){

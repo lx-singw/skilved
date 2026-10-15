@@ -14,6 +14,12 @@ const options={sourceId:'programme_test',now:'2026-10-04T10:00:00.000Z'};
 const canonical=(intake,wire=programmeWire(candidate,intake))=>decodeGroqExtraction({...wire,applicationCandidateIndex:0},programmeCandidate(candidate,intake.id));
 const map=(intake,input=canonical(intake))=>mapProgrammeExtraction(candidate,intake.id,input,options);
 
+test('native programme mapping rejects practical additions beyond its scoped evidence',()=>{
+  const intake=plan.intakes[0],input=canonical(intake);
+  input.practicalConditions.value+=' Publisher preparation advice.';
+  assert.throws(()=>map(intake,input),/AI_PRACTICAL_EVIDENCE_UNRESOLVED/);
+});
+
 test('programme extraction retains the full numbered source, one original recipient and a separate bound local view',()=>{
   const payload=programmeExtractionPayload(candidate,plan.intakes[0].id),view=programmeCandidate(candidate,plan.intakes[0].id);
   assert.match(payload.sourceLines,/N2 Plumbing/);assert.match(payload.sourceLines,/relevant diploma/);
@@ -242,7 +248,7 @@ test('scoped programme conditional supporting documents preserve original instru
   assert.equal(mapped.record.applicationRoute.value.destination,intake.application.destination);
   assert.ok(!mapped.record.requirements.requirements.some(i=>i.fact.originalText.includes(instruction)));
   const missing=structuredClone(wire);missing.practicalConditions.value=missing.practicalConditions.value.replace(instruction,'');
-  assert.throws(()=>mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...missing,applicationCandidateIndex:0},view),options),/AI_CONDITIONAL_DOCUMENT_COVERAGE/);
+  assert.throws(()=>mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...missing,applicationCandidateIndex:0},view),options),/AI_PRACTICAL_EVIDENCE_UNRESOLVED/);
  }
 });
 test('scoped programme qualification groups retain exact spans and reject split subject answers',()=>{
