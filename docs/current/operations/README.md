@@ -1,5 +1,7 @@
 # Operations documentation
 
+15 October B04 discovery: [feed geography and query recovery](70_FEED_GEOGRAPHY_AND_QUERY_RECOVERY_2026-10-15.md) records canonical filters, pagination/error recovery and actual scoped verification.
+
 15 October B04: [preparation checklist and report UI](69_PREPARATION_CHECKLIST_AND_REPORT_UI_2026-10-15.md) records the verified local packet, synthetic receipt evidence and remaining acceptance limits.
 
 Updated: 11 September 2026. Source quality, service support, capacity, costs, continuity and runbooks.
