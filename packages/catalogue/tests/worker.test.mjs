@@ -857,3 +857,22 @@ test('rolling request limits remain active through a Pacific daily reset',async(
   await b.modelCall(claimB,'extraction',work,{model:'gemini-3.8-flash'});assert.equal(sends,2);
   const rows=await quotaRows(a,'model_usage');assert.equal(rows.length,2);assert.ok(rows.every(r=>r.requests===1));
 });
+
+test('split qualification evidence stops the worker before candidate storage, validation or drafts',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+ const passage='Grade 12\nMathematics (Core) — not Mathematical Literacy\nPhysical Science\nEngineering Graphics & Design (EGD)';
+ f.state.html=detailHtml.replace('<p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p>','<h2>Minimum requirements</h2><p>'+passage.split('\n').join('</p><p>')+'</p>');
+ assert.ok(f.state.html.includes('<p>Physical Science</p>'));
+ f.worker.extractor=async()=>{
+  f.state.modelCalls++;const extraction=syntheticExtraction();
+  extraction.requirements={items:passage.split('\n').map((quote,index)=>({id:'q'+index,kind:'education',level:'required',fact:{state:'stated',value:{description:quote,qualification:null,document:null},quote}})),expression:{op:'all',children:[0,1,2,3].map(index=>({op:'ref',id:'q'+index}))}};
+  return {extraction,provenance:{usage:{totalTokens:20}}};
+ };
+ const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+ const result=await f.worker.run(f.sourceId);assert.ok(result.results.some(r=>r.reason==='AI_REQUIREMENT_GROUP_UNRESOLVED'));
+ assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,0);
+ const exception=(await db.collection('m0_worker_exceptions').get()).docs.map(value).find(e=>e.sourceId===f.sourceId);
+ assert.equal((await f.worker.ref('worker_candidates',exception.jobId).get()).exists,false);
+ assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
+ assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});

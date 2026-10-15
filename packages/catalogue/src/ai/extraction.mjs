@@ -9,7 +9,7 @@ import { isPromotionalLine } from './source-lines.mjs';
 import { assertRequirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v10';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v11';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()

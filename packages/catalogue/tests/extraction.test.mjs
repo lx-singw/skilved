@@ -373,3 +373,21 @@ test('conditional submission instructions map to evidence-backed practical condi
  const unknown=structuredClone(result.record);unknown.requirements.expression={op:'unknown',originalText:'Unclear eligibility'};
  assert.throws(()=>assertMaterialFacts(unknown),/MATERIAL_FACTS_UNRESOLVED/);
 });
+
+test('ordinary qualification mapping retains whole subject evidence and rejects split answers unchanged',async()=>{
+ const passage='Grade 12\nMathematics (Core) — not Mathematical Literacy\nPhysical Science\nEngineering Graphics & Design (EGD)';
+ const notice={...input,html:html(body.replace('<p>Grade 12 with Mathematics OR N3 Electrical.</p>','<h2>Minimum requirements</h2><p>'+passage.split('\n').join('</p><p>')+'</p>'))};
+ const data=extracted();data.requirements={items:[{id:'q1',kind:'education',level:'required',fact:stated({description:passage,qualification:null,document:null},passage)}],expression:{op:'ref',id:'q1'}};
+ const good=await extractRecentJobs(notice,{model:simulated(data)});
+ assert.equal(good.record.requirements.requirements[0].fact.originalText,passage);
+ const evidence=good.evidence.find(e=>e.quote===passage);assert.equal(good.snapshot.text.slice(evidence.start,evidence.end),passage);
+ assert.equal(good.record.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(good.record.publication.approved,false);
+ const split=structuredClone(data);split.requirements.items=passage.split('\n').map((quote,index)=>({id:'q'+index,kind:'education',level:'required',fact:stated({description:quote,qualification:null,document:null},quote)}));
+ split.requirements.expression={op:'all',children:split.requirements.items.map(i=>({op:'ref',id:i.id}))};
+ const before=JSON.stringify(split);let calls=0;
+ await assert.rejects(extractRecentJobs(notice,{model:async c=>{calls++;return simulated(split)(c);}}),/AI_REQUIREMENT_GROUP_UNRESOLVED/);
+ assert.equal(calls,1);assert.equal(JSON.stringify(split),before);
+ const unknown=structuredClone(data);unknown.requirements={items:[],expression:{op:'unknown',originalText:passage}};
+ const held=await extractRecentJobs(notice,{model:simulated(unknown)}),{assertMaterialFacts}=await import('../src/worker-policy.mjs');
+ assert.throws(()=>assertMaterialFacts(held.record),/MATERIAL_FACTS_UNRESOLVED/);
+});

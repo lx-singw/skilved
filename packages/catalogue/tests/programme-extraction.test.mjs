@@ -245,3 +245,17 @@ test('scoped programme conditional supporting documents preserve original instru
   assert.throws(()=>mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...missing,applicationCandidateIndex:0},view),options),/AI_CONDITIONAL_DOCUMENT_COVERAGE/);
  }
 });
+test('scoped programme qualification groups retain exact spans and reject split subject answers',()=>{
+ const passage='Grade 12\nMathematics\nPhysical Science',insert='<p>Minimum requirements</p><p>'+passage.split('\n').join('</p><p>')+'</p><p>Main responsibilities</p>';
+ const source=parseRecentJobsDetail({url:candidate.sourceUrl,html:html.replace('<p>Apply: electrical@employer.example</p>',insert+'<p>Apply: electrical@employer.example</p>')});
+ const intake=planRecentJobsProgrammes(source).intakes[0],wire=programmeWire(source,intake),view=programmeCandidate(source,intake.id),lines=(source.title+'\n'+source.sourceText).split('\n'),line=lines.indexOf('Grade 12')+1;
+ assert.deepEqual(programmeExtractionPayload(source,intake.id).requirementSourcePolicy.completeRequirementSpans,[{span:[line,line+2],kind:'education'}]);
+ wire.requirements.items.push({id:'q1',kind:'education',level:'required',state:'stated',span:[line,line+2]});wire.requirements.expression='all(r1,r2,q1)';
+ const mapped=mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...wire,applicationCandidateIndex:0},view),options);
+ assert.equal(mapped.record.requirements.requirements.find(i=>i.id==='q1').fact.originalText,passage);
+ const evidence=mapped.evidence.find(e=>e.quote===passage);assert.equal(mapped.snapshot.text.slice(evidence.start,evidence.end),passage);
+ assert.equal(mapped.record.applicationRoute.value.destination,'electrical@employer.example');
+ const split=structuredClone(wire);split.requirements.items.pop();split.requirements.items.push(...[0,1,2].map(i=>({id:'q'+i,kind:'education',level:'required',state:'stated',span:[line+i,line+i]})));
+ split.requirements.expression='all(r1,r2,q0,q1,q2)';
+ assert.throws(()=>mapProgrammeExtraction(source,intake.id,decodeGroqExtraction({...split,applicationCandidateIndex:0},view),options),/AI_REQUIREMENT_GROUP_UNRESOLVED/);
+});

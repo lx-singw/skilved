@@ -75,3 +75,54 @@ test('an unqualified held passport does not establish citizenship or document su
  const qualified={title:'Authored',sourceText:'Added advantages\nValid South African passport\nClosing date: 30 October 2026'};
  assert.equal(requirementSourcePolicy(qualified).lineHints[0].kind,null);
 });
+
+const qualificationPassage='Grade 12\nMathematics (Core) — not Mathematical Literacy\nPhysical Science\nEngineering Graphics & Design (EGD)';
+const qualificationCandidate={title:'Authored apprenticeship',sourceText:'Minimum requirements\nYou need:\n'+qualificationPassage+'\nValid driving licence\nAdded advantages\nBasic hand-skills training\nClosing date: 30 October 2026'};
+const qualificationExtraction=()=>({requirements:{items:[item('q1',qualificationPassage,'education','required'),item('q2','Valid driving licence','other','required'),item('q3','Basic hand-skills training','other','preferred')],expression:{op:'all',children:['q1','q2','q3'].map(id=>({op:'ref',id}))}}});
+
+test('closed qualification subject lists keep their complete evidence in one education item',()=>{
+ assert.deepEqual(requirementSourcePolicy(qualificationCandidate).completeRequirementSpans,[{span:[4,7],kind:'education'}]);
+ assert.doesNotThrow(()=>assertRequirementSourcePolicy(qualificationCandidate,qualificationExtraction()));
+ const preferred={title:'Authored apprenticeship',sourceText:'Added advantages\nGrade 12 with the following subjects:\nPhysical Science\nMathematics\nClosing date: 30 October 2026'};
+ assert.deepEqual(requirementSourcePolicy(preferred).completeRequirementSpans,[{span:[3,5],kind:'education'}]);
+ const value={requirements:{items:[item('p1','Grade 12 with the following subjects:\nPhysical Science\nMathematics','education','preferred')],expression:{op:'ref',id:'p1'}}};
+ assert.doesNotThrow(()=>assertRequirementSourcePolicy(preferred,value));
+ value.requirements.items[0].level='required';assert.throws(()=>assertRequirementSourcePolicy(preferred,value),/AI_REQUIREMENT_LEVEL_UNRESOLVED/);
+});
+
+test('split, overlapping, duplicate and incorrectly classified qualification evidence cannot pass',()=>{
+ for(const quotes of [qualificationPassage.split('\n'),['Grade 12\nMathematics (Core) — not Mathematical Literacy','Physical Science\nEngineering Graphics & Design (EGD)'],[qualificationPassage,'Physical Science'],[qualificationPassage,qualificationPassage]]){
+  const value=qualificationExtraction();value.requirements.items.splice(0,1,...quotes.map((quote,index)=>item('split'+index,quote,'education','required')));
+  value.requirements.expression={op:'all',children:value.requirements.items.map(i=>({op:'ref',id:i.id}))};
+  assert.throws(()=>assertRequirementSourcePolicy(qualificationCandidate,value),/AI_REQUIREMENT_GROUP_UNRESOLVED/);
+ }
+ const wrong=qualificationExtraction();wrong.requirements.items[0].kind='subjects';assert.throws(()=>assertRequirementSourcePolicy(qualificationCandidate,wrong),/AI_REQUIREMENT_KIND_UNRESOLVED/);
+});
+
+test('complete unknown qualification logic is a safe abstention and cannot excuse partial confident items',()=>{
+ const value=qualificationExtraction();value.requirements.items.shift();value.requirements.expression={op:'all',children:[...value.requirements.items.map(i=>({op:'ref',id:i.id})),{op:'unknown',originalText:qualificationPassage}]};
+ assert.doesNotThrow(()=>assertRequirementSourcePolicy(qualificationCandidate,value));
+ value.requirements.items.push(item('partial','Physical Science','subjects','required'));assert.throws(()=>assertRequirementSourcePolicy(qualificationCandidate,value),/AI_REQUIREMENT_GROUP_UNRESOLVED/);
+});
+
+test('qualification recognition abstains on incomplete, alternative, repeated and unfamiliar source layouts',()=>{
+ for(const sourceText of [
+  'Minimum requirements\n'+qualificationPassage,
+  'Minimum requirements\nGrade 12\nMathematics\nClosing date: 30 October 2026',
+  'Minimum requirements\nGrade 12\nMathematics\n\nPhysical Science\nClosing date: 30 October 2026',
+  'Minimum requirements\nGrade 12\nMathematics\nMathematics (Core)\nClosing date: 30 October 2026',
+  'Minimum requirements\nGrade 12\nMathematics\nPhysical Science\nSpatial reasoning\nClosing date: 30 October 2026',
+  'Minimum requirements\nOne of the following:\nGrade 12\nMathematics\nPhysical Science\nClosing date: 30 October 2026',
+  'Minimum requirements\nGrade 12\nMathematics OR Physical Science\nClosing date: 30 October 2026',
+  'Minimum requirements\nGrade 12\nMathematics\nPhysical Science\nAdded advantages\nPhysical Science\nClosing date: 30 October 2026',
+  'Required documents\nGrade 12\nMathematics\nPhysical Science\nClosing date: 30 October 2026',
+ ])assert.deepEqual(requirementSourcePolicy({title:'Authored',sourceText}).completeRequirementSpans,[]);
+});
+
+test('a combined qualification-and-assessment profile keeps each condition separately complete',()=>{
+ const candidate={title:'Authored',sourceText:'Minimum requirements\n'+qualificationPassage+'\n'+assessmentPassage+'\nValid driving licence\nClosing date: 30 October 2026'};
+ assert.deepEqual(requirementSourcePolicy(candidate).completeRequirementSpans,[{span:[3,6],kind:'education'},{span:[7,9],kind:'other'}]);
+ const value={requirements:{items:[item('q1',qualificationPassage,'education','required'),item('a1',assessmentPassage,'other','required'),item('d1','Valid driving licence','other','required')],expression:{op:'all',children:['q1','a1','d1'].map(id=>({op:'ref',id}))}}};
+ assert.doesNotThrow(()=>assertRequirementSourcePolicy(candidate,value));
+ value.requirements.items.push(item('dup',assessmentPassage,'other','required'));assert.throws(()=>assertRequirementSourcePolicy(candidate,value),/AI_REQUIREMENT_GROUP_UNRESOLVED/);
+});

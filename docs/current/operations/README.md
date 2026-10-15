@@ -66,6 +66,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Complete source evidence and conditional-document hold](65_COMPLETE_SOURCE_EVIDENCE_AND_CONDITIONAL_DOCUMENT_HOLD_2026-10-04.md)
 - [Conditional supporting-document instructions and logic grammar hold](66_CONDITIONAL_DOCUMENT_INSTRUCTIONS_AND_LOGIC_GRAMMAR_HOLD_2026-10-04.md)
 - [Preferred-item expressions and qualification grouping hold](67_PREFERRED_ITEM_EXPRESSION_AND_QUALIFICATION_GROUPING_HOLD_2026-10-04.md)
+- [Complete qualification grouping and closed-source regression](68_COMPLETE_QUALIFICATION_GROUPING_AND_CLOSED_SOURCE_REGRESSION_2026-10-15.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
