@@ -1,8 +1,10 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 26 September 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 15 October 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+15 October practical-detail packet: [internship routes, organisation roles and participation/support conditions](../operations/79_PRACTICAL_DETAIL_AND_INTERNSHIP_CONTEXT_2026-10-15.md) now expose existing reviewed public facts with original wording and citations. Unknowns/conflicts remain explicit with clarification steps. All 57 web tests and lint/typecheck/build pass; synthetic mobile/wide browser checks cover stated, conflicting and restricted detail without horizontal overflow. Operator correction and loading/limited-inventory reconciliation remain before B05; formal G2 and external source/user/release gates stay open.
 
 15 October final cursor correction: maximum accepted escaped/Unicode queries now round-trip within bounded cursors. [Actual final evidence](../operations/78_STAGE_FILTER_AND_SOURCE_WORDING_2026-10-15.md) records 32 contract, 52 web and 20 adapter tests passing on integrated main, plus build; UI input comparison and the earlier browser evidence remain explicit.
 
@@ -37,7 +39,7 @@ Statuses: `NOT STARTED`, `IN PROGRESS`, `BLOCKED` (identify dependency and owner
 | B01 | P0 | IN PROGRESS | Current candidate reproduced; scoped engineering/browser evidence in the new bundle. Participant observation G0.6 and actual capacity/budget G0.7 remain pending. Runtime environment guards and cloud controls are not active. |
 | B02 | P1 | IN PROGRESS (engineering evidenced; formal acceptance pending G0) | Canonical six-category schema, provenance/projection, bounded requirements, API/storage/alias/legacy conversion contracts, isolated inspection and CT-01–20 implemented; 22 contract/inspection plus 22 web boundary tests pass. Actual persistence and live endpoints remain B03. |
 | B03 | P1 | IN PROGRESS (local runtime implemented; source acquisition and formal G1 pending) | Firestore/Auth emulator integration, protected CLI, durable jobs/snapshots/versions, review/publication/report/alias controls and versioned reads implemented. Real source assessment/adapter, source coverage, actual operator provisioning and deployed qualification remain open. |
-| B04 | P2 | PARTIAL LOCAL IMPLEMENTATION | Feed/detail/fresh handoff, geography/query recovery, filter/page/card return, transient preparation checklist, bounded report UI and scoped source checks/reviewed explanations implemented locally. Field/stated-entry-stage filters and detail/correction reconciliation remain; six-category real source coverage, held-out and live user/deployment acceptance stay open. |
+| B04 | P2 | PARTIAL LOCAL IMPLEMENTATION | Feed/detail/fresh handoff, geography/field/reviewed-stage filters, query recovery, filter/page/card return, checklist, report UI, source checks/explanations and internship/role/practical-condition detail implemented locally. Operator correction and loading/limited-inventory reconciliation remain; six-category real source coverage, held-out and live user/deployment acceptance stay open. |
 | B05 | P3 | NOT STARTED | Browser-local progress and failure/change recovery not evidenced |
 | B06 | P3 | NOT STARTED | Bounded suggestions, capability receipts, withdrawal and safe-fetch acceptance not evidenced |
 | B07 | P3 | NOT STARTED | Public export/sharing and private-state leak tests not evidenced |

@@ -101,6 +101,7 @@ test("canonical detail renders original instructions before explanation and actu
   const preparation = await load("components/catalogue/PreparationChecklist.tsx")
   const report = await load("components/catalogue/OpportunityReport.tsx")
   const stage = await load("components/catalogue/EntryStage.tsx")
+  const conditions = await load("components/catalogue/OpportunityConditions.tsx")
   const page = await load("app/opportunities/[id]/page.tsx", {
     "next/link": { __esModule: true, default: ({ children, href, ...props }) => React.createElement("a", { href, ...props }, children) },
     "@/components/layout/Header": { Header: () => null },
@@ -110,6 +111,7 @@ test("canonical detail renders original instructions before explanation and actu
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
     "@/components/catalogue/EntryStage": stage,
+    "@/components/catalogue/OpportunityConditions": conditions,
     "@/lib/catalogue-query": navigation,
   })
   const html = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
@@ -119,6 +121,9 @@ test("canonical detail renders original instructions before explanation and actu
   assert.match(html, /Explanation for current instructions/)
   assert.match(html, /Source-stated stage: Graduate/)
   assert.match(html, /Synthetic graduate applicants/)
+  assert.match(html, /About this opportunity/)
+  assert.match(html, /Attendance: In person/)
+  assert.match(html, /Stipend · Per month/)
   assert.doesNotMatch(html, /This listing passed automated/)
   assert.match(html, /href="\/"[^>]*>← All opportunities/)
   const context = { params: Promise.resolve({ id: o.id }), searchParams: Promise.resolve({ from: "/?province=gauteng&remote=false&limit=1" }) }
@@ -137,5 +142,5 @@ test("canonical detail renders original instructions before explanation and actu
   const held = renderToStaticMarkup(await page.default(context))
   assert.match(held, /needs a fresh check/)
   assert.ok(held.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
-  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|\/apply\?revision/)
+  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|About this opportunity|Experience and practical conditions|Pay and support|\/apply\?revision/)
 })
