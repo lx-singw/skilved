@@ -9,6 +9,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - **Start building:** [Chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
 - **Check progress:** [Current M0 delivery status and blockers](05_M0_DELIVERY_STATUS.md)
 - **Continue autonomously:** [Sequential sprint loop and quota policy](08_AUTONOMOUS_SPRINT_LOOP.md), with the [durable handoff](09_SPRINT_LOOP_HANDOFF.md).
+- **Prepare each work packet:** [Evidence-driven self-prompting template](10_SELF_PROMPTING_PACKET_TEMPLATE.md).
 - **Execute the next iteration:** [Detailed B01 carry-over and B02 implementation plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) — ordered tasks, capacity, contracts, tests, evidence and handoff.
 
 - [M0 detailed delivery B01–B10 and estimates](03_M0_COMPANION_DELIVERY_PLAN.md)
