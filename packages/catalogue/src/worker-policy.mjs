@@ -5,7 +5,7 @@ export const RECENTJOBS_INDEX = 'https://recentjobs.co.za/category/apprenticeshi
 export const dayInSA = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg',
   year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
 export const allFacts = o => [o.title, o.issuer, o.summary, o.intake, ...o.organisations, o.location,
-  o.residence, o.experience, o.deadline, ...o.compensation, o.practicalConditions, o.applicationRoute,
+  o.residence, o.experience, ...(o.entryStage ? [o.entryStage] : []), o.deadline, ...o.compensation, o.practicalConditions, o.applicationRoute,
   ...o.requirements.requirements.map(r => r.fact)];
 const fail = code => { throw new DomainError(code); };
 const nameKey = text => text.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -62,6 +62,8 @@ export function approvedIssuer(source, record) {
 }
 
 export function assertMaterialFacts(record) {
+  // The current extraction/qualification path does not establish normalized stage labels.
+  if (record.entryStage?.state === 'stated') fail('ENTRY_STAGE_REVIEW_REQUIRED');
   if (record.category !== 'apprenticeship' || record.title.state !== 'stated' ||
       allFacts(record).some(f => ['ambiguous', 'conflicting'].includes(f.state)) ||
       !record.requirements.requirements.length || JSON.stringify(record.requirements.expression).includes('"unknown"')) fail('MATERIAL_FACTS_UNRESOLVED');

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CategorySchema, Fact, IdSchema, InstantSchema, InternshipSchema, JsonBoundarySchema, RevisionSchema, TextSchema, factSchema } from './primitives';
-import { ApplicationRouteSchema, CompensationSchema, DeadlineSchema, LocationSchema, OrganisationSchema } from './values';
+import { ApplicationRouteSchema, CompensationSchema, DeadlineSchema, EntryStagesSchema, LocationSchema, OrganisationSchema } from './values';
 import { RequirementSetSchema } from './requirements';
 import { CheckOutcomeSchema, CheckScopeSchema, CitationSchema, Projection, ProjectionSchema } from './public';
 
@@ -20,7 +20,7 @@ const RecordShape = z.object({
   internship: InternshipSchema.nullable(), title: factSchema(TextSchema), issuer: factSchema(TextSchema),
   summary: factSchema(TextSchema), fields: z.array(TextSchema).max(20), intake: factSchema(TextSchema),
   organisations: z.array(factSchema(OrganisationSchema)).max(20), location: factSchema(LocationSchema),
-  residence: factSchema(TextSchema), experience: factSchema(TextSchema), deadline: factSchema(DeadlineSchema),
+  residence: factSchema(TextSchema), experience: factSchema(TextSchema), entryStage: factSchema(EntryStagesSchema).optional(), deadline: factSchema(DeadlineSchema),
   compensation: z.array(factSchema(CompensationSchema)).max(20), practicalConditions: factSchema(TextSchema),
   requirements: RequirementSetSchema, applicationRoute: factSchema(ApplicationRouteSchema),
   lifecycle: z.enum(['draft', 'review', 'published', 'closed', 'withdrawn', 'archived']),
@@ -56,6 +56,7 @@ export const OpportunityRecordSchema = JsonBoundarySchema.pipe(RecordShape.super
 export type OpportunityRecord = z.infer<typeof OpportunityRecordSchema>;
 function allFacts(o: z.infer<typeof RecordShape>): Fact<unknown>[] {
   return [o.title, o.issuer, o.summary, o.intake, ...o.organisations, o.location, o.residence, o.experience,
+    ...(o.entryStage ? [o.entryStage] : []),
     o.deadline, ...o.compensation, o.practicalConditions, o.applicationRoute, ...o.requirements.requirements.map(r => r.fact)];
 }
 
@@ -102,7 +103,9 @@ export function projectOpportunity(input: unknown): Projection {
     schemaVersion: 1, id: o.id, revision: o.revision, category: o.category, internship: o.internship,
     title: publicFact(o.title), issuer: publicFact(o.issuer), summary: publicFact(o.summary), fields: o.fields,
     intake: publicFact(o.intake), organisations: o.organisations.map(publicFact), location: publicFact(o.location),
-    residence: publicFact(o.residence), experience: publicFact(o.experience), deadline: publicFact(o.deadline),
+    residence: publicFact(o.residence), experience: publicFact(o.experience),
+    entryStage: o.entryStage ? publicFact(o.entryStage) : { state: 'not_stated', value: null, originalText: null, citations: [] },
+    deadline: publicFact(o.deadline),
     compensation: o.compensation.map(publicFact), practicalConditions: publicFact(o.practicalConditions),
     requirements: { id: o.requirements.id, revision: o.requirements.revision, expression: o.requirements.expression,
       requirements: o.requirements.requirements.map(r => ({ id: r.id, kind: r.kind, level: r.level, fact: publicFact(r.fact) })) },

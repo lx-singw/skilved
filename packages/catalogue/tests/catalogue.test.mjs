@@ -204,3 +204,31 @@ test('listed-field filtering precedes pagination and excludes unknown fields onl
     assert.equal(all.items.filter(o=>o.fields.length===0).length,3);
   } finally { for(const recordId of ids) await runtime.db.doc('m0_public/'+recordId).delete(); }
 });
+
+test('entry-stage ingestion resets supplied approval, explicit reviewer publishes it and edits restrict public output',async()=>{
+  const actor=await signup(),stageToken=actor.idToken;
+  await runtime.db.doc('m0_operators/'+actor.localId).set({active:true,roles:['reviewer','source']});
+  const stageSource={...source,id:'stage_source'};
+  await store.registerSource(stageToken,stageSource,null,'Register synthetic stage source');
+  const job=await store.enqueue(stageToken,{sourceId:stageSource.id,url:stageSource.urls[0],key:'stage_ingestion'},'Stage ingestion');
+  const result=await store.runJob(stageToken,job.id,async(s,url)=>{
+    const record=makeRecord();record.id='stage_fixture';
+    record.entryStage={...record.title,id:'stage_assertion',value:['student','graduate'],originalText:'Synthetic students and graduates may apply.'};
+    return{url,text:JSON.stringify(record)};
+  });
+  assert.equal(result.state,'done');
+  let draft=await store.inspect(stageToken,'drafts',result.recordId);
+  assert.equal(draft.entryStage.review,'pending');assert.equal(draft.entryStage.reviewedBy,null);
+  assert.deepEqual(draft.entryStage.sourceSnapshotIds,[result.snapshotId]);
+  assert.deepEqual(draft.entryStage.evidenceRefs,[result.snapshotId]);
+  await store.publish(stageToken,draft.id,1,'publish','Human reviewed source stage wording');
+  draft=await store.inspect(stageToken,'drafts',draft.id);
+  assert.equal(draft.entryStage.reviewedBy,actor.localId);assert.equal(draft.entryStage.review,'approved');
+  assert.deepEqual((await store.detail(draft.id)).opportunity.entryStage.value,['student','graduate']);
+  draft.revision++;draft.entryStage.value=['experienced'];draft.entryStage.originalText='Synthetic experienced applicants only.';
+  await store.saveDraft(stageToken,draft,2,'Correct source-stated stage');
+  assert.equal((await store.detail(draft.id)).status.status,'under_review');
+  assert.equal((await store.list(new URLSearchParams())).items.some(o=>o.id===draft.id),false);
+  await store.publish(stageToken,draft.id,3,'publish','Human reviewed stage correction');
+  assert.deepEqual((await store.detail(draft.id)).opportunity.entryStage.value,['experienced']);
+});

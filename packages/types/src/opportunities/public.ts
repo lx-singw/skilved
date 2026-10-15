@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CategorySchema, HttpsSchema, IdSchema, InstantSchema, InternshipSchema, JsonBoundarySchema, RevisionSchema, TextSchema, publicFactSchema } from './primitives';
-import { ApplicationRouteSchema, CompensationSchema, DeadlineSchema, LocationSchema, OrganisationSchema } from './values';
+import { ApplicationRouteSchema, CompensationSchema, DeadlineSchema, EntryStagesSchema, LocationSchema, OrganisationSchema } from './values';
 import { PublicRequirementSetSchema } from './requirements';
 
 export const CheckScopeSchema = z.enum(['issuer_attribution', 'announcement', 'application_relationship', 'destination_reachability', 'availability', 'requirements']);
@@ -16,6 +16,7 @@ export const PublicOpportunitySchema = JsonBoundarySchema.pipe(z.object({
   summary: publicFactSchema(TextSchema), fields: z.array(TextSchema).max(20),
   intake: publicFactSchema(TextSchema), organisations: z.array(publicFactSchema(OrganisationSchema)).max(20),
   location: publicFactSchema(LocationSchema), residence: publicFactSchema(TextSchema), experience: publicFactSchema(TextSchema),
+  entryStage: publicFactSchema(EntryStagesSchema).default(() => ({ state: 'not_stated' as const, value: null, originalText: null, citations: [] })),
   deadline: publicFactSchema(DeadlineSchema), compensation: z.array(publicFactSchema(CompensationSchema)).max(20),
   practicalConditions: publicFactSchema(TextSchema), requirements: PublicRequirementSetSchema,
   explanation: z.object({ text: TextSchema, requirementRevision: RevisionSchema, citations: z.array(IdSchema).min(1).max(20) }).strict().nullable(),

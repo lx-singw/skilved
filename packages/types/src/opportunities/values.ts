@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { DateSchema, HttpsSchema, InstantSchema, ProvinceSchema, TextSchema } from './primitives';
 
+/** Discovery labels require explicit source wording; they never replace eligibility logic. */
+export const EntryStageSchema = z.enum(['school_leaver', 'student', 'graduate', 'entry_level', 'experienced']);
+export type EntryStage = z.infer<typeof EntryStageSchema>;
+export const EntryStagesSchema = z.array(EntryStageSchema).min(1).max(5)
+  .refine(stages => new Set(stages).size === stages.length, 'Duplicate entry stage');
+
 export const PlaceSchema = z.object({ country: z.string().regex(/^[A-Z]{2}$/).nullable(), province: ProvinceSchema.nullable(), city: TextSchema.nullable() }).strict();
 export const LocationSchema = z.object({ places: z.array(PlaceSchema).max(20),
   coverage: z.enum(['local', 'national', 'international', 'not_stated']),

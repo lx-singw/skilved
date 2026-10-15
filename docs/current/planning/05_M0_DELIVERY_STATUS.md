@@ -4,6 +4,8 @@ Updated: 26 September 2026. This is the current implementation-status record for
 
 ## 1. Current position
 
+15 October entry-stage prerequisite: [reviewed stage contract](../operations/76_SOURCE_STATED_ENTRY_STAGE_CONTRACT_2026-10-15.md) is locally implemented with legacy unknown fallback, complete fact traversal and an automatic-publication hold. All 29 contract, 491 catalogue and 48 web tests pass with lint/typecheck/build. Query/UI filtering and detail/correction reconciliation remain before B05. Older strict clients require a coordinated update; no release or real stage-inventory qualification is claimed. G2 remains open.
+
 15 October field packet: [listed-field search](../operations/75_LISTED_FIELD_FILTER_2026-10-15.md) is locally implemented. All 24 contract, 48 web and 18 affected emulator tests pass with lint/typecheck/build and an isolated synthetic mobile journey. Stated entry-stage requires a separate provenance-bearing fact; remaining detail/correction work and formal G2 stay open.
 
 15 October navigation packet: [filter/page/card return and stale-result recovery](../operations/73_CATALOGUE_RETURN_NAVIGATION_2026-10-15.md) is locally implemented. All 45 web tests and lint/typecheck/build pass; a separate candidate and actual synthetic mobile journey verify native Back, reloaded detail return, withheld action removal and filter-preserving stale-cursor restart. Field/stated-entry-stage filtering and remaining detail/correction reconciliation precede B05; G2 stays open.

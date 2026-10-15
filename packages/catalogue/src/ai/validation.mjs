@@ -75,6 +75,7 @@ export function validationPayload({ record, recentjobsText, primary = null, appl
   const facts = Object.fromEntries(['title', 'issuer', 'summary', 'intake', 'location', 'residence', 'experience',
     'deadline', 'practicalConditions', 'applicationRoute'].map(key => [key, fact(record[key])]));
   facts.compensation = record.compensation.map(fact);
+  if (record.entryStage) facts.entryStage = fact(record.entryStage);
   facts.requirements = { expression: record.requirements.expression,
     requirements: record.requirements.requirements.map(r => ({ id: r.id, kind: r.kind, level: r.level, fact: fact(r.fact) })) };
   return { extracted: facts, recentjobsText, primary, applicationCandidates };

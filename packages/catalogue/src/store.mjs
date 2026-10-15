@@ -274,7 +274,7 @@ export class Catalogue {
     return {jobs,next:page.next};
   }
 }
-function facts(o) { return [o.title,o.issuer,o.summary,o.intake,...o.organisations,o.location,o.residence,o.experience,o.deadline,...o.compensation,o.practicalConditions,o.applicationRoute,...o.requirements.requirements.map(r=>r.fact)]; }
+function facts(o) { return [o.title,o.issuer,o.summary,o.intake,...o.organisations,o.location,o.residence,o.experience,...(o.entryStage?[o.entryStage]:[]),o.deadline,...o.compensation,o.practicalConditions,o.applicationRoute,...o.requirements.requirements.map(r=>r.fact)]; }
 function restricted(record) {
   return record.publication.previouslyPublic ? { kind:'status',status:{ schemaVersion:1,id:record.id,revision:record.revision,status:record.lifecycle==='withdrawn'?'withdrawn':'under_review',application:'unavailable' } } : { kind:'not_public' };
 }
