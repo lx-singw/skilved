@@ -876,3 +876,28 @@ test('split qualification evidence stops the worker before candidate storage, va
  assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
 });
+test('numbered-section attachment coverage gates validation and accepts a complete practical instruction',async()=>{
+ const attachment='Attach your qualifications and relevant academic records.';
+ for(const retain of [false,true]){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+  f.state.html=detailHtml.replace('<p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p>','<p>2. Minimum requirements</p><p>Grade 12</p><p>'+attachment+'</p><p>3. Duties and responsibilities</p><p>Maintain tools.</p>');
+  f.worker.extractor=async()=>{
+   f.state.modelCalls++;const extraction=syntheticExtraction();
+   extraction.requirements={items:[{id:'q1',kind:'education',level:'required',fact:{state:'stated',quote:'Grade 12',value:{description:'Grade 12',qualification:null,document:null}}}],expression:{op:'ref',id:'q1'}};
+   if(retain)extraction.practicalConditions={state:'stated',value:attachment,quote:attachment};
+   return {extraction,provenance:{usage:{totalTokens:20}}};
+  };
+  f.worker.validator=async()=>{f.state.validations++;return {supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12'}],provenance:{usage:{totalTokens:20}}};};
+  const result=await f.worker.run(f.sourceId);assert.equal(f.state.modelCalls,1);
+  if(!retain){
+   assert.ok(result.results.some(r=>r.reason==='AI_SUBMISSION_INSTRUCTION_COVERAGE'));assert.equal(f.state.validations,0);
+   const exception=(await db.collection('m0_worker_exceptions').get()).docs.map(value).find(e=>e.sourceId===f.sourceId);
+   assert.equal((await f.worker.ref('worker_candidates',exception.jobId).get()).exists,false);
+  }else{
+   const record=detailResult(result);assert.equal(record.published,false);assert.equal(f.state.validations,1);
+   const draft=value(await f.worker.ref('drafts',record.recordId).get());assert.equal(draft.practicalConditions.value,attachment);
+   assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal((await f.worker.ref('public',record.recordId).get()).exists,false);
+  }
+  assert.ok(f.state.requests.every(request=>request.url.startsWith('https://recentjobs.co.za/')));
+ }
+});

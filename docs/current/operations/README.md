@@ -76,6 +76,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Preferred-item expressions and qualification grouping hold](67_PREFERRED_ITEM_EXPRESSION_AND_QUALIFICATION_GROUPING_HOLD_2026-10-04.md)
 - [Complete qualification grouping and closed-source regression](68_COMPLETE_QUALIFICATION_GROUPING_AND_CLOSED_SOURCE_REGRESSION_2026-10-15.md)
 - [Current RecentJobs screening and explicit Closing labels](72_CURRENT_RECENTJOBS_SCREEN_AND_CLOSING_LABEL_2026-10-15.md)
+- [Numbered requirements and explicit submission coverage](74_NUMBERED_REQUIREMENTS_AND_SUBMISSION_COVERAGE_2026-10-15.md)
 - [Autonomous RecentJobs processing through feed publication](../engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md)
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)

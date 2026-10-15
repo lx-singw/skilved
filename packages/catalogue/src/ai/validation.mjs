@@ -4,7 +4,7 @@ import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v9';
+export const VALIDATION_VERSION = 'recentjobs_validation_v10';
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
   evidence: z.array(z.object({ source: z.enum(['recentjobs', 'primary']), quote: z.string().min(1).max(4000) }).strict()).min(1).max(30),
@@ -18,6 +18,9 @@ The supplied source text includes the notice title. A title that names an employ
 can support the stated issuer; a separate sentence saying employer is not required.
 Check every stated field, summary, requirements, document rules, compensation and deadline for support.
 Check completeness: omitted mandatory conditions are failures even when the extracted claims are true.
+Explicit required attachment instructions can be retained in a required document item or in
+practicalConditions. Audit both fields before calling an instruction missing. Publisher preparation
+advice is not automatically employer eligibility; preserve applicability instead of inventing duties.
 Keep a qualification and its listed subjects in one complete education passage. Splitting its
 subjects into independent conditions loses qualification scope even under an ALL expression.
 Standalone supplemental-document instructions such as Other supporting certificates, if applicable
