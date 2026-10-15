@@ -90,6 +90,8 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Practical detail, internship routes and organisation roles](79_PRACTICAL_DETAIL_AND_INTERNSHIP_CONTEXT_2026-10-15.md)
 - [Practical evidence binding, publisher preparation holds and standalone subject marks](80_PRACTICAL_EVIDENCE_AND_SUBJECT_THRESHOLDS_2026-10-15.md)
 
+- [Public report, operator correction and restored detail](80_PUBLIC_REPORT_TO_CORRECTED_DETAIL_2026-10-15.md)
+
 ## Using this discipline
 
 Apply the relevant specifications within the [delivery work packages](../planning/16_SPRINT_BACKLOG.md), record actual results and update the [decision register](../governance/14_DECISIONS_AND_ASSUMPTIONS.md) when material assumptions change. Return to the [complete index](../00_START_HERE.md).

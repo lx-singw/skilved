@@ -11,7 +11,7 @@ import { publicAddress, approvedUrl } from '../src/fetch.mjs';
 import { getRuntime } from '../src/runtime.mjs';
 import { Catalogue } from '../src/store.mjs';
 import { handle } from '../src/http.mjs';
-import { makeRecord } from '../../types/tests/fixtures/opportunities.mjs';
+import { allFixtures, makeRecord } from '../../types/tests/fixtures/opportunities.mjs';
 
 let runtime,store,token,guest,uid,now='2026-09-25T18:00:00.000Z';
 const json=object=>({json:JSON.stringify(object)});
@@ -97,6 +97,36 @@ test('source correction invalidates old public output; withdrawn records cannot 
   draft=await store.inspect(token,'drafts',id);assert.equal(draft.lifecycle,'withdrawn');
   await assert.rejects(store.publish(token,id,draft.revision,'publish','Must not revive'),/RESTORE_REQUIRES_REVIEW/);
   assert.equal((await store.detail(id)).status.status,'withdrawn');
+});
+test('public reports lead to authenticated correction and current public wording across six categories and both internships',async()=>{
+  const provider=async()=>({config:{reads:true,reports:true},catalogue:store});
+  for(const fixture of allFixtures()){
+    const key=`report_correction_${fixture.category}_${fixture.internship?.subtype??'none'}`;
+    const result=await ingest(key,async(s,url)=>{fixture.id=key;return{url,text:JSON.stringify(fixture)};});
+    await store.publish(token,result.recordId,1,'publish','Reviewed synthetic correction journey');
+    const response=await handle(new Request('https://skilved.test/api/v1/reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opportunityId:result.recordId,kind:'incorrect',text:'PRIVATE_CORRECTION_REPORT'})}),undefined,provider);
+    assert.equal(response.status,202);assert.deepEqual(await response.json(),{status:'received'});
+    const report=(await store.queue(token,'reports')).items.find(r=>r.opportunityId===result.recordId);
+    assert.ok(report);await assert.rejects(store.triage(guest,report.id,1,'serious','Unauthorized'),/FORBIDDEN/);
+    await store.triage(token,report.id,1,'serious','Source conditions need correction');
+    const read=()=>handle(new Request('https://skilved.test/api/v1/opportunities/'+result.recordId),result.recordId,provider);
+    let publicResponse=await read();assert.equal(publicResponse.headers.get('cache-control'),'no-store');
+    assert.equal((await publicResponse.json()).status.status,'under_review');
+    assert.equal((await store.list(new URLSearchParams())).items.some(o=>o.id===result.recordId),false);
+    const draft=await store.inspect(token,'drafts',result.recordId),previousRevision=draft.revision;
+    draft.revision++;draft.practicalConditions.value='Corrected synthetic attendance condition';draft.practicalConditions.originalText='Synthetic source correction: attendance is two days each week.';
+    await assert.rejects(store.saveDraft(token,draft,previousRevision-1,'Stale correction'),/CONFLICT/);
+    await store.saveDraft(token,draft,previousRevision,'Reviewed source correction');
+    assert.equal((await (await read()).json()).status.status,'under_review');
+    await store.publish(token,draft.id,draft.revision,'restore','Explicit reviewer restoration after correction');
+    publicResponse=await read();assert.equal(publicResponse.status,200);
+    const current=await publicResponse.json();assert.equal(current.kind,'opportunity');
+    assert.equal(current.opportunity.category,fixture.category);assert.deepEqual(current.opportunity.internship,fixture.internship);
+    assert.equal(current.opportunity.practicalConditions.originalText,'Synthetic source correction: attendance is two days each week.');
+    assert.doesNotMatch(JSON.stringify(current),/PRIVATE_|reviewedBy|sourceSnapshotIds|reviewerNotes/);
+    assert.ok((await store.list(new URLSearchParams())).items.some(o=>o.id===result.recordId));
+    await store.publish(token,draft.id,current.opportunity.revision,'withhold','End isolated correction journey');
+  }
 });
 test('separate intake identities, filter completeness, stable pagination and stale cursors',async()=>{
   for(let i=0;i<4;i++){
