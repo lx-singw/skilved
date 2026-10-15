@@ -120,7 +120,7 @@ function dateOnly(raw) {
 }
 
 function deadlines(body) {
-  const pattern = /(?:closing\s*date|application\s*deadline|apply\s*by)\s*[:;\-]?\s*(?:(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*,?\s+)?(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4}|\d{1,2}\s+[a-z]+\s+\d{4}|not\s+specified|not\s+stated|until\s+filled)/gi;
+  const pattern = /(?:closing\s*date|application\s*deadline|apply\s*by|^closing\s*:)\s*[:;\-]?\s*(?:(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s*,?\s+)?(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4}|\d{1,2}\s+[a-z]+\s+\d{4}|not\s+specified|not\s+stated|until\s+filled)/gim;
   const weekdays = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
   return [...body.matchAll(pattern)].map(m => {
     let localDate = dateOnly(m[2]);

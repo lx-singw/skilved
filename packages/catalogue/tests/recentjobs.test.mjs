@@ -208,3 +208,17 @@ test('distinct explicit trade subjects stay held even with a single shared appli
     '<p>Electrical — if applying for Electrical</p><p>Electrical — if applying for Electrical</p>'])
     assert.equal(parseDetail(apply+suffix).issues.includes('programme_subject_scope_review_required'),false);
 });
+
+test('explicit line-start Closing labels preserve date-only precision and reject unrelated dates',()=>{
+ for(const [wording,date] of [['Closing: 20 October 2026','2026-10-20'],['CLOSING: 2026-10-20','2026-10-20'],['Closing:\n20 October 2026','2026-10-20']]){
+  const result=parseDetail('<p>'+wording+'</p>');assert.equal(result.deadlineCandidates.length,1);assert.equal(result.deadlineCandidates[0].localDate,date);assert.equal(result.deadlineCandidates[0].timezone,null);assert.equal(result.deadlineCandidates[0].originalText,wording);
+ }
+ for(const line of ['Posted 20 October 2026','Available to start on 20 October 2026','Our office is closing: 20 October 2026','Closing 20 October 2026'])assert.deepEqual(parseDetail('<p>'+line+'</p>').deadlineCandidates,[]);
+});
+
+test('Closing labels retain unknown, invalid, conflicting and weekday-mismatch holds',()=>{
+ for(const text of ['Closing: not specified','Closing: 31 February 2026','Closing: Monday, 20 October 2026']){
+  const result=parseDetail('<p>'+text+'</p>');assert.equal(result.deadlineCandidates[0].localDate,null);assert.ok(result.issues.includes('deadline_needs_review'));
+ }
+ const conflict=parseDetail('<p>Closing: 20 October 2026</p><p>Closing date: 21 October 2026</p>');assert.ok(conflict.issues.includes('conflicting_deadlines'));
+});

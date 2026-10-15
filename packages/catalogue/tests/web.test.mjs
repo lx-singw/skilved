@@ -68,7 +68,15 @@ test('enabled web catalogue renders checked records and rechecks every applicati
     const detail = await (await get(`/opportunities/${record.id}`)).text();
     assert.match(detail, /Grade 12 with Mathematics/);
     assert.match(detail, /N3 Electrical/);
-    assert.match(detail, /automated source and content checks/);
+    assert.match(detail, /Sources and checks/);
+    for (const label of ['Who issued the opportunity', 'Source announcement', 'Application route linked to the notice',
+      'Application destination reachable', 'Opportunity availability', 'Requirement wording and meaning'])
+      assert.ok(detail.includes(label));
+    assert.match(detail, /Automated check/);
+    assert.match(detail, /Supported by the cited evidence/);
+    // The fixture has no announcement assessment: rendering must not imply one.
+    assert.match(detail, /No recorded check for this question/);
+    assert.doesNotMatch(detail, /synthetic_worker|sourceSnapshotIds|reviewedBy/);
     const route = `/opportunities/${record.id}/apply`;
     const valid = await get(`${route}?revision=1&destination=https://attacker.example`);
     assert.equal(valid.status, 303);
