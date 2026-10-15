@@ -1,9 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { CATEGORY_LABELS, formatRequirements } from "@skilved/types/opportunities"
+import { CATEGORY_LABELS } from "@skilved/types/opportunities"
 import { Header } from "@/components/layout/Header"
 import { placeLabel } from "@/components/catalogue/PublicCatalogue"
 import { readOpportunity } from "@/lib/public-catalogue"
+import { PreparationChecklist } from "@/components/catalogue/PreparationChecklist"
+import { OpportunityReport } from "@/components/catalogue/OpportunityReport"
 
 export const dynamic = "force-dynamic"
 
@@ -35,9 +37,9 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
         : <p className="mt-4 text-muted-foreground">{o.lifecycle === "closed" ? "This intake is closed." : "An application link is not currently available. Check the source notice for guidance."}</p>}
       <p className="mt-4 text-sm text-muted-foreground">Follow the application method stated in the notice. Skilved rechecks the listing before opening a portal or your email app; you complete and submit the application yourself.</p>
     </section>
-    <section className="mt-8" aria-labelledby="requirements-heading">
-      <h2 id="requirements-heading" className="text-xl font-semibold">Requirements</h2>
-      <p className="mt-3 whitespace-pre-wrap leading-relaxed">{formatRequirements(o.requirements)}</p>
+    <PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} />
+    <section className="mt-8" aria-labelledby="conditions-heading">
+      <h2 id="conditions-heading" className="text-xl font-semibold">Experience and practical conditions</h2>
       <dl className="mt-5 space-y-4">{[["Experience", o.experience], ["Residence", o.residence], ["Intake", o.intake], ["Practical conditions", o.practicalConditions]].map(([label, fact]) => {
         if (typeof fact === "string") return null
         return <div key={String(label)}><dt className="font-medium">{String(label)}</dt><dd className="mt-1 text-muted-foreground">{fact.originalText ?? "Not stated in the notice"}</dd></div>
@@ -52,5 +54,6 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
       <p className="mt-2 text-sm text-muted-foreground">Application instructions are taken from the cited source notices.</p>
       <p className="mt-2 text-sm text-muted-foreground">Updated {new Date(o.updatedAt).toLocaleDateString("en-ZA", { timeZone: "Africa/Johannesburg", dateStyle: "long" })}. Confirm the issuer’s current instructions before applying.</p>
     </section>
+    {process.env.SKILVED_CATALOGUE_REPORTS === "true" && <OpportunityReport id={o.id} />}
   </main></>
 }

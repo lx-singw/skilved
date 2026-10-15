@@ -19,3 +19,9 @@ This setup does not close product gates or claim the remaining sprints are finis
 ## Self-prompting update — 15 October 2026
 
 The founder requested explicit self-prompting inside the existing loop. Each work packet now follows the [five-field task and review template](10_SELF_PROMPTING_PACKET_TEMPLATE.md): objective, evidence, next action, acceptance checks and stop condition. The live next task/review belongs in ignored `.artifacts/sprint-loop/next-task.md`, referenced by the private checkpoint. Plan once, implement, review against actual results, then permit one targeted correction for a concrete failure. Persistent failure without new evidence stops that approach instead of triggering endless reflection. This adds no separate model/API service and retains both account windows, the 5% reserve and the existing commit/push workflow.
+
+## Completed packet — 15 October 2026
+
+The [B04 preparation/report packet](11_B04_PREPARATION_AND_REPORT_PACKET.md) implements a source-faithful transient checklist and a bounded report form on public canonical detail. Clean install/compilation/lint/typecheck/build and 27 web tests pass. Synthetic browser checks verify keyboard ticks, honest non-persistence, rate-limit retry, one private report receipt and narrow/wide layout. Private evidence stays under `.artifacts/sprint-loop/b04-2026-10-15/`; the [safe sprint record](../operations/69_PREPARATION_CHECKLIST_AND_REPORT_UI_2026-10-15.md) records scope and limits.
+
+Next packet: improve B04 feed geography/query behavior (province with national/remote inclusion, filter-preserving pagination and honest bad-query/stale-cursor handling), using the existing canonical API semantics and synthetic local integration. Inspect current code/evidence before planning. The prior live-source trial still requires separate actual provider/source authority; do not resume it merely because this UI packet completed. B04/G2 remain open.

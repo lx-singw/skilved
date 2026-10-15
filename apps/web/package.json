@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:boundary": "node --test tests/public-boundary.test.mjs"
+    "test:boundary": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
