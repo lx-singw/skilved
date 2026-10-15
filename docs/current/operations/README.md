@@ -84,6 +84,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Listed-field filtering and entry-stage prerequisite](75_LISTED_FIELD_FILTER_2026-10-15.md)
 
 - [Source-stated entry-stage contract and automatic qualification hold](76_SOURCE_STATED_ENTRY_STAGE_CONTRACT_2026-10-15.md)
+- [Frozen-contract repeat, practical-evidence concerns and four expired notices](77_FROZEN_CONTRACT_REPEAT_AND_EXPIRED_NOTICE_SCREEN_2026-10-15.md)
 
 ## Using this discipline
 
