@@ -167,3 +167,40 @@ test("read boundary rejects bad queries before SDK calls and classifies backend 
     assert.deepEqual(await exports.readCatalogue(new URLSearchParams()), { kind: "error", reason: "unavailable" })
   } finally { if (previous === undefined) delete process.env.SKILVED_CATALOGUE_READS; else process.env.SKILVED_CATALOGUE_READS = previous }
 })
+
+test("field form blanks widen but duplicate fields and oversized values fail", () => {
+  for (const field of ["", "  "]) {
+    const result = parseCataloguePageQuery({ field, q: "" });
+    assert.equal(result.ok, true); assert.equal(result.params.has("field"), false);
+  }
+  for (const field of [["", "engineering"], ["", ""], "x".repeat(121)])
+    assert.equal(parseCataloguePageQuery({ field }).ok, false);
+});
+test("field survives pagination, detail reload context and stale restart with its cursor binding", () => {
+  const parsed = parseCataloguePageQuery({ field: "Café & engineering", province: "gauteng", limit: "2" });
+  const token = encodeCursor(parsed.query, 3, { id: "previous", updatedAt: "2026-10-15T04:00:00.000Z" });
+  const more = new URL(catalogueHref(parsed.params, { cursor: token }), "https://skilved.test");
+  const detail = new URL(opportunityHref("card", more.searchParams), more);
+  const back = new URL(catalogueReturnHref(detail.searchParams.get("from"), "card"), more);
+  assert.equal(back.searchParams.get("field"), "Café & engineering");
+  assert.equal(back.searchParams.get("cursor"), token);
+  assert.equal(decodeCursor(token, parseCataloguePageQuery(Object.fromEntries(back.searchParams)).query, 3).ok, true);
+  const restart = new URL(catalogueHref(back.searchParams, { restart: true }), more);
+  assert.equal(restart.searchParams.has("cursor"), false);
+  assert.equal(restart.searchParams.get("field"), "Café & engineering");
+});
+test("field controls explain unknown coverage and safely render listed labels", async () => {
+  const o = projectOpportunity(makeRecord()).opportunity;
+  o.fields = ['Engineering <script>unsafe</script>'];
+  const html = await catalogueView({ kind: "page", page: { items: [o], nextCursor: null } }, new URLSearchParams({ field: 'Engineering "quoted"' }));
+  assert.match(html, /for="catalogue-field"/);
+  assert.match(html, /name="field"/); assert.match(html, /maxLength="120"/);
+  assert.match(html, /aria-describedby="catalogue-field-help"/);
+  assert.match(html, /Clear it to include opportunities with no field stated/);
+  assert.ok(html.includes('Field: Engineering &lt;script&gt;unsafe&lt;/script&gt;'));
+  assert.doesNotMatch(html, /<script>unsafe/);
+  o.fields = [];
+  assert.match(await catalogueView({ kind: "page", page: { items: [o], nextCursor: null } }, new URLSearchParams()), /Field not stated/);
+  const empty = await catalogueView({ kind: "page", page: { items: [], nextCursor: null } }, new URLSearchParams('field=engineering'));
+  assert.match(empty, /No opportunities match these filters/); assert.match(empty, /Clear filters/);
+});

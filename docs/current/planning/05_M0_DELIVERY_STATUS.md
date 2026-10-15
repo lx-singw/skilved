@@ -4,6 +4,8 @@ Updated: 26 September 2026. This is the current implementation-status record for
 
 ## 1. Current position
 
+15 October field packet: [listed-field search](../operations/75_LISTED_FIELD_FILTER_2026-10-15.md) is locally implemented. All 24 contract, 48 web and 18 affected emulator tests pass with lint/typecheck/build and an isolated synthetic mobile journey. Stated entry-stage requires a separate provenance-bearing fact; remaining detail/correction work and formal G2 stay open.
+
 15 October navigation packet: [filter/page/card return and stale-result recovery](../operations/73_CATALOGUE_RETURN_NAVIGATION_2026-10-15.md) is locally implemented. All 45 web tests and lint/typecheck/build pass; a separate candidate and actual synthetic mobile journey verify native Back, reloaded detail return, withheld action removal and filter-preserving stale-cursor restart. Field/stated-entry-stage filtering and remaining detail/correction reconciliation precede B05; G2 stays open.
 
 15 October source-evidence packet: [scoped check outcomes and reviewed explanations](../operations/71_VISIBLE_SOURCE_EVIDENCE_AND_EXPLANATIONS_2026-10-15.md) are visible on canonical detail, preserving original wording, timestamps, public citations and unknowns. Five new render/integration tests, all 41 web tests, lint/typecheck/build and synthetic narrow/wide browser checks pass. B04 still has engineering gaps: navigation recovery, source-backed field/stated-entry-stage filtering, detail refinements and report-correction reconciliation. B05 is not started and G2 remains open.

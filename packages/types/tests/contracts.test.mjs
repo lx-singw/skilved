@@ -184,3 +184,37 @@ test('public projection accepts no inconsistent state/value, missing citations o
   const q = projected(); q.lifecycle = 'closed'; assert.equal(PublicOpportunitySchema.safeParse(q).success, false);
   assert.equal(ProjectionSchema.safeParse({ kind: 'not_public', secret: 'x' }).success, false);
 });
+
+test('field queries are bounded literal filters over listed fields across all categories', () => {
+  const query = parseReadQuery(new URLSearchParams({ field: '  CAFÉ & Engineering  ' }));
+  assert.equal(query.ok, true); assert.equal(query.query.field, 'CAFÉ & Engineering');
+  for (const record of allFixtures()) {
+    record.fields = ['Other discipline', 'Café & Engineering studies'];
+    assert.equal(matchesQuery(projected(record), query.query), true);
+    assert.equal(matchesQuery(projected(record), { ...query.query, province: 'western_cape' }), false);
+    record.fields = []; record.title.value = 'Café & Engineering studies'; record.summary.value = 'Café & Engineering studies';
+    assert.equal(matchesQuery(projected(record), query.query), false);
+    assert.equal(matchesQuery(projected(record), parseReadQuery(new URLSearchParams()).query), true);
+  }
+  const record = makeRecord(); record.fields = ['Engineering [A+B]'];
+  assert.equal(matchesQuery(projected(record), { ...query.query, field: '[A+B]' }), true);
+  assert.equal(matchesQuery(projected(record), { ...query.query, field: '.*' }), false);
+  record.lifecycle = 'closed';
+  assert.equal(matchesQuery(projected(record), { ...query.query, field: 'Engineering' }), false);
+  for (const raw of ['field=', 'field=%20%20', 'field=one&field=two', 'field='+'x'.repeat(121)])
+    assert.equal(parseReadQuery(new URLSearchParams(raw)).ok, false, raw);
+  assert.equal(parseReadQuery(new URLSearchParams({ field: 'x'.repeat(120) })).ok, true);
+});
+test('field cursors bind their filter while existing no-field v1 cursors remain readable', () => {
+  const query = parseReadQuery(new URLSearchParams('category=job&limit=2')).query;
+  const after = { updatedAt: NOW, id: 'last_item' };
+  const legacy = Buffer.from(JSON.stringify({ v: 1, query: JSON.stringify(['job', null, null, null, '', 2, 'updated_desc']), catalogueRevision: 3, after })).toString('base64url');
+  assert.deepEqual(decodeCursor(legacy, query, 3), { ok: true, after });
+  const fieldQuery = { ...query, field: 'Engineering' };
+  assert.equal(decodeCursor(legacy, fieldQuery, 3).error.code, 'INVALID_CURSOR');
+  const token = encodeCursor(fieldQuery, 3, after);
+  assert.equal(decodeCursor(token, fieldQuery, 3).ok, true);
+  for (const changed of [query, { ...fieldQuery, field: 'Nursing' }])
+    assert.equal(decodeCursor(token, changed, 3).error.code, 'INVALID_CURSOR');
+  assert.equal(decodeCursor(token, fieldQuery, 4).error.code, 'STALE_CURSOR');
+});

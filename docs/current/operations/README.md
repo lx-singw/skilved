@@ -81,6 +81,8 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Earlier source comparison and deferred Transnet adapter](11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md)
 - [Cost, capacity and operations](12_COST_CAPACITY_AND_OPERATIONS.md)
 
+- [Listed-field filtering and entry-stage prerequisite](75_LISTED_FIELD_FILTER_2026-10-15.md)
+
 ## Using this discipline
 
 Apply the relevant specifications within the [delivery work packages](../planning/16_SPRINT_BACKLOG.md), record actual results and update the [decision register](../governance/14_DECISIONS_AND_ASSUMPTIONS.md) when material assumptions change. Return to the [complete index](../00_START_HERE.md).

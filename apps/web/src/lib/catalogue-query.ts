@@ -10,7 +10,7 @@ export function parseCataloguePageQuery(input: PageParams) {
     if (raw === undefined) continue
     const values = Array.isArray(raw) ? raw : [raw]
     // One empty optional select means "all"; repeated values still fail validation.
-    if (values.length === 1 && values[0] === "" && emptySelections.has(key)) continue
+    if (values.length === 1 && ((values[0] === "" && emptySelections.has(key)) || (key === "field" && values[0].trim() === ""))) continue
     for (const value of values) params.append(key, value)
   }
   const result = parseReadQuery(params)

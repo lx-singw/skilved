@@ -185,3 +185,22 @@ test('report quota survives service recreation; disabled authenticated user reje
   await runtime.auth.updateUser(uid,{disabled:true});
   await assert.rejects(store.queue(token,'drafts'),/UNAUTHORIZED/);
 });
+
+test('listed-field filtering precedes pagination and excludes unknown fields only when selected',async()=>{
+  const { projectOpportunity } = await import('@skilved/types/opportunities/internal');
+  const ids=[];
+  try {
+    for(let i=0;i<5;i++){
+      const r=makeRecord();r.id='field_page_'+i;r.title.value='Synthetic field pagination';r.fields=i%2===0?[]:['Café & Engineering'];
+      r.updatedAt='2026-10-15T10:00:0'+i+'.000Z';ids.push(r.id);
+      await runtime.db.doc('m0_public/'+r.id).set(json(projectOpportunity(r)));
+    }
+    const params=new URLSearchParams({q:'Synthetic field pagination',field:'café & engineering',limit:'1'});
+    const first=await store.list(params);assert.deepEqual(first.items.map(o=>o.id),['field_page_3']);assert.ok(first.nextCursor);
+    params.set('cursor',first.nextCursor);const second=await store.list(params);
+    assert.deepEqual(second.items.map(o=>o.id),['field_page_1']);assert.equal(second.nextCursor,null);
+    params.set('field','Nursing');await assert.rejects(store.list(params),/INVALID_CURSOR/);
+    const all=await store.list(new URLSearchParams({q:'Synthetic field pagination'}));assert.equal(all.items.length,5);
+    assert.equal(all.items.filter(o=>o.fields.length===0).length,3);
+  } finally { for(const recordId of ids) await runtime.db.doc('m0_public/'+recordId).delete(); }
+});

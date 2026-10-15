@@ -4,6 +4,7 @@ import { PublicOpportunitySchema, PublicStatusSchema } from './public';
 
 export const ReadQuerySchema = z.object({ category: CategorySchema.optional(), province: ProvinceSchema.optional(),
   coverage: z.enum(['local', 'national', 'international']).optional(), remote: z.boolean().optional(),
+  field: z.string().trim().min(1).max(120).optional(),
   q: z.string().trim().max(120).default(''), limit: z.number().int().min(1).max(50).default(20),
   sort: z.literal('updated_desc').default('updated_desc'), cursor: z.string().min(1).max(4096).optional(),
 }).strict();
@@ -30,7 +31,9 @@ const CursorSchema = z.object({ v: z.literal(1), query: z.string().max(1500), ca
 }).strict();
 function fingerprint(query: ReadQuery) {
   const q = ReadQuerySchema.parse(query);
-  return JSON.stringify([q.category ?? null, q.province ?? null, q.coverage ?? null, q.remote ?? null, q.q, q.limit, q.sort]);
+  // Keep existing no-field continuations valid while binding filtered pages to their field.
+  return JSON.stringify([q.category ?? null, q.province ?? null, q.coverage ?? null, q.remote ?? null, q.q, q.limit, q.sort,
+    ...(q.field ? [q.field] : [])]);
 }
 /** Opaque continuation, not an authorization token. B03 must enforce publication on every page. */
 export function encodeCursor(query: ReadQuery, catalogueRevision: number, after: z.infer<typeof PositionSchema>): string {
@@ -64,6 +67,8 @@ export const ErrorResponseSchema = z.object({ error: z.object({
 export function matchesQuery(input: unknown, queryInput: ReadQuery): boolean {
   const o = PublicOpportunitySchema.parse(input), q = ReadQuerySchema.parse(queryInput);
   if (o.lifecycle !== 'published' || (q.category && q.category !== o.category)) return false;
+  const fieldNeedle = q.field?.toLowerCase();
+  if (fieldNeedle && !o.fields.some(field => field.toLowerCase().includes(fieldNeedle))) return false;
   const location = o.location.state === 'stated' ? o.location.value : null;
   if (q.coverage && location?.coverage !== q.coverage) return false;
   if (q.remote !== undefined && (!location || location.attendance === 'not_stated' || (location.attendance === 'remote') !== q.remote)) return false;

@@ -22,7 +22,7 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
   const reason = result.kind === "error" ? result.reason : null
   const next = page?.nextCursor ? catalogueHref(query, { cursor: page.nextCursor }) : null
   const restart = valid ? catalogueHref(query, { restart: true }) : "/"
-  const filtered = ["q", "category", "province", "coverage", "remote"].some(key => selected.get(key))
+  const filtered = ["q", "category", "province", "coverage", "remote", "field"].some(key => selected.get(key))
   return <>
     <Header />
     <main className="mx-auto max-w-3xl px-4 pb-24 pt-10 sm:pt-16">
@@ -50,6 +50,10 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
           <select id="catalogue-attendance" name="remote" defaultValue={selected.get("remote") ?? ""} className="mt-2 block min-h-11 w-full rounded-md border border-border bg-background px-3 py-2">
             <option value="">Any attendance</option><option value="true">Remote</option><option value="false">In person or hybrid</option>
           </select></div>
+        <div><label htmlFor="catalogue-field" className="text-sm font-medium">Field or discipline</label>
+          <input id="catalogue-field" name="field" maxLength={120} defaultValue={selected.get("field") ?? ""} placeholder="For example, engineering" aria-describedby="catalogue-field-help"
+            className="mt-2 min-h-11 w-full rounded-md border border-border bg-background px-3 py-2" />
+          <p id="catalogue-field-help" className="mt-2 text-sm text-muted-foreground">Matches words in the listed field. Clear it to include opportunities with no field stated.</p></div>
         {["limit", "sort"].map(key => selected.has(key) ? <input key={key} type="hidden" name={key} value={selected.get(key)!} /> : null)}
         <button className="min-h-11 self-end rounded-md bg-primary px-5 py-2 font-medium text-primary-foreground">Search</button>
         <p className="text-sm leading-relaxed text-muted-foreground sm:col-span-2">A province search can also include national or remote opportunities. Check residence conditions in each notice.</p>
@@ -68,6 +72,7 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">{CATEGORY_LABELS[o.category]}</p>
             <h2 className="mt-2 text-xl font-semibold"><Link href={opportunityHref(o.id, query)} className="hover:underline">{o.title.value ?? "Title not stated"}</Link></h2>
             <p className="mt-2 text-sm text-muted-foreground">{o.issuer.value ?? "Issuer not stated"} · {placeLabel(o)}</p>
+            <p className="mt-2 break-words text-sm text-muted-foreground">{o.fields.length ? `Field: ${o.fields.join(" · ")}` : "Field not stated"}</p>
             {o.summary.value && <p className="mt-4 leading-relaxed">{o.summary.value}</p>}
             <p className="mt-4 text-sm text-muted-foreground">{o.deadline.originalText ?? "Closing date not stated"}</p>
             <Link href={opportunityHref(o.id, query)} className="mt-5 inline-block font-medium text-primary hover:underline">View requirements and application details →</Link>
