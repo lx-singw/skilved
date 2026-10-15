@@ -95,10 +95,12 @@ test("only current reviewed explanations display, with evidence and escaped word
 
 test("canonical detail renders original instructions before explanation and actual evidence; withheld state omits both", async () => {
   const o = opportunity()
+  o.entryStage = { state: "stated", value: ["graduate"], originalText: "Synthetic graduate applicants.", citations: ["citation_fixture"] }
   o.explanation = { text: "Explanation for current instructions", requirementRevision: 1, citations: ["citation_fixture"] }
   let result = { kind: "opportunity", opportunity: o }
   const preparation = await load("components/catalogue/PreparationChecklist.tsx")
   const report = await load("components/catalogue/OpportunityReport.tsx")
+  const stage = await load("components/catalogue/EntryStage.tsx")
   const page = await load("app/opportunities/[id]/page.tsx", {
     "next/link": { __esModule: true, default: ({ children, href, ...props }) => React.createElement("a", { href, ...props }, children) },
     "@/components/layout/Header": { Header: () => null },
@@ -107,6 +109,7 @@ test("canonical detail renders original instructions before explanation and actu
     "@/components/catalogue/PreparationChecklist": preparation,
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
+    "@/components/catalogue/EntryStage": stage,
     "@/lib/catalogue-query": navigation,
   })
   const html = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
@@ -114,6 +117,8 @@ test("canonical detail renders original instructions before explanation and actu
   assert.ok(html.indexOf("Reviewed explanation") < html.indexOf("Sources and checks"))
   assert.match(html, /Application route linked to the notice/)
   assert.match(html, /Explanation for current instructions/)
+  assert.match(html, /Source-stated stage: Graduate/)
+  assert.match(html, /Synthetic graduate applicants/)
   assert.doesNotMatch(html, /This listing passed automated/)
   assert.match(html, /href="\/"[^>]*>← All opportunities/)
   const context = { params: Promise.resolve({ id: o.id }), searchParams: Promise.resolve({ from: "/?province=gauteng&remote=false&limit=1" }) }
@@ -132,5 +137,5 @@ test("canonical detail renders original instructions before explanation and actu
   const held = renderToStaticMarkup(await page.default(context))
   assert.match(held, /needs a fresh check/)
   assert.ok(held.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
-  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|\/apply\?revision/)
+  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|\/apply\?revision/)
 })

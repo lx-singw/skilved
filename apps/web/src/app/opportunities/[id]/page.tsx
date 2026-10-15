@@ -8,6 +8,7 @@ import { PreparationChecklist } from "@/components/catalogue/PreparationChecklis
 import { OpportunityReport } from "@/components/catalogue/OpportunityReport"
 import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/SourceEvidence"
 import { catalogueReturnHref } from "@/lib/catalogue-query"
+import { EntryStage } from "@/components/catalogue/EntryStage"
 
 export const dynamic = "force-dynamic"
 
@@ -42,6 +43,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
     </section>
     <PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} />
     <RequirementExplanation opportunity={o} />
+    <EntryStage opportunity={o} />
     <section className="mt-8" aria-labelledby="conditions-heading">
       <h2 id="conditions-heading" className="text-xl font-semibold">Experience and practical conditions</h2>
       <dl className="mt-5 space-y-4">{[["Experience", o.experience], ["Residence", o.residence], ["Intake", o.intake], ["Practical conditions", o.practicalConditions]].map(([label, fact]) => {

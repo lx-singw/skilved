@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CATEGORY_LABELS, parseReadQuery, type PublicOpportunity } from "@skilved/types/opportunities"
+import { CATEGORY_LABELS, ENTRY_STAGE_LABELS, parseReadQuery, type PublicOpportunity } from "@skilved/types/opportunities"
 import { Header } from "@/components/layout/Header"
 import { readCatalogue } from "@/lib/public-catalogue"
 import { catalogueHref, opportunityHref } from "@/lib/catalogue-query"
@@ -22,7 +22,7 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
   const reason = result.kind === "error" ? result.reason : null
   const next = page?.nextCursor ? catalogueHref(query, { cursor: page.nextCursor }) : null
   const restart = valid ? catalogueHref(query, { restart: true }) : "/"
-  const filtered = ["q", "category", "province", "coverage", "remote", "field"].some(key => selected.get(key))
+  const filtered = ["q", "category", "province", "coverage", "remote", "field", "stage"].some(key => selected.get(key))
   return <>
     <Header />
     <main className="mx-auto max-w-3xl px-4 pb-24 pt-10 sm:pt-16">
@@ -54,6 +54,11 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
           <input id="catalogue-field" name="field" maxLength={120} defaultValue={selected.get("field") ?? ""} placeholder="For example, engineering" aria-describedby="catalogue-field-help"
             className="mt-2 min-h-11 w-full rounded-md border border-border bg-background px-3 py-2" />
           <p id="catalogue-field-help" className="mt-2 text-sm text-muted-foreground">Matches words in the listed field. Clear it to include opportunities with no field stated.</p></div>
+        <div><label htmlFor="catalogue-stage" className="text-sm font-medium">Source-stated entry stage</label>
+          <select id="catalogue-stage" name="stage" defaultValue={selected.get("stage") ?? ""} aria-describedby="catalogue-stage-help" className="mt-2 block min-h-11 w-full rounded-md border border-border bg-background px-3 py-2">
+            <option value="">All entry stages</option>{Object.entries(ENTRY_STAGE_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+          <p id="catalogue-stage-help" className="mt-2 text-sm text-muted-foreground">Only stated stages match. Choose all stages to include unknowns. Entry level does not mean no experience required; check the full requirements.</p></div>
         {["limit", "sort"].map(key => selected.has(key) ? <input key={key} type="hidden" name={key} value={selected.get(key)!} /> : null)}
         <button className="min-h-11 self-end rounded-md bg-primary px-5 py-2 font-medium text-primary-foreground">Search</button>
         <p className="text-sm leading-relaxed text-muted-foreground sm:col-span-2">A province search can also include national or remote opportunities. Check residence conditions in each notice.</p>

@@ -86,6 +86,8 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Source-stated entry-stage contract and automatic qualification hold](76_SOURCE_STATED_ENTRY_STAGE_CONTRACT_2026-10-15.md)
 - [Frozen-contract repeat, practical-evidence concerns and four expired notices](77_FROZEN_CONTRACT_REPEAT_AND_EXPIRED_NOTICE_SCREEN_2026-10-15.md)
 
+- [Entry-stage filters, source wording and recovery](78_STAGE_FILTER_AND_SOURCE_WORDING_2026-10-15.md)
+
 ## Using this discipline
 
 Apply the relevant specifications within the [delivery work packages](../planning/16_SPRINT_BACKLOG.md), record actual results and update the [decision register](../governance/14_DECISIONS_AND_ASSUMPTIONS.md) when material assumptions change. Return to the [complete index](../00_START_HERE.md).

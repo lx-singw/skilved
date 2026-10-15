@@ -204,3 +204,25 @@ test("field controls explain unknown coverage and safely render listed labels", 
   const empty = await catalogueView({ kind: "page", page: { items: [], nextCursor: null } }, new URLSearchParams('field=engineering'));
   assert.match(empty, /No opportunities match these filters/); assert.match(empty, /Clear filters/);
 });
+
+test("stage selection retains field, pagination and detail-return/restart while blank selection widens", async () => {
+  assert.equal(parseCataloguePageQuery({stage:""}).ok, true);
+  assert.equal(parseCataloguePageQuery({stage:""}).params.has("stage"), false);
+  for (const stage of [["", "graduate"], ["graduate","student"], "unknown", "no_experience"])
+    assert.equal(parseCataloguePageQuery({stage}).ok, false);
+  const selected=parseCataloguePageQuery({stage:"graduate",field:"Engineering",limit:"1"});
+  const token=encodeCursor(selected.query,4,{id:"previous",updatedAt:"2026-10-15T04:00:00.000Z"});
+  selected.params.set("cursor",token);
+  const detail=new URL(opportunityHref("card",selected.params),"https://skilved.test");
+  const back=new URL(catalogueReturnHref(detail.searchParams.get("from"),"card"),detail);
+  assert.equal(back.searchParams.get("stage"),"graduate");
+  assert.equal(back.searchParams.get("field"),"Engineering");
+  assert.equal(decodeCursor(token,parseCataloguePageQuery(Object.fromEntries(back.searchParams)).query,4).ok,true);
+  const restart=new URL(catalogueHref(back.searchParams,{restart:true}),detail);
+  assert.equal(restart.searchParams.has("cursor"),false); assert.equal(restart.searchParams.get("stage"),"graduate");
+  const html=await catalogueView({kind:"page",page:{items:[],nextCursor:null}},new URLSearchParams("stage=graduate"));
+  assert.match(html,/for="catalogue-stage"/);assert.match(html,/aria-describedby="catalogue-stage-help"/);
+  assert.match(html,/value="graduate" selected=""/);assert.match(html,/All entry stages/);
+  assert.match(html,/Choose all stages to include unknowns/);assert.match(html,/Entry level does not mean no experience required/);
+  assert.match(html,/No opportunities match these filters/);
+});

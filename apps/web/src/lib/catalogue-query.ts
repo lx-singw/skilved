@@ -1,7 +1,7 @@
 import { IdSchema, parseReadQuery } from "@skilved/types/opportunities"
 
 type PageParams = Record<string, string | string[] | undefined>
-const emptySelections = new Set(["category", "province", "coverage", "remote"])
+const emptySelections = new Set(["category", "province", "coverage", "remote", "stage"])
 
 /** Preserve all supplied parameters so the canonical contract can reject bad input. */
 export function parseCataloguePageQuery(input: PageParams) {

@@ -95,3 +95,47 @@ test('uncertain stage states retain uncertainty without leaking alternatives; li
     assert.doesNotMatch(JSON.stringify(result), /student|graduate|stage_assertion/);
   }
 });
+
+test('stage queries match only reviewed stated labels across every category and both internships', () => {
+  const { parseReadQuery, matchesQuery } = require('../dist/opportunities/index.js');
+  for (const record of allFixtures()) {
+    const selected = parseReadQuery(new URLSearchParams('stage=graduate')).query;
+    record.entryStage = stage(record);
+    assert.equal(matchesQuery(publicRecord(record), selected), true);
+    assert.equal(matchesQuery(publicRecord(record), { ...selected, field: 'unmatched' }), false);
+    for (const label of EntryStageSchema.options) {
+      record.entryStage.value = [label];
+      assert.equal(matchesQuery(publicRecord(record), { ...selected, stage: label }), true);
+    }
+    for (const state of ['not_stated', 'ambiguous', 'conflicting']) {
+      record.entryStage.state = state; record.entryStage.value = null;
+      assert.equal(matchesQuery(publicRecord(record), selected), false);
+      assert.equal(matchesQuery(publicRecord(record), { ...selected, stage: undefined }), true);
+    }
+    delete record.entryStage; record.title.value = 'Graduate student entry-level opportunity';
+    assert.equal(matchesQuery(publicRecord(record), selected), false);
+    record.entryStage = stage(record); record.entryStage.review = 'pending';
+    assert.equal(matchesQuery(publicRecord(record), selected), false);
+    record.entryStage.review = 'approved'; record.lifecycle = 'closed';
+    assert.equal(matchesQuery(publicRecord(record), selected), false);
+  }
+  for (const raw of ['stage=', 'stage=unknown', 'stage=no_experience', 'stage=Graduate', 'stage=graduate&stage=student'])
+    assert.equal(parseReadQuery(new URLSearchParams(raw)).ok, false, raw);
+});
+test('stage cursor binding preserves existing field-only and unfiltered continuations', () => {
+  const { parseReadQuery, encodeCursor, decodeCursor } = require('../dist/opportunities/index.js');
+  const after = { updatedAt: NOW, id: 'last_item' };
+  for (const field of [null, 'Engineering']) {
+    const params = new URLSearchParams('limit=2'); if (field) params.set('field', field);
+    const query = parseReadQuery(params).query;
+    const fingerprint = [null,null,null,null,'',2,'updated_desc',...(field?[field]:[])];
+    const legacy = Buffer.from(JSON.stringify({ v:1, query:JSON.stringify(fingerprint), catalogueRevision:3, after })).toString('base64url');
+    assert.equal(decodeCursor(legacy, query, 3).ok, true);
+    const selected = { ...query, stage:'graduate' }, token = encodeCursor(selected, 3, after);
+    assert.equal(decodeCursor(token, selected, 3).ok, true);
+    for (const changed of [query, { ...selected, stage:'student' }, { ...selected, field:'Nursing' }])
+      assert.equal(decodeCursor(token, changed, 3).error.code, 'INVALID_CURSOR');
+    assert.equal(decodeCursor(legacy, selected, 3).error.code, 'INVALID_CURSOR');
+    assert.equal(decodeCursor(token, selected, 4).error.code, 'STALE_CURSOR');
+  }
+});

@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { CategorySchema, IdSchema, InstantSchema, ProvinceSchema, RevisionSchema } from './primitives';
 import { PublicOpportunitySchema, PublicStatusSchema } from './public';
+import { EntryStageSchema } from './values';
 
 export const ReadQuerySchema = z.object({ category: CategorySchema.optional(), province: ProvinceSchema.optional(),
   coverage: z.enum(['local', 'national', 'international']).optional(), remote: z.boolean().optional(),
-  field: z.string().trim().min(1).max(120).optional(),
+  field: z.string().trim().min(1).max(120).optional(), stage: EntryStageSchema.optional(),
   q: z.string().trim().max(120).default(''), limit: z.number().int().min(1).max(50).default(20),
   sort: z.literal('updated_desc').default('updated_desc'), cursor: z.string().min(1).max(4096).optional(),
 }).strict();
@@ -31,9 +32,9 @@ const CursorSchema = z.object({ v: z.literal(1), query: z.string().max(1500), ca
 }).strict();
 function fingerprint(query: ReadQuery) {
   const q = ReadQuerySchema.parse(query);
-  // Keep existing no-field continuations valid while binding filtered pages to their field.
+  // Preserve existing no-stage and field-only continuations; bind a selected stage explicitly.
   return JSON.stringify([q.category ?? null, q.province ?? null, q.coverage ?? null, q.remote ?? null, q.q, q.limit, q.sort,
-    ...(q.field ? [q.field] : [])]);
+    ...(q.field ? [q.field] : []), ...(q.stage ? [{ stage: q.stage }] : [])]);
 }
 /** Opaque continuation, not an authorization token. B03 must enforce publication on every page. */
 export function encodeCursor(query: ReadQuery, catalogueRevision: number, after: z.infer<typeof PositionSchema>): string {
@@ -67,6 +68,7 @@ export const ErrorResponseSchema = z.object({ error: z.object({
 export function matchesQuery(input: unknown, queryInput: ReadQuery): boolean {
   const o = PublicOpportunitySchema.parse(input), q = ReadQuerySchema.parse(queryInput);
   if (o.lifecycle !== 'published' || (q.category && q.category !== o.category)) return false;
+  if (q.stage && (o.entryStage.state !== 'stated' || !o.entryStage.value?.includes(q.stage))) return false;
   const fieldNeedle = q.field?.toLowerCase();
   if (fieldNeedle && !o.fields.some(field => field.toLowerCase().includes(fieldNeedle))) return false;
   const location = o.location.state === 'stated' ? o.location.value : null;

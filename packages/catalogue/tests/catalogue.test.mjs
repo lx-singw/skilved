@@ -232,3 +232,29 @@ test('entry-stage ingestion resets supplied approval, explicit reviewer publishe
   await store.publish(stageToken,draft.id,3,'publish','Human reviewed stage correction');
   assert.deepEqual((await store.detail(draft.id)).opportunity.entryStage.value,['experienced']);
 });
+
+test('source-stated stage filtering precedes pagination while legacy and uncertain records remain browsable',async()=>{
+  const {projectOpportunity}=await import('@skilved/types/opportunities/internal');
+  const ids=[];
+  try {
+    for(let i=0;i<6;i++){
+      const r=makeRecord();r.id='stage_page_'+i;r.title.value='Synthetic stage pagination';r.fields=['Engineering'];
+      if(i%2===1) r.entryStage={...r.title,id:'stage_assertion',value:['student','graduate'],originalText:'Synthetic students and graduates.'};
+      if(i===4) r.entryStage={...r.title,id:'stage_assertion',state:'ambiguous',value:null,originalText:'Synthetic unclear stage.'};
+      r.updatedAt='2026-10-15T10:00:0'+i+'.000Z';
+      const projection=projectOpportunity(r);assert.equal(projection.kind,'opportunity');
+      if(i===0)delete projection.opportunity.entryStage;
+      ids.push(r.id);await runtime.db.doc('m0_public/'+r.id).set(json(projection));
+    }
+    const params=new URLSearchParams({q:'Synthetic stage pagination',stage:'graduate',field:'Engineering',limit:'1'}),seen=[];
+    for(let page=0;page<3;page++){
+      const result=await store.list(params);assert.equal(result.items.length,1);seen.push(result.items[0].id);
+      if(page<2){assert.ok(result.nextCursor);params.set('cursor',result.nextCursor);}
+      else assert.equal(result.nextCursor,null);
+    }
+    assert.deepEqual(seen,['stage_page_5','stage_page_3','stage_page_1']);
+    params.set('stage','experienced');await assert.rejects(store.list(params),/INVALID_CURSOR/);
+    const all=await store.list(new URLSearchParams({q:'Synthetic stage pagination'}));
+    assert.equal(all.items.length,6);assert.equal(all.items.find(o=>o.id==='stage_page_0').entryStage.state,'not_stated');
+  }finally{for(const id of ids)await runtime.db.doc('m0_public/'+id).delete();}
+});

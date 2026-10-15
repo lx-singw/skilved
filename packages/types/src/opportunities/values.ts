@@ -4,6 +4,10 @@ import { DateSchema, HttpsSchema, InstantSchema, ProvinceSchema, TextSchema } fr
 /** Discovery labels require explicit source wording; they never replace eligibility logic. */
 export const EntryStageSchema = z.enum(['school_leaver', 'student', 'graduate', 'entry_level', 'experienced']);
 export type EntryStage = z.infer<typeof EntryStageSchema>;
+export const ENTRY_STAGE_LABELS: Record<EntryStage, string> = {
+  school_leaver: 'School leaver', student: 'Student', graduate: 'Graduate',
+  entry_level: 'Entry level', experienced: 'Experienced',
+};
 export const EntryStagesSchema = z.array(EntryStageSchema).min(1).max(5)
   .refine(stages => new Set(stages).size === stages.length, 'Duplicate entry stage');
 
