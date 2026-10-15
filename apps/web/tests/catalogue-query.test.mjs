@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { test } from "node:test"
+import { makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
 
 const require = createRequire(import.meta.url)
 const ts = require("typescript")
@@ -9,8 +10,9 @@ const source = await readFile(new URL("../src/lib/catalogue-query.ts", import.me
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } })
 const loaded = { exports: {} }
 new Function("require", "exports", compiled.outputText)(require, loaded.exports)
-const { parseCataloguePageQuery, catalogueHref, catalogueFailure } = loaded.exports
+const { parseCataloguePageQuery, catalogueHref, catalogueFailure, opportunityHref, catalogueReturnHref } = loaded.exports
 const { encodeCursor, decodeCursor } = require("@skilved/types/opportunities")
+const { projectOpportunity } = require("@skilved/types/opportunities/internal")
 const React = require("react")
 const { renderToStaticMarkup } = require("react-dom/server")
 
@@ -65,6 +67,53 @@ test("stale-page restart drops the cursor while preserving filters", () => {
   assert.equal(href, "/?q=engineer&province=gauteng&coverage=national")
   assert.equal(params.get("cursor"), "old")
   assert.equal(catalogueHref(new URLSearchParams()), "/")
+})
+
+test("detail return context preserves Unicode, explicit false and the real cursor filter binding", () => {
+  const parsed = parseCataloguePageQuery({ q: "café & tools", category: "job", province: "gauteng", remote: "false", limit: "2" })
+  const token = encodeCursor(parsed.query, 7, { id: "previous", updatedAt: "2026-10-15T06:00:00.000Z" })
+  parsed.params.set("cursor", token)
+  const href = opportunityHref("current_card", parsed.params)
+  const detail = new URL(href, "https://skilved.test")
+  assert.equal(detail.pathname, "/opportunities/current_card")
+  assert.deepEqual([...detail.searchParams.keys()], ["from"])
+  const back = catalogueReturnHref(detail.searchParams.get("from"), "current_card")
+  const results = new URL(back, "https://skilved.test")
+  assert.equal(results.pathname, "/")
+  assert.equal(results.hash, "#opportunity-current_card")
+  assert.equal(results.searchParams.get("q"), "café & tools")
+  assert.equal(results.searchParams.get("remote"), "false")
+  assert.equal(results.searchParams.get("cursor"), token)
+  assert.equal(decodeCursor(token, parseCataloguePageQuery(Object.fromEntries(results.searchParams)).query, 7).ok, true)
+})
+
+test("untrusted return context rejects external, private, duplicate, oversized and malformed targets", () => {
+  for (const value of [undefined, ["/"], ["/", "/"], "https://elsewhere.example/", "//elsewhere.example/", " /", "/other", "/?receipt=PRIVATE", "/?q=one&q=two", "/?province=bad", "/?remote=yes", "/?limit=51", "/?cursor=", "/?q="+"x".repeat(8192), "/#other", "/?q=one#other", "/?q=one\n", "/?q=one\\two", "/?from=/"]) {
+    assert.equal(catalogueReturnHref(value, "current_card"), null, JSON.stringify(value))
+  }
+  assert.equal(catalogueReturnHref("/", "current_card"), "/#opportunity-current_card")
+  assert.equal(catalogueReturnHref("/?q=", "current_card"), "/?q=#opportunity-current_card")
+  assert.equal(catalogueReturnHref("/", "../bad"), null)
+  assert.throws(() => opportunityHref("../bad", new URLSearchParams()))
+  assert.throws(() => opportunityHref("card", new URLSearchParams("receipt=PRIVATE")), /INVALID_QUERY/)
+})
+
+test("a changed catalogue can restart returned results with filters intact and no stale cursor", () => {
+  const back = catalogueReturnHref("/?province=gauteng&remote=false&limit=1&cursor=old", "card")
+  const params = new URL(back, "https://skilved.test").searchParams
+  assert.equal(catalogueHref(params, { restart: true }), "/?province=gauteng&remote=false&limit=1")
+  assert.equal(params.get("cursor"), "old")
+})
+
+test("both rendered detail links carry the same public query and the card has a stable return target", async () => {
+  const o = projectOpportunity(makeRecord()).opportunity
+  const params = new URLSearchParams("province=gauteng&remote=false&limit=2")
+  const html = await catalogueView({ kind: "page", page: { items: [o], nextCursor: null } }, params)
+  const href = opportunityHref(o.id, params).replaceAll("&", "&amp;")
+  assert.equal(html.split(`href="${href}"`).length - 1, 2)
+  assert.ok(html.includes(`id="opportunity-${o.id}"`))
+  assert.match(html, /scroll-mt-20/)
+  assert.doesNotMatch(html, /PRIVATE_|localStorage|sessionStorage/)
 })
 
 test("links stay local and unsafe parameters cannot be silently carried forward", () => {

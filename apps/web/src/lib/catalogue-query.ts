@@ -1,4 +1,4 @@
-import { parseReadQuery } from "@skilved/types/opportunities"
+import { IdSchema, parseReadQuery } from "@skilved/types/opportunities"
 
 type PageParams = Record<string, string | string[] | undefined>
 const emptySelections = new Set(["category", "province", "coverage", "remote"])
@@ -25,6 +25,22 @@ export function catalogueHref(input: URLSearchParams, options: { cursor?: string
   if (!parseReadQuery(params).ok) throw new Error("INVALID_QUERY")
   const query = params.toString()
   return query ? `/?${query}` : "/"
+}
+
+/** Only public catalogue query fields travel to detail, never history or private state. */
+export function opportunityHref(id: string, query: URLSearchParams) {
+  IdSchema.parse(id)
+  const from = catalogueHref(query)
+  return `/opportunities/${id}?${new URLSearchParams({ from })}`
+}
+
+/** Untrusted URL context can point only at the canonical catalogue and a valid card. */
+export function catalogueReturnHref(from: string | string[] | undefined, id: string): string | null {
+  if (typeof from !== "string" || from.length > 8192 || !IdSchema.safeParse(id).success || /[\u0000-\u001f\u007f\\#]/.test(from)) return null
+  if (from !== "/" && !from.startsWith("/?")) return null
+  const query = new URLSearchParams(from === "/" ? "" : from.slice(2))
+  if (!parseReadQuery(query).ok) return null
+  return `${catalogueHref(query)}#opportunity-${id}`
 }
 
 export function catalogueFailure(error: unknown): "invalid_query" | "invalid_cursor" | "stale_cursor" | "unavailable" {

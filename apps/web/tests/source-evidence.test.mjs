@@ -19,6 +19,7 @@ async function load(relative, overrides = {}) {
   return exports
 }
 const components = await load("components/catalogue/SourceEvidence.tsx")
+const navigation = await load("lib/catalogue-query.ts")
 const render = (name, opportunity) => renderToStaticMarkup(React.createElement(components[name], { opportunity }))
 const opportunity = () => projectOpportunity(makeRecord()).opportunity
 
@@ -106,6 +107,7 @@ test("canonical detail renders original instructions before explanation and actu
     "@/components/catalogue/PreparationChecklist": preparation,
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
+    "@/lib/catalogue-query": navigation,
   })
   const html = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
   assert.ok(html.indexOf("Requirements and preparation checklist") < html.indexOf("Reviewed explanation"))
@@ -113,13 +115,22 @@ test("canonical detail renders original instructions before explanation and actu
   assert.match(html, /Application route linked to the notice/)
   assert.match(html, /Explanation for current instructions/)
   assert.doesNotMatch(html, /This listing passed automated/)
+  assert.match(html, /href="\/"[^>]*>← All opportunities/)
+  const context = { params: Promise.resolve({ id: o.id }), searchParams: Promise.resolve({ from: "/?province=gauteng&remote=false&limit=1" }) }
+  const contextual = renderToStaticMarkup(await page.default(context))
+  assert.ok(contextual.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
+  assert.match(contextual, /← Back to results/)
+  const unsafe = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }), searchParams: Promise.resolve({ from: ["/", "//elsewhere.example/"] }) }))
+  assert.match(unsafe, /href="\/"[^>]*>← All opportunities/)
+  assert.doesNotMatch(unsafe, /elsewhere.example/)
   o.deadline = { state: "not_stated", value: null, originalText: null, citations: [] }
   PublicOpportunitySchema.parse(o)
   const unknownDeadline = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
   assert.match(unknownDeadline, /Closing date not stated/)
   assert.doesNotMatch(unknownDeadline, /30 October 2026/)
   result = { kind: "status", status: { status: "under_review" } }
-  const held = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
+  const held = renderToStaticMarkup(await page.default(context))
   assert.match(held, /needs a fresh check/)
+  assert.ok(held.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
   assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|\/apply\?revision/)
 })

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { CATEGORY_LABELS, parseReadQuery, type PublicOpportunity } from "@skilved/types/opportunities"
 import { Header } from "@/components/layout/Header"
 import { readCatalogue } from "@/lib/public-catalogue"
-import { catalogueHref } from "@/lib/catalogue-query"
+import { catalogueHref, opportunityHref } from "@/lib/catalogue-query"
 
 const provinces = { eastern_cape: "Eastern Cape", free_state: "Free State", gauteng: "Gauteng", kwazulu_natal: "KwaZulu-Natal", limpopo: "Limpopo", mpumalanga: "Mpumalanga", north_west: "North West", northern_cape: "Northern Cape", western_cape: "Western Cape" }
 
@@ -63,14 +63,14 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
           <h2 className="text-lg font-semibold">{filtered ? "No opportunities match these filters" : "No published opportunities yet"}</h2>
           <p className="mt-2 text-muted-foreground">New listings will appear here after their source and application details pass our checks.</p>
           {filtered && <Link href="/" className="mt-4 inline-block text-primary underline">Clear filters</Link>}
-        </div> : <ul className="space-y-4">{page.items.map(o => <li key={o.id}>
+        </div> : <ul className="space-y-4">{page.items.map(o => <li key={o.id} id={`opportunity-${o.id}`} className="scroll-mt-20">
           <article className="rounded-xl border border-border bg-card p-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">{CATEGORY_LABELS[o.category]}</p>
-            <h2 className="mt-2 text-xl font-semibold"><Link href={`/opportunities/${o.id}`} className="hover:underline">{o.title.value ?? "Title not stated"}</Link></h2>
+            <h2 className="mt-2 text-xl font-semibold"><Link href={opportunityHref(o.id, query)} className="hover:underline">{o.title.value ?? "Title not stated"}</Link></h2>
             <p className="mt-2 text-sm text-muted-foreground">{o.issuer.value ?? "Issuer not stated"} · {placeLabel(o)}</p>
             {o.summary.value && <p className="mt-4 leading-relaxed">{o.summary.value}</p>}
             <p className="mt-4 text-sm text-muted-foreground">{o.deadline.originalText ?? "Closing date not stated"}</p>
-            <Link href={`/opportunities/${o.id}`} className="mt-5 inline-block font-medium text-primary hover:underline">View requirements and application details →</Link>
+            <Link href={opportunityHref(o.id, query)} className="mt-5 inline-block font-medium text-primary hover:underline">View requirements and application details →</Link>
           </article>
         </li>)}</ul>}
         {next && <Link href={next} className="mt-6 inline-block rounded-md border border-border px-5 py-2 font-medium">More opportunities →</Link>}

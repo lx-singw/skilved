@@ -1,5 +1,7 @@
 # Operations documentation
 
+15 October B04 navigation: [catalogue return and changed-results recovery](73_CATALOGUE_RETURN_NAVIGATION_2026-10-15.md) records filter/cursor-preserving detail return and actual mobile browser evidence.
+
 15 October B04 evidence: [visible source checks and reviewed explanations](71_VISIBLE_SOURCE_EVIDENCE_AND_EXPLANATIONS_2026-10-15.md) records scoped outcomes, dates, attribution and synthetic detail verification.
 
 15 October B04 discovery: [feed geography and query recovery](70_FEED_GEOGRAPHY_AND_QUERY_RECOVERY_2026-10-15.md) records canonical filters, pagination/error recovery and actual scoped verification.

@@ -7,15 +7,17 @@ import { readOpportunity } from "@/lib/public-catalogue"
 import { PreparationChecklist } from "@/components/catalogue/PreparationChecklist"
 import { OpportunityReport } from "@/components/catalogue/OpportunityReport"
 import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/SourceEvidence"
+import { catalogueReturnHref } from "@/lib/catalogue-query"
 
 export const dynamic = "force-dynamic"
 
-export default async function OpportunityPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OpportunityPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params
+  const back = catalogueReturnHref((await searchParams)?.from, id)
   const result = await readOpportunity(id)
   if (!result) notFound()
   if (result.kind === "status") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
-    <Link href="/" className="text-primary underline">← All opportunities</Link>
+    <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
     <h1 className="mt-6 text-3xl font-semibold">{result.status.status === "under_review" ? "This opportunity needs a fresh check" : "This listing is no longer available"}</h1>
     <p className="mt-4 text-muted-foreground">The application link is unavailable. Browse the catalogue for current opportunities.</p>
   </main></>
@@ -23,7 +25,7 @@ export default async function OpportunityPage({ params }: { params: Promise<{ id
   const application = o.lifecycle === "published" && o.application.state === "available" ? o.application.route : null
   const canApply = application && ["portal", "email"].includes(application.method)
   return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-10">
-    <Link href="/" className="text-sm font-medium text-primary hover:underline">← All opportunities</Link>
+    <Link href={back ?? "/"} className="text-sm font-medium text-primary hover:underline">{back ? "← Back to results" : "← All opportunities"}</Link>
     <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-primary">{CATEGORY_LABELS[o.category]}</p>
     <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl">{o.title.value ?? "Opportunity details"}</h1>
     <p className="mt-3 text-muted-foreground">{o.issuer.value ?? "Issuer not stated"} · {placeLabel(o)}</p>
