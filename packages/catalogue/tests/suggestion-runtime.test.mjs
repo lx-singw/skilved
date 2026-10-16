@@ -17,12 +17,14 @@ test('route adapter guards missing/disabled/invalid settings before runtime or a
   assert.equal(calls,0);assert.equal(getApps().length,apps);
 });
 
-test('transport and unavailable withdrawal stop before runtime, while project/mode mismatch fails closed', async () => {
+test('transport stops before runtime; valid create/withdrawal enforce project binding even with intake off', async () => {
   let calls = 0;const runtimeProvider = async () => { calls++;return { config:{ mode:'cloud',projectId:'wrong-project' }, get db() { assert.fail('Wrong database must never be used'); } }; };
-  assert.equal((await handleSuggestionRequest(request('DELETE','/'+key),{env,runtimeProvider})).status,503);
+  assert.equal((await handleSuggestionRequest(request('DELETE','/'+key),{env,runtimeProvider})).status,404);
   assert.equal((await handleSuggestionRequest(request('GET','/'+key+'/status'),{env,runtimeProvider})).status,404);
   assert.equal(calls,0);
   assert.equal((await handleSuggestionRequest(request(),{env,runtimeProvider})).status,503);assert.equal(calls,1);
   const disabledIntake={...env,SKILVED_SUGGESTIONS_CONFIG:JSON.stringify({...manifest,policy:{...manifest.policy,intakeEnabled:false}})};
   assert.equal((await handleSuggestionRequest(request(),{env:disabledIntake,runtimeProvider})).status,503);assert.equal(calls,1);
+  const deletion=new Request(origin+'/api/v1/opportunity-suggestions/'+key,{method:'DELETE',headers:{Authorization:'Bearer '+key}});
+  assert.equal((await handleSuggestionRequest(deletion,{env:disabledIntake,runtimeProvider})).status,503);assert.equal(calls,2);
 });

@@ -94,9 +94,20 @@ test('actual suggestion routes persist private access and current results across
     response=await post(publicKey);assert.equal(response.status,200);assert.deepEqual(await safe(response),{kind:'previous_result_unavailable'});
     response=await status(first.access);assert.equal(response.status,200);const latestReceipt=await safe(response);
     assert.equal(latestReceipt.status,'unresolved');assert.deepEqual(latestReceipt.publicResultIds,[]);
+    response=await status(second.access);assert.equal(response.status,200);const secondReceipt=await safe(response);
+    const secondBefore=await read('m0_suggestion_receipts/'+second.access.receiptId);
+    const remove=access=>fetch(`${base}${root}/${access.receiptId}`,{method:'DELETE',headers:{Authorization:`Bearer ${access.capability}`},signal:AbortSignal.timeout(30000)});
+    // Explicit synthetic expiry fixture; restore it only inside this test before the real withdrawal check.
+    const firstRef=db.doc('m0_suggestion_receipts/'+first.access.receiptId),firstBefore=await read(firstRef.path);
+    const shortExpiry=new Date(Date.now()+150).toISOString();assert.ok(shortExpiry>firstBefore.updatedAt);
+    await firstRef.set(json({...firstBefore,expiresAt:shortExpiry}));await new Promise(resolve=>setTimeout(resolve,200));
+    response=await remove(first.access);assert.equal(response.status,404);await safe(response);await firstRef.set(json(firstBefore));
+    response=await remove({...first.access,capability:second.access.capability});assert.equal(response.status,404);await safe(response);
     response=await fetch(`${base}${root}/${first.access.receiptId}`,{method:'DELETE',headers:{Authorization:`Bearer ${first.access.capability}`}});
-    assert.equal(response.status,503);assert.deepEqual(await safe(response),{error:{code:'SERVICE_UNAVAILABLE'}});
-    assert.equal((await status(first.access)).status,200);
+    assert.equal(response.status,200);assert.deepEqual(await safe(response),{schemaVersion:1,receiptId:first.access.receiptId,status:'withdrawn'});
+    response=await remove(first.access);assert.equal(response.status,404);await safe(response);
+    assert.equal((await status(first.access)).status,404);response=await post(key);assert.equal(response.status,404);await safe(response);
+    assert.deepEqual(await read('m0_suggestion_receipts/'+second.access.receiptId),secondBefore);
     for(const [body,headers,expected] of [[{url:sourceUrl,phone:'PRIVATE'}, {},400],[{url:sourceUrl+'?token=PRIVATE'},{},400],
       [{url:sourceUrl},{Cookie:'session=PRIVATE'},400],[{url:sourceUrl},{Origin:'https://evil.example'},403]]){
       response=await post(random(),body,headers);assert.equal(response.status,expected);assert.doesNotMatch(JSON.stringify(await safe(response)),/PRIVATE|evil\.example/);
@@ -107,7 +118,11 @@ test('actual suggestion routes persist private access and current results across
     assert.ok(!raw.includes(first.access.capability));assert.ok(!raw.includes(key));assert.ok(!raw.includes(sourceUrl));
     await stop();await start(false);
     response=await post(key);assert.equal(response.status,503);await safe(response);
-    response=await status(first.access);assert.equal(response.status,200);assert.deepEqual(await safe(response),latestReceipt);
+    response=await status(second.access);assert.equal(response.status,200);assert.deepEqual(await safe(response),secondReceipt);
+    await db.doc('m0_sources/'+source.id).set(json({...source,paused:true}));
+    response=await remove(second.access);assert.equal(response.status,200);assert.deepEqual(await safe(response),{schemaVersion:1,receiptId:second.access.receiptId,status:'withdrawn'});
+    assert.equal((await status(second.access)).status,404);const cancelled=await read(work[0].ref.path);
+    assert.equal(cancelled.state,'cancelled');assert.equal(cancelled.referenceCount,0);assert.equal(cancelled.lease,null);
     assert.equal((await read('m0_suggestion_state/admission')).receiptCount,2);
   }finally{await stop();await db.terminate();}
 });

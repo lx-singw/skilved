@@ -149,9 +149,10 @@ export class SuggestionAdmission {
       if (!issued.created) return { kind: 'received', access: issued.access };
       const work = old ? { ...old, revision: old.revision + 1, receiptCount: old.receiptCount + 1,
         referenceCount: old.referenceCount + 1, generation: old.generation + (restarting ? 1 : 0),
+        lease: restarting ? null : old.lease,
         state: restarting ? 'pending' : old.state, publicResultIds: restarting ? [] : old.publicResultIds, updatedAt: now } :
         { schemaVersion: 1, id: workId, url, sourceId: source.id, sourceRevision: source.revision, permissionHash,
-          mode: 'review_only', state: 'pending', generation: 1, referenceCount: 1, revision: 1, receiptCount: 1, createdAt: now, updatedAt: now };
+          mode: 'review_only', state: 'pending', generation: 1, lease: null, referenceCount: 1, revision: 1, receiptCount: 1, createdAt: now, updatedAt: now };
       const next = { ...state, revision: state.revision + 1, receiptCount: state.receiptCount + 1, workCount: state.workCount + (old ? 0 : 1) };
       if (!SuggestionWork.safeParse(work).success || !AdmissionState.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
       tx.set(this.workRef(workId), payload(work)); tx.set(this.stateRef(), payload(next));
@@ -176,6 +177,7 @@ export class SuggestionAdmission {
         revision: receipt.revision + 1, publicResultIds: [] };
       const work = { ...old, referenceCount: old.referenceCount - 1, revision: old.revision + 1, updatedAt: now,
         generation: old.generation + (needed ? 0 : 1), state: needed ? old.state : 'cancelled',
+        lease: needed ? old.lease : null,
         publicResultIds: needed ? old.publicResultIds : [] };
       if (!ReceiptRecord.safeParse(revoked).success || !SuggestionWork.safeParse(work).success) fail('SUGGESTION_UNAVAILABLE');
       const result = SuggestionWithdrawResponseSchema.parse({ schemaVersion: 1, receiptId: receipt.id, status: 'withdrawn' });

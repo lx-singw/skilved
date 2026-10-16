@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SuggestionRequestSchema, SuggestionCreateResponseSchema, SuggestionStatusResponseSchema } from '@skilved/types/opportunities/suggestions';
+import { SuggestionRequestSchema, SuggestionCreateResponseSchema, SuggestionStatusResponseSchema, SuggestionWithdrawResponseSchema } from '@skilved/types/opportunities/suggestions';
 
 export const SuggestionHttpConfig = z.object({ enabled: z.boolean(), intakeEnabled: z.boolean(), origin: z.string().max(200),
   emulator: z.boolean().default(false), readDeadlineMs: z.number().int().min(1).max(5000).default(5000),
@@ -22,7 +22,7 @@ async function deadline(work, ms, code, status) {
   try { return await Promise.race([work, new Promise((_, fail) => { timer = setTimeout(() => fail(new Rejection(code, status)), ms); })]); }
   finally { clearTimeout(timer); }
 }
-async function body(request, ms) {
+async function body(request, ms, emptyOnly = false) {
   const reader = request.body?.getReader();
   if (!reader) reject();
   const chunks = []; let bytes = 0, abort;
@@ -34,6 +34,7 @@ async function body(request, ms) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
+      if (emptyOnly && bytes > 0) reject();
       if (bytes > 4096) reject('BODY_TOO_LARGE', 413);
       chunks.push(value);
     }
@@ -42,6 +43,7 @@ async function body(request, ms) {
     await deadline(Promise.race([read(), aborted]), ms, 'BODY_TIMEOUT', 408);
     const length = request.headers.get('content-length');
     if (length !== null && Number(length) !== bytes) reject();
+    if (emptyOnly) return;
     const buffer = new Uint8Array(bytes); let offset = 0;
     for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
     let parsed;
@@ -65,10 +67,9 @@ export async function handleSuggestion(request, { config, provider } = {}) {
     const settings = parsed.data, url = new URL(request.url), path = url.pathname;
     const create = request.method === 'POST' && path === '/api/v1/opportunity-suggestions';
     const status = request.method === 'GET' && /^\/api\/v1\/opportunity-suggestions\/([a-f0-9]{64})\/status$/.exec(path);
-    const withdraw = request.method === 'DELETE' && /^\/api\/v1\/opportunity-suggestions\/([a-f0-9]{64})$/.test(path);
+    const withdraw = request.method === 'DELETE' && /^\/api\/v1\/opportunity-suggestions\/([a-f0-9]{64})$/.exec(path);
     if (!create && !status && !withdraw) return errorReply('NOT_FOUND', 404);
-    // Withdrawal has no lifecycle implementation yet; never return a false acknowledgement.
-    if (withdraw || (create && !settings.intakeEnabled)) return errorReply('SERVICE_UNAVAILABLE', 503);
+    if (create && !settings.intakeEnabled) return errorReply('SERVICE_UNAVAILABLE', 503);
     const configured = new URL(settings.origin);
     // Next normalizes 127.0.0.1 request URLs to localhost. Preserve exact browser Origin checks.
     const normalizedLoopback = settings.emulator && url.protocol === 'http:' && configured.protocol === 'http:' &&
@@ -91,16 +92,21 @@ export async function handleSuggestion(request, { config, provider } = {}) {
     } else {
       const auth = request.headers.get('authorization');
       if (!auth || auth.length !== 71 || !/^Bearer [a-f0-9]{64}$/.test(auth) || request.headers.has('idempotency-key')) reject('NOT_FOUND', 404);
-      if (request.body !== null || (length !== null && Number(length) !== 0)) reject();
-      credential = auth.slice(7); input = { receiptId: status[1], capability: credential };
+      if (length !== null && Number(length) !== 0) reject();
+      if (request.body !== null) {
+        if (!withdraw) reject();
+        // Next supplies a stream even for a bodyless DELETE. Prove zero bytes before dispatch.
+        await body(request, settings.readDeadlineMs, true);
+      }
+      credential = auth.slice(7); input = { receiptId: (status || withdraw)[1], capability: credential };
     }
     if (typeof provider !== 'function') return errorReply('SERVICE_UNAVAILABLE', 503);
     const work = async () => {
       const service = await provider();
-      return create ? service.create(input, credential) : service.status(input);
+      return create ? service.create(input, credential) : withdraw ? service.withdraw(input) : service.status(input);
     };
     const result = await deadline(work(), settings.serviceDeadlineMs, 'SERVICE_UNAVAILABLE', 503);
-    const output = (create ? SuggestionCreateResponseSchema : SuggestionStatusResponseSchema).safeParse(result);
+    const output = (create ? SuggestionCreateResponseSchema : withdraw ? SuggestionWithdrawResponseSchema : SuggestionStatusResponseSchema).safeParse(result);
     if (!output.success || (!create && output.data.receiptId !== input.receiptId)) return errorReply('SERVICE_UNAVAILABLE', 503);
     return reply(output.data, create && output.data.kind === 'received' ? 202 : 200);
   } catch (error) {

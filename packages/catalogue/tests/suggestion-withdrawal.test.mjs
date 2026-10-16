@@ -148,10 +148,10 @@ test('credential-operation budget includes failed/repeated withdrawal and cannot
   const counters=await rows('suggestion_limits');assert.equal(JSON.parse(counters.find(row=>row.id.startsWith('status_')).data().json).count,3);
 });
 
-test('wrong credentials fail before corrupt inventory is inspected; DELETE still cannot call backend',async()=>{
+test('wrong credentials fail before corrupt inventory is inspected; disabled DELETE cannot call backend',async()=>{
   const a=await create();await admission.stateRef().set({json:'PRIVATE_CORRUPT'});
   await code(admission.withdraw({...access(a),capability:random()}),'SUGGESTION_NOT_FOUND');await code(withdraw(a),'SUGGESTION_UNAVAILABLE');
   let calls=0;const response=await handleSuggestion(new Request('https://skilved.example/api/v1/opportunity-suggestions/'+a.receiptId,{method:'DELETE',headers:{Authorization:'Bearer '+a.capability}}),{
-    config:{enabled:true,intakeEnabled:false,origin:'https://skilved.example'},provider:async()=>{calls++;return admission;}});
+    config:{enabled:false,intakeEnabled:false,origin:'https://skilved.example'},provider:async()=>{calls++;return admission;}});
   assert.equal(response.status,503);assert.equal(calls,0);assert.equal((await data(receipts.receiptRef(a.receiptId))).revokedAt,null);
 });

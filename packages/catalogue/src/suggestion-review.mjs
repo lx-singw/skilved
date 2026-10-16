@@ -18,6 +18,23 @@ export const SuggestionReviewCommand = z.object({ workId: SuggestionSecretSchema
 const reasons = Object.freeze({ reviewing: 'Suggestion review started', resolved_to_listing: 'Current approved public results selected',
   unresolved: 'Suggestion review unresolved', unsupported: 'Suggestion notice unsupported', paused: 'Suggestion review paused' });
 
+/** Private transaction composition after the caller's identity/source/concurrency checks. */
+export function writeSuggestionOutcome(tx, admission, old, receipts, outcome, publicResultIds, now) {
+  const next = { ...old, state: outcome, publicResultIds: [...publicResultIds].sort(), revision: old.revision + 1,
+    generation: old.generation + 1, lease: null, updatedAt: now };
+  if (old.updatedAt > now || !SuggestionWork.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
+  const active = [...receipts.values()].filter(receipt => receipt.workId === old.id && receipt.revokedAt === null && receipt.expiresAt > now);
+  if (active.some(receipt => receipt.updatedAt > now)) fail('SUGGESTION_UNAVAILABLE');
+  const updates = active.map(receipt => ({ ...receipt, status: outcome, publicResultIds: next.publicResultIds,
+    revision: receipt.revision + 1, updatedAt: now }));
+  if (!updates.length) fail('CONFLICT');
+  if (updates.some(receipt => receipt.createdAt > now || !ReceiptRecord.safeParse(receipt).success)) fail('SUGGESTION_UNAVAILABLE');
+  // Validate everything before writes; no source IO/model work belongs in this transaction.
+  for (const receipt of updates) tx.set(admission.receipts.receiptRef(receipt.id), payload(receipt));
+  tx.set(admission.workRef(old.id), payload(next));
+  return { revision: next.revision, status: next.state };
+}
+
 /** Local authenticated operator only. No publication, fetch, model, lease or public mutation route. */
 export class SuggestionReview {
   constructor(admission, catalogue) {
@@ -58,19 +75,7 @@ export class SuggestionReview {
           if (!current.length || JSON.stringify(current) !== JSON.stringify([...command.publicResultIds].sort())) fail('SUGGESTION_RESULT_CHANGED');
         }
       }
-      const publicResultIds = [...command.publicResultIds].sort();
-      const next = { ...old, state: command.outcome, publicResultIds, revision: old.revision + 1,
-        generation: old.generation + 1, updatedAt: now };
-      if (!SuggestionWork.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
-      const active = [...receipts.values()].filter(receipt => receipt.workId === old.id && receipt.revokedAt === null && receipt.expiresAt > now);
-      if (active.some(receipt => receipt.updatedAt > now)) fail('SUGGESTION_UNAVAILABLE');
-      const updates = active.map(receipt => ({ ...receipt, status: command.outcome, publicResultIds, revision: receipt.revision + 1, updatedAt: now }));
-      if (!updates.length) fail('CONFLICT');
-      if (updates.some(receipt => receipt.createdAt > now || !ReceiptRecord.safeParse(receipt).success)) fail('SUGGESTION_UNAVAILABLE');
-      // No reads after this point; counters/expiry/credentials/public facts are untouched.
-      for (const receipt of updates) tx.set(this.admission.receipts.receiptRef(receipt.id), payload(receipt));
-      tx.set(this.admission.workRef(old.id), payload(next));
-      return { revision: next.revision, status: next.state };
+      return writeSuggestionOutcome(tx, this.admission, old, receipts, command.outcome, command.publicResultIds, now);
     });
   }
 }

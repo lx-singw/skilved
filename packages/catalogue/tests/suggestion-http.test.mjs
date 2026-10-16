@@ -7,6 +7,7 @@ const at = '2026-10-16T12:00:00.000Z', expiresAt = '2026-10-17T12:00:00.000Z';
 const config = { enabled: true, intakeEnabled: true, origin, readDeadlineMs: 100, serviceDeadlineMs: 100 };
 const received = { kind: 'received', access: { receiptId: id, capability, expiresAt } };
 const state = { schemaVersion: 1, receiptId: id, status: 'received', revision: 1, createdAt: at, updatedAt: at, expiresAt, publicResultIds: [] };
+const withdrawn = { schemaVersion: 1, receiptId: id, status: 'withdrawn' };
 function request(method = 'POST', path = base, headers = {}, body = JSON.stringify({ url: 'https://source.example/notice' }), signal) {
   return new Request(origin + path,{ method, headers: method === 'POST' ? { 'Content-Type': 'application/json', 'Idempotency-Key': key, ...headers } : { Authorization: `Bearer ${capability}`, ...headers },
     ...(method === 'POST' ? { body, ...(body instanceof ReadableStream ? { duplex: 'half' } : {}) } : {}), ...(signal ? { signal } : {}) });
@@ -14,7 +15,8 @@ function request(method = 'POST', path = base, headers = {}, body = JSON.stringi
 function fixture(overrides = {}, ...settingsArgs) {
   const settings = settingsArgs.length ? settingsArgs[0] : config;
   const calls = [];let providers = 0;
-  const service = { create: async (...args) => { calls.push(['create',...args]);return received; }, status: async input => { calls.push(['status',input]);return state; }, ...overrides };
+  const service = { create: async (...args) => { calls.push(['create',...args]);return received; }, status: async input => { calls.push(['status',input]);return state; },
+    withdraw: async input => { calls.push(['withdraw',input]);return withdrawn; }, ...overrides };
   return { calls, get providers() { return providers; }, run: req => handleSuggestion(req,{ config: settings, provider: async () => { providers++;return service; } }) };
 }
 async function safe(response) {
@@ -45,12 +47,53 @@ test('status remains available with intake off and accepts only receipt ID plus 
   assert.deepEqual(f.calls,[['status',{ receiptId: id, capability }]]);
 });
 
-test('unknown methods/paths and unimplemented withdrawal never dispatch or acknowledge work', async () => {
-  const f = fixture({ withdraw: () => assert.fail('No withdrawal exists') });
+test('unknown methods/paths never dispatch or acknowledge work', async () => {
+  const f = fixture();
   for (const [method,path,expected] of [['PUT',base,404],['OPTIONS',base,404],['HEAD',base,404],['GET',base,404],
-    ['POST',base+'/',404],['GET',`${base}/invalid/status`,404],['DELETE',`${base}/${id}`,503]])
+    ['POST',base+'/',404],['GET',`${base}/invalid/status`,404],['DELETE',`${base}/invalid`,404]])
     assert.equal((await f.run(request(method,path))).status,expected);
   assert.equal(f.providers,0);
+});
+
+test('withdrawal uses only ID/header capability with intake off and validates minimal matching output', async () => {
+  const f=fixture({}, {...config,intakeEnabled:false}),response=await f.run(request('DELETE',`${base}/${id}`));
+  assert.equal(response.status,200);assert.deepEqual(await safe(response),withdrawn);assert.deepEqual(f.calls,[['withdraw',{receiptId:id,capability}]]);
+  for(const result of [{...withdrawn,capability},{...withdrawn,receiptId:'d'.repeat(64)},{...withdrawn,url:'PRIVATE'},state,null])
+    assert.equal((await fixture({withdraw:async()=>result}).run(request('DELETE',`${base}/${id}`))).status,503);
+  for(const [code,status] of [['SUGGESTION_NOT_FOUND',404],['SUGGESTION_RATE_LIMITED',429],['PRIVATE',503]]) {
+    const r=await fixture({withdraw:async()=>{throw Object.assign(new Error('PRIVATE'),{code});}}).run(request('DELETE',`${base}/${id}`));
+    assert.equal(r.status,status);assert.doesNotMatch(JSON.stringify(await safe(r)),/PRIVATE/);
+  }
+});
+
+test('withdrawal body/query/cookie/origin/replay credentials reject before provider', async () => {
+  const f=fixture();
+  for(const [path,headers,expected] of [[`${base}/${id}?capability=PRIVATE`,{},400],[`${base}/${id}#PRIVATE`,{},400],
+    [`${base}/${id}`,{Cookie:'PRIVATE'},400],[`${base}/${id}`,{Origin:'https://evil.example'},403],
+    [`${base}/${id}`,{'Sec-Fetch-Site':'cross-site'},403],[`${base}/${id}`,{'Idempotency-Key':key},404],
+    [`${base}/${id}`,{Authorization:'Basic PRIVATE'},404],[`${base}/${id}`,{'Content-Length':'1'},400]]) {
+    const r=await f.run(request('DELETE',path,headers));assert.equal(r.status,expected);assert.doesNotMatch(JSON.stringify(await safe(r)),/PRIVATE|evil/);
+  }
+  const r=await f.run(new Request(origin+`${base}/${id}`,{method:'DELETE',headers:{Authorization:`Bearer ${capability}`},body:'PRIVATE'}));
+  assert.equal(r.status,400);assert.equal(f.providers,0);
+});
+
+test('withdrawal timeout may commit later; retry can return not-found without proving physical deletion', async () => {
+  let finish,revoked=false;const pending=new Promise(resolve=>{finish=()=>{revoked=true;resolve(withdrawn);};});
+  const f=fixture({withdraw:async()=>{if(revoked)throw Object.assign(new Error(),{code:'SUGGESTION_NOT_FOUND'});return pending;}},{...config,serviceDeadlineMs:15});
+  const r=await f.run(request('DELETE',`${base}/${id}`));assert.equal(r.status,503);assert.equal(revoked,false);await safe(r);
+  finish();await pending;assert.equal(revoked,true);const retry=await f.run(request('DELETE',`${base}/${id}`));assert.equal(retry.status,404);await safe(retry);
+});
+
+test('Next-style empty DELETE streams are accepted only after bounded zero-byte completion', async () => {
+  const f=fixture({}, {...config,readDeadlineMs:15});
+  const streamed=stream=>new Request(origin+`${base}/${id}`,{method:'DELETE',headers:{Authorization:`Bearer ${capability}`,'Content-Length':'0'},body:stream,duplex:'half'});
+  const empty=new ReadableStream({start(controller){controller.close();}});
+  let r=await f.run(streamed(empty));assert.equal(r.status,200);assert.deepEqual(await safe(r),withdrawn);assert.equal(f.providers,1);
+  const hidden=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1]));controller.close();}});
+  r=await f.run(streamed(hidden));assert.equal(r.status,400);assert.equal(f.providers,1);
+  const stalled=new ReadableStream({cancel(){return new Promise(()=>{});}});
+  r=await f.run(streamed(stalled));assert.equal(r.status,408);assert.equal(f.providers,1);await safe(r);
 });
 
 test('cookies, URL credentials/query/hash, cross-origin/site, encoding and wrong media type reject before dispatch', async () => {
