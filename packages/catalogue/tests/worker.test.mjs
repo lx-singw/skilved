@@ -97,7 +97,7 @@ test('Gemini shadow extraction and validation reserve every fallback call, prese
   const options=geminiOptions(async(url,init)=>{
     const body=JSON.parse(init.body),input=JSON.parse(body.contents[0].parts[0].text),validation=!!input.extracted;
     requests.push({model:url.split('/models/')[1].split(':')[0],validation,thinking:body.generationConfig.thinkingConfig.thinkingLevel});
-    assert.equal(body.generationConfig.maxOutputTokens,3072);assert.equal(body.generationConfig.responseJsonSchema,undefined);
+    assert.equal(body.generationConfig.maxOutputTokens,validation?6144:3072);assert.equal(body.generationConfig.responseJsonSchema,undefined);
     if(requests.length===1)return new Response(null,{status:503});
     if(requests.length===3)return new Response(null,{status:429,headers:{'Retry-After':'90'}});
     return geminiAnswer(validation?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]}:compactWire());

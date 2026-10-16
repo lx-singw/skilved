@@ -4,7 +4,8 @@ import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v11';
+export const VALIDATION_VERSION = 'recentjobs_validation_v12';
+const GEMINI_VALIDATION_MAX_TOKENS = 6144;
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
   evidence: z.array(z.object({ source: z.enum(['recentjobs', 'primary']), quote: z.string().min(1).max(4000) }).strict()).min(1).max(30),
@@ -90,7 +91,8 @@ export async function validateExtraction(input, options = {}) {
   const {recentjobsText,primary=null}=input;
   const env = options.env ?? process.env, config = extractionConfiguration(env);
   const response = await generateStructured(validationPayload(input), validationContract(primary),
-    { ...options, env: { ...env, SKILVED_AI_THINKING: config.validationThinking } });
+    { ...options, ...(config.provider==='gemini'&&options.maxOutputTokens===undefined?{maxOutputTokens:GEMINI_VALIDATION_MAX_TOKENS}:{}),
+      env: { ...env, SKILVED_AI_THINKING: config.validationThinking } });
   try {
     const result = validateAssessment(response.extraction, recentjobsText, primary);
     return { ...result, provenance: response.provenance };
