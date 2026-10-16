@@ -7,3 +7,4 @@ export { DeadlineSchema, deadlineTiming, CompensationSchema, ApplicationRouteSch
 export { EntryStageSchema, EntryStagesSchema, ENTRY_STAGE_LABELS } from './values';
 export type { EntryStage } from './values';
 export * from './api';
+export * from './local-progress';

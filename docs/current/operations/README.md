@@ -92,6 +92,7 @@ Status: current planning specifications. Implemented controls, customer results 
 
 - [Public report, operator correction and restored detail](80_PUBLIC_REPORT_TO_CORRECTED_DETAIL_2026-10-15.md)
 - [Catalogue loading, limited coverage and detail retry](81_CATALOGUE_LOADING_AND_RECOVERY_2026-10-16.md)
+- [Atomic browser-local progress foundation](82_LOCAL_PROGRESS_STORAGE_FOUNDATION_2026-10-16.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
