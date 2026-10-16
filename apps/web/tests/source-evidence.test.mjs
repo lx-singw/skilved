@@ -111,7 +111,7 @@ test("canonical detail renders original instructions before explanation and actu
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
     "@/components/catalogue/EntryStage": stage,
-    "@/components/catalogue/SavedProgress": { SaveOpportunity: () => null },
+    "@/components/catalogue/SavedProgress": { SaveOpportunity: () => null, ApplicationRouteLink: ({ id, revision }) => React.createElement("a", { href: `/opportunities/${id}/apply?revision=${revision}` }, "Original source") },
     "@/components/catalogue/OpportunityConditions": conditions,
     "@/lib/catalogue-query": navigation,
   })

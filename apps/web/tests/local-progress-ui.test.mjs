@@ -84,10 +84,68 @@ test("save and saved-list server rendering starts loading without claiming saved
   assert.doesNotMatch(html, /Removed from|Saved in this browser\.|PRIVATE_|reportedAppliedAt/)
   html = render("SavedOpportunities"); assert.doesNotMatch(html, /No saved opportunities in this browser|Saved reference:/)
   progress = { ...progress, view: empty }; assert.match(render("SavedOpportunities"), /No saved opportunities in this browser/)
-  progress = { ...progress, view: { status: "ready", snapshot: { token: "saved", items: [{ opportunityId: "opaque_id", savedAt: "2026-10-16T04:00:00.000Z" }] } } }
+  progress = { ...progress, view: { status: "ready", snapshot: { token: "saved", items: [{ opportunityId: "opaque_id", lastViewedRevision: 1, savedAt: "2026-10-16T04:00:00.000Z", updatedAt: "2026-10-16T04:00:00.000Z", userStage: "interested", lastRouteOpenedAt: null, reportedAppliedAt: null }] } } }
   html = render("SavedOpportunities")
   assert.match(html, /datetime="2026-10-16T04:00:00.000Z"/i)
   assert.doesNotMatch(html, /Saved reference:|>opaque_id</)
   progress = { ...progress, view: { status: "unreadable", reason: "unsupported_version" } }
   html = render("SavedOpportunities"); assert.match(html, /data has not been reset/); assert.match(html, /Clear saved progress/)
+})
+
+test("the actual native route handler preserves Applied and first-save time without delaying guarded navigation", async () => {
+  let number = 0, now = "2026-10-16T04:00:00.000Z"
+  const store = core.createLocalProgressStore({ indexedDB: new IDBFactory(), newToken: () => "route_" + ++number, now: () => now })
+  const session = createProgressSession(store); await session.refresh(true)
+  await session.change({ type: "save", id: "card", revision: 7 })
+  await session.change({ type: "stage", id: "card", stage: "applied_reported" })
+  assert.match(session.getSnapshot().message, /Personal stage updated/)
+  const applied = session.getSnapshot().view.snapshot.items[0]
+  now = "2026-10-16T05:00:00.000Z"
+  const progress = { ...session.getSnapshot(), change: session.change, reload: () => session.refresh(true) }
+  const ui = await load("components/catalogue/SavedProgress.tsx", { "@/lib/use-local-progress": { useLocalProgress: () => progress }, "@/lib/saved-summary": {} })
+  const element = ui.ApplicationRouteLink({ id: "card", revision: 7 }), anchor = element.props.children.find(child => child?.type === "a")
+  assert.equal(anchor.props.href, "/opportunities/card/apply?revision=7"); assert.equal(anchor.props.target, "_blank"); assert.match(anchor.props.rel, /noreferrer/)
+  let prevented = false
+  await anchor.props.onClick({ preventDefault() { prevented = true } })
+  const reopened = session.getSnapshot().view.snapshot.items[0]
+  assert.equal(prevented, false); assert.equal(reopened.userStage, "applied_reported")
+  assert.equal(reopened.savedAt, applied.savedAt); assert.equal(reopened.reportedAppliedAt, applied.reportedAppliedAt)
+  assert.equal(reopened.lastRouteOpenedAt, now); assert.match(session.getSnapshot().message, /Route-opening action recorded/)
+  assert.match(session.getSnapshot().message, /does not confirm/)
+  await session.change({ type: "stage", id: "card", stage: "not_pursuing" })
+  assert.equal(session.getSnapshot().view.snapshot.items[0].lastRouteOpenedAt, now)
+})
+
+test("route selection never saves an unsaved item, and failed storage cannot remove the native link", async () => {
+  const store = core.createLocalProgressStore({ indexedDB: new IDBFactory() }), session = createProgressSession(store)
+  let progress = { ...session.getSnapshot(), change: session.change, reload: () => session.refresh(true) }
+  const ui = await load("components/catalogue/SavedProgress.tsx", { "@/lib/use-local-progress": { useLocalProgress: () => progress }, "@/lib/saved-summary": {} })
+  let anchor = ui.ApplicationRouteLink({ id: "unsaved", revision: 1, email: true }).props.children.find(child => child?.type === "a")
+  await anchor.props.onClick(); assert.deepEqual((await store.read()).snapshot.items, [])
+  assert.match(session.getSnapshot().message, /not saved; no local progress or route action was recorded/)
+  const failed = createProgressSession({ read: async () => { throw Error("PRIVATE_STORAGE_ERROR") }, change: async () => { throw Error("must not write") }, clear: async () => ({ status: "unavailable" }) })
+  progress = { ...failed.getSnapshot(), change: failed.change, reload: () => failed.refresh(true) }
+  anchor = ui.ApplicationRouteLink({ id: "unsaved", revision: 1 }).props.children.find(child => child?.type === "a")
+  await anchor.props.onClick(); assert.equal(anchor.props.href, "/opportunities/unsaved/apply?revision=1")
+  assert.equal(anchor.props.target, "_blank"); assert.equal(failed.getSnapshot().view.status, "unavailable")
+  progress = { ...failed.getSnapshot(), change: failed.change, reload: () => failed.refresh(true) }
+  const html = renderToStaticMarkup(ui.ApplicationRouteLink({ id: "unsaved", revision: 1 }))
+  assert.match(html, /href="\/opportunities\/unsaved\/apply\?revision=1"/)
+  assert.match(html, /couldn’t confirm a local route record/)
+  assert.doesNotMatch(html, /PRIVATE_STORAGE_ERROR|applied_reported|reportedAppliedAt|writeToken/)
+})
+
+test("personal stage rendering stays reversible and distinguishes own report from route history", async () => {
+  const item = { opportunityId: "card", lastViewedRevision: 1, savedAt: "2026-10-16T04:00:00.000Z", updatedAt: "2026-10-16T05:00:00.000Z", userStage: "interested", reportedAppliedAt: "2026-10-16T04:30:00.000Z", lastRouteOpenedAt: "2026-10-16T05:00:00.000Z" }
+  const progress = { view: { status: "ready", snapshot: { token: "stage", items: [item] } }, busy: false, message: "", change: () => {}, reload: () => {} }
+  const ui = await load("components/catalogue/SavedProgress.tsx", { "@/lib/use-local-progress": { useLocalProgress: () => progress }, "@/lib/saved-summary": {} })
+  for (const stage of ["interested", "preparing", "applied_reported", "not_pursuing"]) {
+    item.userStage = stage
+    const html = renderToStaticMarkup(React.createElement(ui.SaveOpportunity, { id: "card", revision: 1 }))
+    assert.ok(html.includes(`value="${stage}" selected=""`))
+    assert.match(html, /not an issuer’s records/); assert.match(html, /Last route-opening action recorded/)
+    assert.match(html, /does not confirm that the issuer’s page loaded or that you submitted/)
+    if (stage === "applied_reported") { assert.match(html, /Skilved has not confirmed submission/); assert.match(html, /dateTime="2026-10-16T04:30:00.000Z"/) }
+    else assert.doesNotMatch(html, /Skilved has not confirmed submission/)
+  }
 })

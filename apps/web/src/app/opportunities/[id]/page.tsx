@@ -10,7 +10,7 @@ import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/S
 import { catalogueReturnHref } from "@/lib/catalogue-query"
 import { EntryStage } from "@/components/catalogue/EntryStage"
 import { OpportunityContext, OpportunityConditions } from "@/components/catalogue/OpportunityConditions"
-import { SaveOpportunity } from "@/components/catalogue/SavedProgress"
+import { ApplicationRouteLink, SaveOpportunity } from "@/components/catalogue/SavedProgress"
 
 export const dynamic = "force-dynamic"
 
@@ -46,7 +46,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
       <p className="mt-3">{o.deadline.originalText ?? "Closing date not stated"}</p>
       {application?.method === "email" && <p className="mt-3 break-all">Application email: {application.destination}</p>}
       {application && ["in_person", "post"].includes(application.method) && <p className="mt-3 whitespace-pre-wrap">{application.method === "post" ? "Apply by post" : "Apply in person"}: {application.destination}</p>}
-      {canApply ? <a href={`/opportunities/${o.id}/apply?revision=${o.revision}`} className="mt-5 inline-block rounded-md bg-primary px-5 py-3 font-medium text-primary-foreground">{application.method === "email" ? "Open email application" : "Apply at the original source"} →</a>
+      {canApply ? <ApplicationRouteLink id={o.id} revision={o.revision} email={application.method === "email"} />
         : application ? null
         : <p className="mt-4 text-muted-foreground">{o.lifecycle === "closed" ? "This intake is closed." : "An application link is not currently available. Check the source notice for guidance."}</p>}
       <p className="mt-4 text-sm text-muted-foreground">Follow the application method stated in the notice. Skilved rechecks the listing before opening a portal or your email app; you complete and submit the application yourself.</p>

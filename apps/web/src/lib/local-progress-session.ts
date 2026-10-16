@@ -34,8 +34,12 @@ export function createProgressSession(store = createLocalProgressStore(), notify
       try { result = command === "clear" ? await store.clear() : await store.change("snapshot" in view ? view.snapshot.token : null, command) }
       catch { result = { status: "unavailable" } }
       const success = result.status === "saved" || result.status === "ready"
-      const message = result.status === "saved" ? command === "clear" ? "Saved progress cleared from this browser." : command.type === "remove" ? "Removed from this browser." : "Saved in this browser."
+      const message = result.status === "saved" ? command === "clear" ? "Saved progress cleared from this browser." : command.type === "remove" ? "Removed from this browser."
+        : command.type === "stage" ? "Personal stage updated in this browser."
+        : command.type === "route_opened" ? "Route-opening action recorded in this browser. This does not confirm that the issuer’s page loaded or that you submitted an application."
+        : "Saved in this browser."
         : result.status === "ready" ? "Already saved in this browser."
+        : result.status === "not_saved" ? "This opportunity is not saved; no local progress or route action was recorded."
         : result.status === "conflict" ? "Saved progress changed in another tab. Reload it before trying again."
         : result.status === "full" ? "This browser’s saved list is full. Reload it and remove an item before saving another."
         : "We couldn’t confirm that change. Reload saved progress before trying again."
