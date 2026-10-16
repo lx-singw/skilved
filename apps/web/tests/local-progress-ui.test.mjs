@@ -91,6 +91,13 @@ test("save and saved-list server rendering starts loading without claiming saved
   assert.doesNotMatch(html, /Saved reference:|>opaque_id</)
   progress = { ...progress, view: { status: "unreadable", reason: "unsupported_version" } }
   html = render("SavedOpportunities"); assert.match(html, /data has not been reset/); assert.match(html, /Clear saved progress/)
+  assert.match(html, /different format that this version cannot read/)
+  assert.doesNotMatch(html, /No saved opportunities in this browser|Saved in this browser\./)
+  html = render("SaveOpportunity"); assert.match(html, /disabled=""[^>]*>Save in this browser/)
+  progress = { ...progress, view: { status: "unreadable", reason: "invalid_data" } }
+  html = render("SavedOpportunities"); assert.match(html, /Saved progress data cannot be read/); assert.doesNotMatch(html, /No saved opportunities in this browser|different format/)
+  progress = { ...progress, view: { status: "unavailable" } }
+  html = render("SavedOpportunities"); assert.match(html, /cannot confirm your saved progress/); assert.doesNotMatch(html, /Clear saved progress|No saved opportunities in this browser/)
 })
 
 test("the actual native route handler preserves Applied and first-save time without delaying guarded navigation", async () => {
