@@ -26,6 +26,10 @@
       "types": "./src/opportunities/migration.ts",
       "default": "./dist/opportunities/migration.js"
     },
+    "./opportunities/suggestions": {
+      "types": "./src/opportunities/suggestions.ts",
+      "default": "./dist/opportunities/suggestions.js"
+    },
     "./legacy": "./src/opportunity.ts"
   },
   "scripts": {

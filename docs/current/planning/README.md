@@ -12,6 +12,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - **Prepare each work packet:** [Evidence-driven self-prompting template](10_SELF_PROMPTING_PACKET_TEMPLATE.md).
 - **Latest B04 packet:** [Preparation checklist and report UI](11_B04_PREPARATION_AND_REPORT_PACKET.md).
 - **Build local save/resume:** [B05 implementation sequence and acceptance](12_B05_LOCAL_CONTINUITY_IMPLEMENTATION_PLAN.md).
+- **Build safe public-link suggestions:** [B06 implementation sequence and acceptance](13_B06_SUGGESTIONS_IMPLEMENTATION_PLAN.md).
 - **Execute the next iteration:** [Detailed B01 carry-over and B02 implementation plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) — ordered tasks, capacity, contracts, tests, evidence and handoff.
 
 - [M0 detailed delivery B01–B10 and estimates](03_M0_COMPANION_DELIVERY_PLAN.md)
