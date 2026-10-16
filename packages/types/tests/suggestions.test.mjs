@@ -5,6 +5,15 @@ const require = createRequire(import.meta.url);
 const { SuggestionRequestSchema, SuggestionUrlSchema } = require('../dist/opportunities/suggestions.js');
 const { SuggestionAccessSchema, SuggestionStatusResponseSchema } = require('../dist/opportunities/suggestions.js');
 const { SuggestionCreateResponseSchema } = require('../dist/opportunities/suggestions.js');
+const { SuggestionWithdrawResponseSchema } = require('../dist/opportunities/suggestions.js');
+
+test('withdrawal acknowledgements are strict and contain no credentials, source or shared work details', () => {
+  const value = { schemaVersion: 1, receiptId: 'a'.repeat(64), status: 'withdrawn' };
+  assert.deepEqual(SuggestionWithdrawResponseSchema.parse(value), value);
+  for (const patch of [{ capability: 'PRIVATE' }, { workId: 'PRIVATE' }, { url: 'PRIVATE' },
+    { publicResultIds: ['listing'] }, { status: 'received' }, { receiptId: 'short' }, { revision: 2 }])
+    assert.equal(SuggestionWithdrawResponseSchema.safeParse({ ...value, ...patch }).success, false);
+});
 
 test('create outcomes keep public results separate from private access and reject stale result payloads', () => {
   for (const response of [{ kind: 'approved', publicResultIds: ['a','b'] }, { kind: 'previous_result_unavailable' },

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { InstantSchema } from '@skilved/types/opportunities';
-import { SuggestionRequestSchema, SuggestionSecretSchema, SuggestionCreateResponseSchema } from '@skilved/types/opportunities/suggestions';
+import { SuggestionRequestSchema, SuggestionSecretSchema, SuggestionCreateResponseSchema, SuggestionWithdrawResponseSchema } from '@skilved/types/opportunities/suggestions';
 import { classifySuggestion } from './suggestion-policy.mjs';
 import { Source } from './schemas.mjs';
 import { ReceiptRecord } from './suggestion-receipts.mjs';
@@ -41,17 +41,20 @@ export class SuggestionAdmission {
     const workRows = await tx.get(this.db.collection('m0_suggestion_work').limit(101));
     if (receiptRows.size > 500 || workRows.size > 100 || state.receiptCount !== receiptRows.size || state.workCount !== workRows.size)
       fail('SUGGESTION_UNAVAILABLE');
-    const counts = new Map(), works = new Map(), receipts = new Map();
+    const counts = new Map(), references = new Map(), works = new Map(), receipts = new Map();
     for (const row of receiptRows.docs) {
       const receipt = decode(row, ReceiptRecord);
       if (receipt.id !== row.id) fail('SUGGESTION_UNAVAILABLE');
       counts.set(receipt.workId, (counts.get(receipt.workId) ?? 0) + 1); receipts.set(row.id, receipt);
+      if (receipt.revokedAt === null) references.set(receipt.workId, (references.get(receipt.workId) ?? 0) + 1);
     }
     for (const row of workRows.docs) {
       const work = decode(row, SuggestionWork);
       if (work.id !== row.id || work.id !== hash('skilved.suggestion.work.v1', work.url) || work.receiptCount !== counts.get(work.id))
         fail('SUGGESTION_UNAVAILABLE');
-      works.set(work.id, work);
+      const referenceCount = references.get(work.id) ?? 0;
+      if (work.referenceCount !== undefined && work.referenceCount !== referenceCount) fail('SUGGESTION_UNAVAILABLE');
+      works.set(work.id, { ...work, referenceCount });
     }
     if ([...counts.keys()].some(id => !works.has(id))) fail('SUGGESTION_UNAVAILABLE');
     return { state, works, receipts };
@@ -140,12 +143,15 @@ export class SuggestionAdmission {
       if (state.receiptCount >= this.policy.maxReceipts || (!old && state.workCount >= this.policy.maxWork)) fail('SUGGESTION_CAPACITY');
       if (old && (old.updatedAt > now || old.state === 'resolved_to_listing')) fail('SUGGESTION_UNAVAILABLE');
       // All admission/source/capacity reads precede the receipt primitive's writes.
-      const issued = await this.receipts.createOrReplay(tx, command, { status: !old || old.state === 'pending' ? 'received' : old.state,
+      const restarting = old?.state === 'cancelled';
+      const issued = await this.receipts.createOrReplay(tx, command, { status: !old || restarting || old.state === 'pending' ? 'received' : old.state,
         publicResultIds: [] });
       if (!issued.created) return { kind: 'received', access: issued.access };
-      const work = old ? { ...old, revision: old.revision + 1, receiptCount: old.receiptCount + 1, updatedAt: now } :
+      const work = old ? { ...old, revision: old.revision + 1, receiptCount: old.receiptCount + 1,
+        referenceCount: old.referenceCount + 1, generation: old.generation + (restarting ? 1 : 0),
+        state: restarting ? 'pending' : old.state, publicResultIds: restarting ? [] : old.publicResultIds, updatedAt: now } :
         { schemaVersion: 1, id: workId, url, sourceId: source.id, sourceRevision: source.revision, permissionHash,
-          mode: 'review_only', state: 'pending', revision: 1, receiptCount: 1, createdAt: now, updatedAt: now };
+          mode: 'review_only', state: 'pending', generation: 1, referenceCount: 1, revision: 1, receiptCount: 1, createdAt: now, updatedAt: now };
       const next = { ...state, revision: state.revision + 1, receiptCount: state.receiptCount + 1, workCount: state.workCount + (old ? 0 : 1) };
       if (!SuggestionWork.safeParse(work).success || !AdmissionState.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
       tx.set(this.workRef(workId), payload(work)); tx.set(this.stateRef(), payload(next));
@@ -155,5 +161,27 @@ export class SuggestionAdmission {
   async status(input) {
     await this.charge('status');
     return this.receipts.status(input);
+  }
+  /** Backend-only until B06-5b2 lease races and DELETE transport are independently checked. */
+  async withdraw(input) {
+    // Existing bounded credential-operation budget is shared; intake may be off.
+    await this.charge('status');
+    return this.db.runTransaction(async tx => {
+      const now = this.receipts.instant(), receipt = await this.receipts.readAuthorized(tx, input, now);
+      const { works, receipts } = await this.inventory(tx), old = works.get(receipt.workId);
+      if (!old || old.updatedAt > now || receipt.updatedAt > now || old.referenceCount < 1) fail('SUGGESTION_UNAVAILABLE');
+      const needed = [...receipts.values()].some(other => other.workId === old.id && other.id !== receipt.id &&
+        other.revokedAt === null && other.createdAt <= now && other.expiresAt > now);
+      const revoked = { ...receipt, status: 'withdrawn', revokedAt: now, updatedAt: now,
+        revision: receipt.revision + 1, publicResultIds: [] };
+      const work = { ...old, referenceCount: old.referenceCount - 1, revision: old.revision + 1, updatedAt: now,
+        generation: old.generation + (needed ? 0 : 1), state: needed ? old.state : 'cancelled',
+        publicResultIds: needed ? old.publicResultIds : [] };
+      if (!ReceiptRecord.safeParse(revoked).success || !SuggestionWork.safeParse(work).success) fail('SUGGESTION_UNAVAILABLE');
+      const result = SuggestionWithdrawResponseSchema.parse({ schemaVersion: 1, receiptId: receipt.id, status: 'withdrawn' });
+      // All reads and validation precede writes. Keep retained slots and replay evidence unchanged.
+      tx.set(this.receipts.receiptRef(receipt.id), payload(revoked)); tx.set(this.workRef(work.id), payload(work));
+      return result;
+    });
   }
 }

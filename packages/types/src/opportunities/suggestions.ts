@@ -41,6 +41,10 @@ export const SuggestionStatusResponseSchema = z.object({
 });
 export type SuggestionAccess = z.infer<typeof SuggestionAccessSchema>;
 export type SuggestionStatusResponse = z.infer<typeof SuggestionStatusResponseSchema>;
+export const SuggestionWithdrawResponseSchema = z.object({
+  schemaVersion: z.literal(1), receiptId: SuggestionReceiptIdSchema, status: z.literal('withdrawn'),
+}).strict();
+export type SuggestionWithdrawResponse = z.infer<typeof SuggestionWithdrawResponseSchema>;
 export const SuggestionCreateResponseSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('received'), access: SuggestionAccessSchema }).strict(),
   z.object({ kind: z.literal('approved'), publicResultIds: z.array(IdSchema).min(1).max(20)

@@ -85,6 +85,15 @@ export class SuggestionReceipts {
     if (!capability || !this.authorized(record, record.id, capability, now)) fail('SUGGESTION_NOT_FOUND');
     return SuggestionAccessSchema.parse({ receiptId: record.id, capability, expiresAt: record.expiresAt });
   }
+  /** Capability check before any shared inventory/source reads in a composing transaction. */
+  async readAuthorized(tx, input, now = this.instant()) {
+    const parsed = AccessCommand.safeParse(input);
+    if (!parsed.success) fail('SUGGESTION_NOT_FOUND');
+    const command = parsed.data;
+    const record = stored(await tx.get(this.receiptRef(command.receiptId)), ReceiptRecord);
+    if (!this.authorized(record, command.receiptId, command.capability, now)) fail('SUGGESTION_NOT_FOUND');
+    return record;
+  }
   /** Authorized recovery only: no source, queue or receipt mutation. */
   async readReplay(tx, input) {
     const parsed = ReceiptCreateCommand.safeParse(input);

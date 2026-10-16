@@ -14,11 +14,15 @@ export const AdmissionState = z.object({ schemaVersion: z.literal(1), revision: 
 export const SuggestionWork = z.object({ schemaVersion: z.literal(1), id: SuggestionSecretSchema,
   url: SuggestionUrlSchema, sourceId: IdSchema, sourceRevision: Integer.refine(v => v > 0),
   permissionHash: SuggestionSecretSchema, mode: z.literal('review_only'),
-  state: z.enum(['pending', 'reviewing', 'resolved_to_listing', 'unresolved', 'unsupported', 'paused']),
+  state: z.enum(['pending', 'reviewing', 'resolved_to_listing', 'unresolved', 'unsupported', 'paused', 'cancelled']),
   publicResultIds: z.array(IdSchema).max(20).default([]),
+  generation: Integer.refine(v => v > 0).default(1),
+  // Legacy absence is reconciled against actual receipts by inventory, never guessed as zero.
+  referenceCount: z.number().int().min(0).max(500).optional(),
   revision: Integer.refine(v => v > 0), receiptCount: z.number().int().min(1).max(500),
   createdAt: InstantSchema, updatedAt: InstantSchema,
 }).strict().refine(v => v.createdAt <= v.updatedAt &&
+  (v.referenceCount === undefined || v.referenceCount <= v.receiptCount) &&
   ((v.state === 'resolved_to_listing') === (v.publicResultIds.length > 0)) &&
   new Set(v.publicResultIds).size === v.publicResultIds.length);
 export const suggestionPayload = value => ({ json: JSON.stringify(value) });

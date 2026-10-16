@@ -143,8 +143,8 @@ test('paused/drifted source cannot start or resolve review but may honestly clos
 
 test('expired/revoked receipts are untouched; no active references cannot be reviewed and credentials cannot revive',async()=>{
   const a=await create(),b=await create(),c=await create();const ar=receipts.receiptRef(a.receiptId),br=receipts.receiptRef(b.receiptId);
-  const first=await data(ar),second=await data(br);await ar.set(json({...first,expiresAt:'2026-10-16T12:00:01.000Z'}));
-  await br.set(json({...second,status:'withdrawn',revokedAt:start}));const before=[await data(ar),await data(br)];now='2026-10-16T12:01:00.000Z';
+  const first=await data(ar);await ar.set(json({...first,expiresAt:'2026-10-16T12:00:01.000Z'}));
+  await admission.withdraw(access(b));const before=[await data(ar),await data(br)];now='2026-10-16T12:01:00.000Z';
   await decide(await work(c),'reviewing');assert.deepEqual([await data(ar),await data(br)],before);assert.equal((await get(c)).status,'reviewing');
   for(const entry of [a,b])await code(get(entry),'SUGGESTION_NOT_FOUND');now='2026-10-17T12:00:00.000Z';
   await code(decide(await work(c),'unresolved'),'CONFLICT');assert.equal((await rows('audit')).length,1);
@@ -162,7 +162,7 @@ test('corrupt capacity, future clocks and orphan/malformed work fail atomically;
 test('500 retained references transition in one bounded emulator transaction with unchanged physical counts',async()=>{
   const a=await create(),w=await work(a),original=await data(receipts.receiptRef(a.receiptId));
   const batch=db.batch();for(let i=0;i<499;i++){const id=random();batch.set(receipts.receiptRef(id),json({...original,id,nonce:random(),capabilityHash:random()}));}await batch.commit();
-  await admission.workRef(w.id).set(json({...w,receiptCount:500}));await admission.stateRef().set(json({schemaVersion:1,revision:2,workCount:1,receiptCount:500}));
+  await admission.workRef(w.id).set(json({...w,receiptCount:500,referenceCount:500}));await admission.stateRef().set(json({schemaVersion:1,revision:2,workCount:1,receiptCount:500}));
   await decide(await work(a),'reviewing');const all=await rows('suggestion_receipts');assert.equal(all.length,500);
   assert.ok(all.every(row=>JSON.parse(row.data().json).status==='reviewing'));assert.equal((await data(admission.stateRef())).receiptCount,500);
 });

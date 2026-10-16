@@ -42,7 +42,7 @@ export class SuggestionReview {
     return this.catalogue.mutate(token, 'source', 'suggestions.review', command.workId, reasons[command.outcome], async tx => {
       const now = this.admission.receipts.instant(), { works, receipts } = await this.admission.inventory(tx);
       const old = works.get(command.workId);
-      if (!old || old.revision !== command.expectedRevision) fail('CONFLICT');
+      if (!old || old.revision !== command.expectedRevision || old.state === 'cancelled') fail('CONFLICT');
       if (old.updatedAt > now) fail('SUGGESTION_UNAVAILABLE');
       // A completed/paused outcome requires an explicit new review before another decision.
       if (old.state === command.outcome || (!['pending','reviewing'].includes(old.state) && command.outcome !== 'reviewing'))
@@ -59,7 +59,8 @@ export class SuggestionReview {
         }
       }
       const publicResultIds = [...command.publicResultIds].sort();
-      const next = { ...old, state: command.outcome, publicResultIds, revision: old.revision + 1, updatedAt: now };
+      const next = { ...old, state: command.outcome, publicResultIds, revision: old.revision + 1,
+        generation: old.generation + 1, updatedAt: now };
       if (!SuggestionWork.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
       const active = [...receipts.values()].filter(receipt => receipt.workId === old.id && receipt.revokedAt === null && receipt.expiresAt > now);
       if (active.some(receipt => receipt.updatedAt > now)) fail('SUGGESTION_UNAVAILABLE');
