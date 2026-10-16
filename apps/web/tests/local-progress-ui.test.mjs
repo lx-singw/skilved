@@ -65,9 +65,9 @@ test("saved summaries use validated current public facts and local IDs without p
   }
   try {
     assert.deepEqual(await readSavedSummary("../private"), { kind: "unavailable" }); assert.equal(calls, 0)
-    const current = await readSavedSummary(record.id); assert.deepEqual(current, { kind: "current", title: record.title.value, state: "published" })
+    const current = await readSavedSummary(record.id); assert.deepEqual(current, { kind: "current", id: record.id, revision: record.revision, title: record.title.value, state: "published" })
     assert.doesNotMatch(JSON.stringify(current), /destination|issuer.example|PRIVATE_|applied/)
-    record.publication.disposition = "withheld"; projection = projectOpportunity(record); assert.deepEqual(await readSavedSummary(record.id), { kind: "restricted" })
+    record.publication.disposition = "withheld"; projection = projectOpportunity(record); assert.deepEqual(await readSavedSummary(record.id), { kind: "restricted", id: record.id, revision: record.revision })
     status = 404; assert.deepEqual(await readSavedSummary(record.id), { kind: "missing" })
     status = 503; assert.deepEqual(await readSavedSummary(record.id), { kind: "unavailable" })
     status = 200; projection = { kind: "opportunity", opportunity: { private: "PRIVATE_BAD_OUTPUT" } }; assert.deepEqual(await readSavedSummary(record.id), { kind: "unavailable" })

@@ -36,6 +36,7 @@ export function createProgressSession(store = createLocalProgressStore(), notify
       const success = result.status === "saved" || result.status === "ready"
       const message = result.status === "saved" ? command === "clear" ? "Saved progress cleared from this browser." : command.type === "remove" ? "Removed from this browser."
         : command.type === "stage" ? "Personal stage updated in this browser."
+        : command.type === "acknowledge_revision" ? "Your review of these details was recorded in this browser. Personal progress was retained."
         : command.type === "route_opened" ? "Route-opening action recorded in this browser. This does not confirm that the issuer’s page loaded or that you submitted an application."
         : "Saved in this browser."
         : result.status === "ready" ? "Already saved in this browser."

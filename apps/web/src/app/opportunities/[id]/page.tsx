@@ -24,11 +24,13 @@ export default async function OpportunityPage({ params, searchParams }: { params
     <h1 className="mt-6 text-3xl font-semibold">We couldn’t load this opportunity</h1>
     <p className="mt-4 text-muted-foreground">Its current details and application route could not be checked. This does not establish that the listing has closed or been removed.</p>
     <a href={`/opportunities/${id}${back ? `?from=${encodeURIComponent(back.split("#")[0])}` : ""}`} className="mt-5 inline-block min-h-11 py-3 font-medium text-primary underline">Try loading these details again</a>
+    <p className="mt-4"><Link href="/saved" className="text-primary underline">Return to your saved references and personal progress</Link></p>
   </main></>
   if (result.kind === "status") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
     <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
     <h1 className="mt-6 text-3xl font-semibold">{result.status.status === "under_review" ? "This opportunity needs a fresh check" : "This listing is no longer available"}</h1>
     <p className="mt-4 text-muted-foreground">The application link is unavailable. Browse the catalogue for current opportunities.</p>
+    <p className="mt-4"><Link href="/saved" className="text-primary underline">Return to your saved references and personal progress</Link></p>
   </main></>
   const o = result.opportunity
   const application = o.lifecycle === "published" && o.application.state === "available" ? o.application.route : null

@@ -29,6 +29,20 @@ function PersonalProgress({ item, busy, change }: { item: LocalProgressItem; bus
   </div>
 }
 
+export function SavedRevision({ item, id, revision, busy, change, canAcknowledge = false, alsoSaved = false }: { item: LocalProgressItem; id: string; revision: number; busy: boolean; change: Progress["change"]; canAcknowledge?: boolean; alsoSaved?: boolean }) {
+  if (id !== item.opportunityId) return <div className="mt-3 space-y-2 text-sm">
+    <p>This saved reference currently resolves to another listing. Your personal progress stays with the original reference; it has not been moved or combined.</p>
+    {alsoSaved && <p>You also saved the current listing. Both sets of personal progress are retained separately.</p>}
+    <Link href={`/opportunities/${id}`} className="text-primary underline">Review the current listing</Link>
+  </div>
+  if (revision === item.lastViewedRevision) return null
+  return <div className="mt-3 space-y-2 text-sm" role="note">
+    <p>The public details differ from the version you last saved or marked reviewed. Your personal stage and history have been retained. Check the current conditions and application instructions.</p>
+    {canAcknowledge ? <button type="button" className={button} disabled={busy} onClick={() => { void change({ type: "acknowledge_revision", id, revision }) }}>Mark these details as reviewed</button>
+      : <Link href={`/opportunities/${id}`} className="text-primary underline">Review changed details</Link>}
+  </div>
+}
+
 export function ApplicationRouteLink({ id, revision, email = false }: { id: string; revision: number; email?: boolean }) {
   const progress = useLocalProgress()
   const historyUnavailable = progress.view && !["ready", "saved", "not_saved"].includes(progress.view.status)
@@ -70,24 +84,37 @@ export function SaveOpportunity({ id, revision }: { id: string; revision: number
       <Link href="/saved" className={`${button} text-primary underline`}>View saved opportunities</Link>
       <button type="button" className={button} onClick={() => { void copy() }}>Copy public link</button>
     </div>
-    {saved && <PersonalProgress item={saved} busy={progress.busy} change={progress.change} />}
+    {saved && <>
+      <SavedRevision item={saved} id={id} revision={revision} busy={progress.busy} change={progress.change} canAcknowledge />
+      <PersonalProgress item={saved} busy={progress.busy} change={progress.change} />
+    </>}
     {copyMessage && <p role="status" className="mt-3 text-sm">{copyMessage}</p>}
   </section>
 }
 
-function SavedItem({ item, busy, change, remove }: { item: LocalProgressItem; busy: boolean; change: Progress["change"]; remove: () => void }) {
+function SavedItem({ item, items, busy, change, remove }: { item: LocalProgressItem; items: LocalProgressItem[]; busy: boolean; change: Progress["change"]; remove: () => void }) {
   const { opportunityId: id, savedAt } = item
   const [summary, setSummary] = useState<SavedSummary | null>(null)
+  const [refresh, setRefresh] = useState(0)
   useEffect(() => {
-    const controller = new AbortController()
-    void readSavedSummary(id, controller.signal).then(result => { if (!controller.signal.aborted) setSummary(result) })
-    return () => controller.abort()
-  }, [id])
+    let controller: AbortController
+    const read = () => {
+      controller?.abort(); controller = new AbortController()
+      const request = controller
+      setSummary(null)
+      void readSavedSummary(id, request.signal).then(result => { if (!request.signal.aborted) setSummary(result) })
+    }
+    const visible = () => { if (document.visibilityState === "visible") read() }
+    read(); window.addEventListener("focus", read); window.addEventListener("pageshow", read); document.addEventListener("visibilitychange", visible)
+    return () => { controller.abort(); window.removeEventListener("focus", read); window.removeEventListener("pageshow", read); document.removeEventListener("visibilitychange", visible) }
+  }, [id, refresh])
   const title = summary?.kind === "current" ? summary.title : "Saved opportunity"
   return <li className="rounded-xl border border-border p-5">
     <h2 className="break-words text-lg font-semibold"><Link href={`/opportunities/${id}`} className="text-primary underline">{title}</Link></h2>
     <p className="mt-2 text-xs text-muted-foreground">Saved in this browser <LocalTime value={savedAt} /></p>
     <p className="mt-2 text-sm text-muted-foreground">{!summary ? "Loading current public details…" : summary.kind === "current" ? summary.state === "closed" ? "This intake is closed. Your saved reference is retained." : "Open details to check current conditions and the issuer’s application route." : summary.kind === "restricted" ? "This listing is unavailable or under review. No application action is offered here." : summary.kind === "missing" ? "No current public listing was found. Your saved reference is retained." : "Current details could not be loaded. Open the reference to try again."}</p>
+    {summary && "id" in summary && <SavedRevision item={item} id={summary.id} revision={summary.revision} busy={busy} change={change} alsoSaved={items.some(other => other.opportunityId === summary.id)} />}
+    <button type="button" className={`${button} mt-3`} onClick={() => setRefresh(value => value + 1)}>Check current public details</button>
     <PersonalProgress item={item} busy={busy} change={change} />
     <button type="button" className={`${button} mt-3`} aria-label={`Remove ${title}`} disabled={busy} onClick={remove}>Remove</button>
   </li>
@@ -101,7 +128,7 @@ export function SavedOpportunities() {
     <ProgressNotice progress={progress} />
     <button type="button" className={`${button} mt-4`} onClick={() => { void progress.reload() }} disabled={progress.busy}>Refresh saved list</button>
     {snapshot && (snapshot.items.length ? <>
-      <ul className="mt-6 space-y-4">{snapshot.items.slice(0, limit).map(item => <SavedItem key={item.opportunityId} item={item} busy={progress.busy} change={progress.change} remove={() => { void progress.change({ type: "remove", id: item.opportunityId }) }} />)}</ul>
+      <ul className="mt-6 space-y-4">{snapshot.items.slice(0, limit).map(item => <SavedItem key={item.opportunityId} item={item} items={snapshot.items} busy={progress.busy} change={progress.change} remove={() => { void progress.change({ type: "remove", id: item.opportunityId }) }} />)}</ul>
       {snapshot.items.length > limit && <button type="button" className={`${button} mt-4`} onClick={() => setLimit(value => value + 20)}>Show more saved opportunities</button>}
     </> : <p className="mt-6">No saved opportunities in this browser.</p>)}
     {canClear && !confirmClear && <button type="button" className={`${button} mt-6`} disabled={progress.busy} onClick={() => setConfirmClear(true)}>Clear saved progress</button>}
