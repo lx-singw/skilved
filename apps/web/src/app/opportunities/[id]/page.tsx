@@ -18,6 +18,12 @@ export default async function OpportunityPage({ params, searchParams }: { params
   const back = catalogueReturnHref((await searchParams)?.from, id)
   const result = await readOpportunity(id)
   if (!result) notFound()
+  if (result.kind === "unavailable") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
+    <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
+    <h1 className="mt-6 text-3xl font-semibold">We couldn’t load this opportunity</h1>
+    <p className="mt-4 text-muted-foreground">Its current details and application route could not be checked. This does not establish that the listing has closed or been removed.</p>
+    <a href={`/opportunities/${id}${back ? `?from=${encodeURIComponent(back.split("#")[0])}` : ""}`} className="mt-5 inline-block min-h-11 py-3 font-medium text-primary underline">Try loading these details again</a>
+  </main></>
   if (result.kind === "status") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
     <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
     <h1 className="mt-6 text-3xl font-semibold">{result.status.status === "under_review" ? "This opportunity needs a fresh check" : "This listing is no longer available"}</h1>

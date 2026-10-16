@@ -143,4 +143,11 @@ test("canonical detail renders original instructions before explanation and actu
   assert.match(held, /needs a fresh check/)
   assert.ok(held.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
   assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|About this opportunity|Experience and practical conditions|Pay and support|\/apply\?revision/)
+  result = { kind: "unavailable" }
+  const unavailable = renderToStaticMarkup(await page.default(context))
+  assert.match(unavailable, /We couldn’t load this opportunity/)
+  assert.match(unavailable, /does not establish that the listing has closed or been removed/)
+  assert.ok(unavailable.includes(`href="/opportunities/${o.id}?from=%2F%3Fprovince%3Dgauteng%26remote%3Dfalse%26limit%3D1"`))
+  assert.ok(unavailable.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
+  assert.doesNotMatch(unavailable, /Sources and checks|About this opportunity|\/apply\?revision|PRIVATE_/)
 })

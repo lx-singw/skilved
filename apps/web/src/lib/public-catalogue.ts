@@ -20,7 +20,10 @@ export async function readOpportunity(id: string) {
   if (process.env.SKILVED_CATALOGUE_READS !== "true" || !IdSchema.safeParse(id).success) return null
   try {
     const runtime = await getRuntime()
-    if (!runtime.config.reads) return null
+    if (!runtime.config.reads) return { kind: "unavailable" as const }
     return DetailResponseSchema.parse(await runtime.catalogue.detail(id))
-  } catch { return null }
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "NOT_FOUND") return null
+    return { kind: "unavailable" as const }
+  }
 }

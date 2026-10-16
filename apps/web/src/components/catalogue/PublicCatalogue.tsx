@@ -14,6 +14,15 @@ export function placeLabel(opportunity: PublicOpportunity) {
   return location.places.map(p => [p.city, p.province?.replaceAll("_", " "), p.country].filter(Boolean).join(", ")).join(" · ") || "Location not stated"
 }
 
+export function CatalogueLoading() {
+  return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-10 sm:pt-16">
+    <section role="status" aria-live="polite" aria-busy="true" aria-labelledby="catalogue-loading-heading" className="rounded-xl border border-border bg-card p-6">
+      <h1 id="catalogue-loading-heading" className="text-2xl font-semibold">Loading opportunities</h1>
+      <p className="mt-3 text-muted-foreground">We’re getting the current results. No listings are ready to show yet.</p>
+    </section>
+  </main></>
+}
+
 export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
   const result = await readCatalogue(query)
   const page = result.kind === "page" ? result.page : null
@@ -63,6 +72,7 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
         <button className="min-h-11 self-end rounded-md bg-primary px-5 py-2 font-medium text-primary-foreground">Search</button>
         <p className="text-sm leading-relaxed text-muted-foreground sm:col-span-2">A province search can also include national or remote opportunities. Check residence conditions in each notice.</p>
       </form>
+      {page && <p className="mt-5 text-sm leading-relaxed text-muted-foreground">These results cover published notices on Skilved, not every available opportunity. Check an issuer’s current announcement for its intake dates; an empty category does not tell you when a future intake opens.</p>}
       {!page ? <section className="mt-6 rounded-xl border border-border bg-card p-6" role="status">
         <h2 className="text-lg font-semibold">{reason === "stale_cursor" ? "The results have changed" : reason === "invalid_cursor" ? "This results link needs a fresh search" : reason === "invalid_query" ? "These filters could not be read" : "The catalogue is temporarily unavailable"}</h2>
         <p className="mt-2 text-muted-foreground">{reason === "stale_cursor" || reason === "invalid_cursor" ? "Restart from the first page with the same filters to see current opportunities." : reason === "invalid_query" ? "Choose valid filters and search again. Duplicate or unsupported filters cannot be used." : "We couldn’t load current opportunities. Please try again shortly."}</p>
@@ -70,7 +80,7 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
       </section> : <section className="mt-8" aria-label="Opportunity results">
         {page.items.length === 0 ? <div className="rounded-xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold">{filtered ? "No opportunities match these filters" : "No published opportunities yet"}</h2>
-          <p className="mt-2 text-muted-foreground">New listings will appear here after their source and application details pass our checks.</p>
+          <p className="mt-2 text-muted-foreground">{filtered ? "No published notices match this search. Try widening the filters above; notices with missing field or entry-stage details are included when those filters are cleared." : "There are no published notices to show in this catalogue right now. This does not mean there are no opportunities elsewhere."}</p>
           {filtered && <Link href="/" className="mt-4 inline-block text-primary underline">Clear filters</Link>}
         </div> : <ul className="space-y-4">{page.items.map(o => <li key={o.id} id={`opportunity-${o.id}`} className="scroll-mt-20">
           <article className="rounded-xl border border-border bg-card p-6">

@@ -226,3 +226,44 @@ test("stage selection retains field, pagination and detail-return/restart while 
   assert.match(html,/Choose all stages to include unknowns/);assert.match(html,/Entry level does not mean no experience required/);
   assert.match(html,/No opportunities match these filters/);
 });
+
+test("limited catalogue and empty search states never infer market absence or a future intake season", async () => {
+  const o = projectOpportunity(makeRecord()).opportunity
+  for (const items of [[], [o]]) {
+    const html = await catalogueView({ kind: "page", page: { items, nextCursor: null } }, new URLSearchParams())
+    assert.match(html, /published notices on Skilved, not every available opportunity/)
+    assert.match(html, /an empty category does not tell you when a future intake opens/)
+    if (!items.length) assert.match(html, /does not mean there are no opportunities elsewhere/)
+    assert.doesNotMatch(html, /closed for the season|next intake opens in|No opportunities exist/)
+  }
+  const filtered = await catalogueView({ kind: "page", page: { items: [], nextCursor: null } }, new URLSearchParams("category=internship&stage=student&field=engineering"))
+  assert.match(filtered, /Try widening the filters above/)
+  assert.match(filtered, /missing field or entry-stage details/)
+  assert.match(filtered, /href="\/"[^>]*>Clear filters/)
+  const outage = await catalogueView({ kind: "error", reason: "unavailable" }, new URLSearchParams())
+  assert.doesNotMatch(outage, /published notices on Skilved|No published opportunities yet/)
+})
+
+test("detail boundary keeps genuine missing records distinct from unavailable or invalid backend output", async () => {
+  const text = await readFile(new URL("../src/lib/public-catalogue.ts", import.meta.url), "utf8")
+  const output = ts.transpileModule(text, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } })
+  const o = projectOpportunity(makeRecord()).opportunity
+  let calls = 0, failure, reads = true, detail = { kind: "opportunity", opportunity: o }
+  const exports = {}
+  new Function("require", "exports", output.outputText)(id => id === "@/lib/catalogue-query" ? loaded.exports : id === "@skilved/catalogue/runtime" ? { getRuntime: async () => { calls++; if (failure) throw failure; return { config: { reads }, catalogue: { detail: async () => detail } } } } : require(id), exports)
+  const previous = process.env.SKILVED_CATALOGUE_READS
+  process.env.SKILVED_CATALOGUE_READS = "true"
+  try {
+    assert.equal(await exports.readOpportunity("../bad"), null); assert.equal(calls, 0)
+    assert.equal((await exports.readOpportunity(o.id)).kind, "opportunity")
+    failure = { code: "NOT_FOUND" }; assert.equal(await exports.readOpportunity(o.id), null)
+    for (const error of [new Error("PRIVATE_BACKEND_STACK"), { code: "PRIVATE_DATABASE_PATH" }]) {
+      failure = error; assert.deepEqual(await exports.readOpportunity(o.id), { kind: "unavailable" })
+    }
+    failure = null; reads = false; assert.deepEqual(await exports.readOpportunity(o.id), { kind: "unavailable" })
+    reads = true; detail = { kind: "opportunity", opportunity: { private: "PRIVATE_BAD_PROJECTION" } }
+    assert.deepEqual(await exports.readOpportunity(o.id), { kind: "unavailable" })
+    process.env.SKILVED_CATALOGUE_READS = "false"; const before = calls
+    assert.equal(await exports.readOpportunity(o.id), null); assert.equal(calls, before)
+  } finally { if (previous === undefined) delete process.env.SKILVED_CATALOGUE_READS; else process.env.SKILVED_CATALOGUE_READS = previous }
+})

@@ -91,6 +91,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Practical evidence binding, publisher preparation holds and standalone subject marks](80_PRACTICAL_EVIDENCE_AND_SUBJECT_THRESHOLDS_2026-10-15.md)
 
 - [Public report, operator correction and restored detail](80_PUBLIC_REPORT_TO_CORRECTED_DETAIL_2026-10-15.md)
+- [Catalogue loading, limited coverage and detail retry](81_CATALOGUE_LOADING_AND_RECOVERY_2026-10-16.md)
 
 ## Using this discipline
 

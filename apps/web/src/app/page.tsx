@@ -3,13 +3,21 @@ import { ArrowRight, Search } from "lucide-react"
 import { Header } from "@/components/layout/Header"
 import { PublicCatalogue } from "@/components/catalogue/PublicCatalogue"
 import { parseCataloguePageQuery } from "@/lib/catalogue-query"
+import { Suspense } from "react"
+import { CatalogueLoading } from "@/components/catalogue/PublicCatalogue"
 
 export const dynamic = "force-dynamic"
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+type HomeProps = { searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+async function CatalogueResults({ searchParams }: HomeProps) {
+  const result = parseCataloguePageQuery(await searchParams)
+  return <PublicCatalogue query={result.params} />
+}
+
+export default async function HomePage({ searchParams }: HomeProps) {
   if (process.env.SKILVED_CATALOGUE_READS === "true") {
-    const result = parseCataloguePageQuery(await searchParams)
-    return <PublicCatalogue query={result.params} />
+    return <Suspense fallback={<CatalogueLoading />}><CatalogueResults searchParams={searchParams} /></Suspense>
   }
   return (
     <>
