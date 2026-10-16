@@ -13,6 +13,7 @@ const KeyRing = z.object({ activeKeyId: KeyId,
   keys: z.array(z.object({ id: KeyId, secret: SuggestionSecretSchema }).strict()).min(1).max(4),
 }).strict().refine(v => new Set(v.keys.map(k => k.id)).size === v.keys.length &&
   v.keys.some(k => k.id === v.activeKeyId), 'Invalid key ring');
+export { KeyRing as ReceiptKeyRingSchema };
 
 export const ReceiptRecord = z.object({
   schemaVersion: z.literal(1), id: SuggestionReceiptIdSchema,

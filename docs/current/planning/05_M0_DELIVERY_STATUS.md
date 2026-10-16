@@ -4,6 +4,8 @@ Updated: 16 October 2026. This is the current implementation-status record for t
 
 ## 1. Current position
 
+16 October B06-4b1: pure trusted configuration and emulator-origin guards pass 21 focused config/transport/crypto/policy, 37 contract and 89 web tests with contract build; see [operations93](../operations/93_SUGGESTION_HTTP_TRANSPORT_CORE_2026-10-16.md). No environment, runtime, route or intake is activated. B06-4b2 runtime/routes/actual emulator HTTP integration remains next; lifecycle and formal gates stay open.
+
 16 October B06-4a: [bounded HTTP transport core](../operations/93_SUGGESTION_HTTP_TRANSPORT_CORE_2026-10-16.md) passes ten new native Request/ReadableStream tests, seven crypto/policy, 37 contract and 89 web tests with contract build. Disabled-before-provider, header-only access, transport limits/deadlines and private/redacted outputs are locally evidenced. No runtime or route is wired; B06-4b integration remains next. DELETE is unavailable pending B06-5 lifecycle. Public intake, deployment and release stay disabled.
 
 16 October B06-3b: [current approved-result lookup and safe initialization](../operations/92_APPROVED_SUGGESTION_RESULTS_AND_SAFE_INITIALIZATION_2026-10-16.md) pass all 35 combined suggestion emulator, 37 contract, seven crypto/policy and 89 web tests, plus contract build/web typecheck. Current approval/provenance/category scope, canonical aliases, all applicable intakes, distinct retry outcomes, bounded approved-decision bindings and audited source-role empty initialization are locally evidenced. B06-3a/3b engineering is complete; B06-4 disabled HTTP is next. No public intake, provider/source work, deployment or release is activated; later B06 and external gates remain open.

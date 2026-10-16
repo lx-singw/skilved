@@ -1,11 +1,16 @@
 import { z } from 'zod';
 import { SuggestionRequestSchema, SuggestionCreateResponseSchema, SuggestionStatusResponseSchema } from '@skilved/types/opportunities/suggestions';
 
-const Config = z.object({ enabled: z.boolean(), intakeEnabled: z.boolean(), origin: z.string().max(200).refine(value => {
-  try { const url = new URL(value); return url.protocol === 'https:' && url.origin === value && !url.username && !url.password; } catch { return false; }
-}), readDeadlineMs: z.number().int().min(1).max(5000).default(5000),
+export const SuggestionHttpConfig = z.object({ enabled: z.boolean(), intakeEnabled: z.boolean(), origin: z.string().max(200),
+  emulator: z.boolean().default(false), readDeadlineMs: z.number().int().min(1).max(5000).default(5000),
   serviceDeadlineMs: z.number().int().min(1).max(10000).default(10000),
-}).strict();
+}).strict().refine(config => {
+  try {
+    const url = new URL(config.origin);
+    return url.origin === config.origin && !url.username && !url.password && (url.protocol === 'https:' ||
+      (config.emulator && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)));
+  } catch { return false; }
+});
 const responseHeaders = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store',
   Pragma: 'no-cache', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex, nofollow' };
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: responseHeaders });
@@ -55,7 +60,7 @@ async function body(request, ms) {
 /** Pure transport adapter. No default provider, SDK import, runtime flag or app route. */
 export async function handleSuggestion(request, { config, provider } = {}) {
   try {
-    const parsed = Config.safeParse(config);
+    const parsed = SuggestionHttpConfig.safeParse(config);
     if (!parsed.success || !parsed.data.enabled) return errorReply('SERVICE_UNAVAILABLE', 503);
     const settings = parsed.data, url = new URL(request.url), path = url.pathname;
     const create = request.method === 'POST' && path === '/api/v1/opportunity-suggestions';
