@@ -4,6 +4,17 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { SuggestionRequestSchema, SuggestionUrlSchema } = require('../dist/opportunities/suggestions.js');
 const { SuggestionAccessSchema, SuggestionStatusResponseSchema } = require('../dist/opportunities/suggestions.js');
+const { SuggestionCreateResponseSchema } = require('../dist/opportunities/suggestions.js');
+
+test('create outcomes keep public results separate from private access and reject stale result payloads', () => {
+  for (const response of [{ kind: 'approved', publicResultIds: ['a','b'] }, { kind: 'previous_result_unavailable' },
+    { kind: 'received', access: { receiptId: 'a'.repeat(64), capability: 'b'.repeat(64), expiresAt: '2026-10-17T10:00:00.000Z' } }])
+    assert.equal(SuggestionCreateResponseSchema.safeParse(response).success, true);
+  for (const response of [{ kind: 'approved', publicResultIds: [] }, { kind: 'approved', publicResultIds: ['a','a'] },
+    { kind: 'approved', publicResultIds: ['a'], capability: 'PRIVATE' }, { kind: 'previous_result_unavailable', publicResultIds: ['old'] },
+    { kind: 'received', url: 'https://source.example/private' }, { kind: 'approved', publicResultIds: Array.from({ length: 21 }, (_, i) => 'a'+i) }])
+    assert.equal(SuggestionCreateResponseSchema.safeParse(response).success, false);
+});
 
 test('suggestions accept only a bounded URL field and normalize scheme/host without rewriting the path', () => {
   assert.deepEqual(SuggestionRequestSchema.parse({ url: 'HTTPS://SOURCE.EXAMPLE/Notice-A/' }), { url: 'https://source.example/Notice-A/' });
