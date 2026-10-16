@@ -24,10 +24,15 @@ export function createProgressSession(store = createLocalProgressStore(), notify
       const token = "snapshot" in result ? result.snapshot.token : null
       update({ view: result, busy: false, message: oldToken !== token ? "" : state.message })
     },
-    change: async (command: LocalProgressCommand | "clear"): Promise<void> => {
+    change: async (command: LocalProgressCommand | "clear", observedToken?: string | null): Promise<void> => {
       if (state.busy) return
       const view = state.view
       if (!view || (command !== "clear" && !("snapshot" in view))) return
+      if (observedToken !== undefined && (!("snapshot" in view) || view.snapshot.token !== observedToken)) {
+        ++sequence // Reads started before this conflict cannot erase its reload requirement.
+        update({ view: { status: "conflict" }, busy: false, message: "Saved progress changed while you were reviewing it. Reload and review both references before trying again." })
+        return
+      }
       ++sequence // A read started before this action cannot replace its result.
       update({ ...state, busy: true, message: "" })
       let result: LocalProgressResult
@@ -36,10 +41,11 @@ export function createProgressSession(store = createLocalProgressStore(), notify
       const success = result.status === "saved" || result.status === "ready"
       const message = result.status === "saved" ? command === "clear" ? "Saved progress cleared from this browser." : command.type === "remove" ? "Removed from this browser."
         : command.type === "stage" ? "Personal stage updated in this browser."
+        : command.type === "match_stage" ? "The current listing’s personal stage now matches the original. Both saved references and their separate histories were retained. This does not confirm submission."
         : command.type === "acknowledge_revision" ? "Your review of these details was recorded in this browser. Personal progress was retained."
         : command.type === "route_opened" ? "Route-opening action recorded in this browser. This does not confirm that the issuer’s page loaded or that you submitted an application."
         : "Saved in this browser."
-        : result.status === "ready" ? "Already saved in this browser."
+        : result.status === "ready" ? command !== "clear" && command.type === "match_stage" ? "Both personal stages already match. No history was changed." : "Already saved in this browser."
         : result.status === "not_saved" ? "This opportunity is not saved; no local progress or route action was recorded."
         : result.status === "conflict" ? "Saved progress changed in another tab. Reload it before trying again."
         : result.status === "full" ? "This browser’s saved list is full. Reload it and remove an item before saving another."

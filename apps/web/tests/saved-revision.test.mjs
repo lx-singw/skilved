@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url), ts = require("typescript"), Reac
 const { IDBFactory } = require("fake-indexeddb"), { renderToStaticMarkup } = require("react-dom/server")
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
 async function load(path, overrides = {}) {
+  overrides = { "@/lib/saved-identity": { checkSavedIdentity: async () => false }, ...overrides }
   const source = await readFile(new URL(`../src/${path}`, import.meta.url), "utf8")
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
   const exports = {}; new Function("require", "exports", compiled.outputText)(id => overrides[id] ?? require(id), exports); return exports

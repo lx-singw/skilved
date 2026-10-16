@@ -21,9 +21,10 @@ export const LocalProgressCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('save'), id: IdSchema, revision: RevisionSchema }).strict(),
   z.object({ type: z.literal('remove'), id: IdSchema }).strict(),
   z.object({ type: z.literal('stage'), id: IdSchema, stage: LocalProgressStageSchema }).strict(),
+  z.object({ type: z.literal('match_stage'), id: IdSchema, fromId: IdSchema }).strict(),
   z.object({ type: z.literal('route_opened'), id: IdSchema }).strict(),
   z.object({ type: z.literal('acknowledge_revision'), id: IdSchema, revision: RevisionSchema }).strict(),
-]);
+]).refine(command => command.type !== 'match_stage' || command.id !== command.fromId, 'Distinct saved references required');
 export type LocalProgressItem = z.infer<typeof LocalProgressItemSchema>;
 export type LocalProgressDocument = z.infer<typeof LocalProgressDocumentSchema>;
 export type LocalProgressCommand = z.infer<typeof LocalProgressCommandSchema>;

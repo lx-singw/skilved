@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useLocalProgress } from "@/lib/use-local-progress"
 import { readSavedSummary, type SavedSummary } from "@/lib/saved-summary"
+import { checkSavedIdentity } from "@/lib/saved-identity"
 import { LocalProgressStageSchema, type LocalProgressItem } from "@skilved/types/opportunities"
 
 const button = "min-h-11 rounded-md border border-border px-4 py-2 text-sm font-medium disabled:opacity-50"
@@ -41,6 +42,37 @@ export function SavedRevision({ item, id, revision, busy, change, canAcknowledge
     {canAcknowledge ? <button type="button" className={button} disabled={busy} onClick={() => { void change({ type: "acknowledge_revision", id, revision }) }}>Mark these details as reviewed</button>
       : <Link href={`/opportunities/${id}`} className="text-primary underline">Review changed details</Link>}
   </div>
+}
+
+export function SavedIdentityReview({ item, target, revision, token, busy, change }: { item: LocalProgressItem; target: LocalProgressItem; revision: number; token: string | null; busy: boolean; change: Progress["change"] }) {
+  const [open, setOpen] = useState(false), [confirm, setConfirm] = useState(false), [checking, setChecking] = useState(false), [message, setMessage] = useState("")
+  async function match() {
+    if (checking || busy) return
+    setChecking(true); setMessage("")
+    const valid = await checkSavedIdentity(item.opportunityId, target.opportunityId, revision)
+    setChecking(false); setConfirm(false)
+    if (!valid) { setMessage("The current relationship or details could not be confirmed. Check current public details and review both references again. No stage change was requested."); return }
+    await change({ type: "match_stage", id: target.opportunityId, fromId: item.opportunityId }, token)
+  }
+  return <section className="mt-4 rounded-lg border border-border p-4" aria-label="Compare saved progress">
+    <button type="button" className={button} disabled={busy || checking} onClick={() => { setOpen(value => !value); setConfirm(false); setMessage("") }}>Compare these saved references</button>
+    {open && <div className="mt-3 space-y-3 text-sm">
+      <p>These references currently lead to the same public listing. Their personal progress can remain separate. Matching a stage does not combine saved dates or route history.</p>
+      <dl className="space-y-2">
+        <dt className="font-medium">Original reference</dt><dd>{stages[item.userStage]} · Saved <LocalTime value={item.savedAt} />{item.reportedAppliedAt && <> · Personal Applied report <LocalTime value={item.reportedAppliedAt} /></>}{item.lastRouteOpenedAt && <> · Route action <LocalTime value={item.lastRouteOpenedAt} /></>}</dd>
+        <dt className="font-medium">Current listing reference</dt><dd>{stages[target.userStage]} · Saved <LocalTime value={target.savedAt} />{target.reportedAppliedAt && <> · Personal Applied report <LocalTime value={target.reportedAppliedAt} /></>}{target.lastRouteOpenedAt && <> · Route action <LocalTime value={target.lastRouteOpenedAt} /></>}</dd>
+      </dl>
+      <p>Applied is a personal report, not confirmed submission. Earlier report times may remain in each reference’s history after changing stage.</p>
+      <button type="button" className={button} disabled={busy || checking} onClick={() => { setOpen(false); setConfirm(false); setMessage("Keep editing each reference separately. No changes were requested.") }}>Keep progress separate</button>
+      {item.userStage === target.userStage ? <p>Both personal stages already match. Their separate histories are retained.</p> : <button type="button" className={button} disabled={busy || checking} onClick={() => setConfirm(true)}>Use original stage for current listing</button>}
+      {confirm && <div className="space-y-3 rounded-md border border-border p-3">
+        <p>Change only the current listing’s stage from {stages[target.userStage]} to {stages[item.userStage]}? Both references, saved dates and route history stay separate. The original is unchanged.{item.userStage === "applied_reported" && " This records a new personal Applied report now for the current listing; it does not copy the original report time or confirm submission."}</p>
+        <button type="button" className={button} disabled={busy || checking} onClick={() => { void match() }}>Confirm stage match</button>
+        <button type="button" className={button} disabled={busy || checking} onClick={() => setConfirm(false)}>Cancel stage match</button>
+      </div>}
+    </div>}
+    {(checking || message) && <p role="status" className="mt-3 text-sm">{checking ? "Checking the current public relationship…" : message}</p>}
+  </section>
 }
 
 export function ApplicationRouteLink({ id, revision, email = false }: { id: string; revision: number; email?: boolean }) {
@@ -92,7 +124,7 @@ export function SaveOpportunity({ id, revision }: { id: string; revision: number
   </section>
 }
 
-function SavedItem({ item, items, busy, change, remove }: { item: LocalProgressItem; items: LocalProgressItem[]; busy: boolean; change: Progress["change"]; remove: () => void }) {
+function SavedItem({ item, items, token, busy, change, remove }: { item: LocalProgressItem; items: LocalProgressItem[]; token: string | null; busy: boolean; change: Progress["change"]; remove: () => void }) {
   const { opportunityId: id, savedAt } = item
   const [summary, setSummary] = useState<SavedSummary | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -109,11 +141,13 @@ function SavedItem({ item, items, busy, change, remove }: { item: LocalProgressI
     return () => { controller.abort(); window.removeEventListener("focus", read); window.removeEventListener("pageshow", read); document.removeEventListener("visibilitychange", visible) }
   }, [id, refresh])
   const title = summary?.kind === "current" ? summary.title : "Saved opportunity"
+  const other = summary && "id" in summary && summary.id !== id ? items.find(entry => entry.opportunityId === summary.id) : undefined
   return <li className="rounded-xl border border-border p-5">
     <h2 className="break-words text-lg font-semibold"><Link href={`/opportunities/${id}`} className="text-primary underline">{title}</Link></h2>
     <p className="mt-2 text-xs text-muted-foreground">Saved in this browser <LocalTime value={savedAt} /></p>
     <p className="mt-2 text-sm text-muted-foreground">{!summary ? "Loading current public details…" : summary.kind === "current" ? summary.state === "closed" ? "This intake is closed. Your saved reference is retained." : "Open details to check current conditions and the issuer’s application route." : summary.kind === "restricted" ? "This listing is unavailable or under review. No application action is offered here." : summary.kind === "missing" ? "No current public listing was found. Your saved reference is retained." : "Current details could not be loaded. Open the reference to try again."}</p>
     {summary && "id" in summary && <SavedRevision item={item} id={summary.id} revision={summary.revision} busy={busy} change={change} alsoSaved={items.some(other => other.opportunityId === summary.id)} />}
+    {other && summary && "revision" in summary && <SavedIdentityReview key={`${id}:${other.opportunityId}:${summary.revision}:${token}`} item={item} target={other} revision={summary.revision} token={token} busy={busy} change={change} />}
     <button type="button" className={`${button} mt-3`} onClick={() => setRefresh(value => value + 1)}>Check current public details</button>
     <PersonalProgress item={item} busy={busy} change={change} />
     <button type="button" className={`${button} mt-3`} aria-label={`Remove ${title}`} disabled={busy} onClick={remove}>Remove</button>
@@ -128,7 +162,7 @@ export function SavedOpportunities() {
     <ProgressNotice progress={progress} />
     <button type="button" className={`${button} mt-4`} onClick={() => { void progress.reload() }} disabled={progress.busy}>Refresh saved list</button>
     {snapshot && (snapshot.items.length ? <>
-      <ul className="mt-6 space-y-4">{snapshot.items.slice(0, limit).map(item => <SavedItem key={item.opportunityId} item={item} items={snapshot.items} busy={progress.busy} change={progress.change} remove={() => { void progress.change({ type: "remove", id: item.opportunityId }) }} />)}</ul>
+      <ul className="mt-6 space-y-4">{snapshot.items.slice(0, limit).map(item => <SavedItem key={item.opportunityId} item={item} items={snapshot.items} token={snapshot.token} busy={progress.busy} change={progress.change} remove={() => { void progress.change({ type: "remove", id: item.opportunityId }) }} />)}</ul>
       {snapshot.items.length > limit && <button type="button" className={`${button} mt-4`} onClick={() => setLimit(value => value + 20)}>Show more saved opportunities</button>}
     </> : <p className="mt-6">No saved opportunities in this browser.</p>)}
     {canClear && !confirmClear && <button type="button" className={`${button} mt-6`} disabled={progress.busy} onClick={() => setConfirmClear(true)}>Clear saved progress</button>}

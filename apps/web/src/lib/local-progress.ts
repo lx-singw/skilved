@@ -103,6 +103,12 @@ export function createLocalProgressStore(options: { indexedDB?: IDBFactory; now?
         const existing = items[index]
         if (command.type === "save" && existing) return { result: current }
         if (command.type !== "save" && !existing) return { result: { status: "not_saved" } }
+        const original = command.type === "match_stage" ? items.find(item => item.opportunityId === command.fromId) : null
+        if (command.type === "match_stage") {
+          if (command.id === command.fromId) return { result: { status: "invalid" } }
+          if (!original) return { result: { status: "not_saved" } }
+          if (original.userStage === existing.userStage) return { result: current }
+        }
         if (command.type === "remove") return persist(items.filter(item => item.opportunityId !== command.id), expectedToken)
         const time = now()
         if (!InstantSchema.safeParse(time).success || (existing && time < existing.updatedAt)) return { result: { status: "invalid" } }
@@ -112,9 +118,10 @@ export function createLocalProgressStore(options: { indexedDB?: IDBFactory; now?
             userStage: "interested", lastRouteOpenedAt: null, reportedAppliedAt: null }], expectedToken)
         }
         const updated = { ...existing, updatedAt: time }
-        if (command.type === "stage") {
-          updated.userStage = command.stage
-          if (command.stage === "applied_reported" && existing.userStage !== "applied_reported") updated.reportedAppliedAt = time
+        if (command.type === "stage" || command.type === "match_stage") {
+          const stage = command.type === "stage" ? command.stage : original!.userStage
+          updated.userStage = stage
+          if (stage === "applied_reported" && existing.userStage !== "applied_reported") updated.reportedAppliedAt = time
         } else if (command.type === "route_opened") updated.lastRouteOpenedAt = time
         else if (command.type === "acknowledge_revision") updated.lastViewedRevision = command.revision
         items[index] = updated

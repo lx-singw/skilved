@@ -96,6 +96,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Explicit local save/resume UI and cross-tab clear recovery](83_LOCAL_SAVE_AND_RESUME_UI_2026-10-16.md)
 - [Reversible personal stages and separate route-action history](84_PERSONAL_STAGES_AND_ROUTE_ACTIONS_2026-10-16.md)
 - [Saved current facts, revision review and alias preservation](85_SAVED_CURRENT_FACTS_AND_REVIEW_2026-10-16.md)
+- [Explicit saved-stage comparison and reconciliation](86_EXPLICIT_SAVED_STAGE_RECONCILIATION_2026-10-16.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
