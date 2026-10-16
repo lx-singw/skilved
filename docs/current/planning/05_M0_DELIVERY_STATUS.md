@@ -4,6 +4,8 @@ Updated: 16 October 2026. This is the current implementation-status record for t
 
 ## 1. Current position
 
+16 October B05-5a: [bounded public reads and delayed-response recovery](../operations/87_BOUNDED_PUBLIC_SUMMARY_RECOVERY_2026-10-16.md) now prevent indefinite summary waits and obsolete updates. All 89 web tests and lint/typecheck/build pass; ten actual synthetic browser checkpoints verify cancellation, timeout/retry and unchanged personal history. Native database-loss/corrupt/future-document browser qualification remains B05-5b, alongside separate restart/device/user and formal acceptance gates.
+
 16 October B05-4b: [explicit stage reconciliation](../operations/86_EXPLICIT_SAVED_STAGE_RECONCILIATION_2026-10-16.md) adds comparison and confirmed stage matching with mapping/token guards, keeping both references and histories. Final 32 contract/85 web tests, lint/typecheck/build and 13 actual synthetic browser checkpoints pass. B05-5 failure/loss/concurrency and separate user/device acceptance remain next; full B05/G2/source/release gates stay open.
 
 16 October B05-4a: [saved current facts and explicit review](../operations/85_SAVED_CURRENT_FACTS_AND_REVIEW_2026-10-16.md) now show revision changes before acknowledgement and preserve progress across current/closed/restricted/missing/unavailable reads. All 80 web tests and lint/typecheck/build pass; 22 actual synthetic browser checkpoints cover review, retry, confirmed alias/reversal, separate annotations and narrow/wide layouts. Explicit annotation reconciliation remains B05-4b, followed by B05-5 failure/loss/device/user qualification. Full B05/G2/source/release acceptance stays open.

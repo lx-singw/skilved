@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useLocalProgress } from "@/lib/use-local-progress"
-import { readSavedSummary, type SavedSummary } from "@/lib/saved-summary"
+import { createSavedSummaryReader, type SavedSummary } from "@/lib/saved-summary"
 import { checkSavedIdentity } from "@/lib/saved-identity"
 import { LocalProgressStageSchema, type LocalProgressItem } from "@skilved/types/opportunities"
 
@@ -129,16 +129,11 @@ function SavedItem({ item, items, token, busy, change, remove }: { item: LocalPr
   const [summary, setSummary] = useState<SavedSummary | null>(null)
   const [refresh, setRefresh] = useState(0)
   useEffect(() => {
-    let controller: AbortController
-    const read = () => {
-      controller?.abort(); controller = new AbortController()
-      const request = controller
-      setSummary(null)
-      void readSavedSummary(id, request.signal).then(result => { if (!request.signal.aborted) setSummary(result) })
-    }
+    const reader = createSavedSummaryReader(setSummary)
+    const read = () => { void reader.refresh(id) }
     const visible = () => { if (document.visibilityState === "visible") read() }
     read(); window.addEventListener("focus", read); window.addEventListener("pageshow", read); document.addEventListener("visibilitychange", visible)
-    return () => { controller.abort(); window.removeEventListener("focus", read); window.removeEventListener("pageshow", read); document.removeEventListener("visibilitychange", visible) }
+    return () => { reader.dispose(); window.removeEventListener("focus", read); window.removeEventListener("pageshow", read); document.removeEventListener("visibilitychange", visible) }
   }, [id, refresh])
   const title = summary?.kind === "current" ? summary.title : "Saved opportunity"
   const other = summary && "id" in summary && summary.id !== id ? items.find(entry => entry.opportunityId === summary.id) : undefined
