@@ -40,7 +40,7 @@ before(async () => {
   base = `http://127.0.0.1:${port}`
   child = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     cwd: root,
-    env: { ...process.env, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1" },
+    env: { ...process.env, NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1", SKILVED_SUGGESTIONS_ENABLED: "false" },
     stdio: ["ignore", "pipe", "pipe"],
   })
   child.stdout.on("data", (chunk) => { logs = (logs + chunk).slice(-12000) })
@@ -86,7 +86,8 @@ test("every routed entry is included in the reviewed public boundary", async () 
   assert.deepEqual(files.filter((file) => file.endsWith("/page.tsx") || file === "page.tsx").sort(),
     ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx", "saved/page.tsx"])
   assert.deepEqual(files.filter((file) => file.endsWith("/route.ts")).sort(),
-    [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports", "/opportunities/[id]/apply"].map((path) => `${path.slice(1)}/route.ts`).sort())
+    [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports", "/opportunities/[id]/apply",
+      "/api/v1/opportunity-suggestions", "/api/v1/opportunity-suggestions/[id]", "/api/v1/opportunity-suggestions/[id]/status"].map((path) => `${path.slice(1)}/route.ts`).sort())
   assert.deepEqual(files.filter((file) => /(^|\/)(opengraph-image|twitter-image|sitemap|robots|icon|apple-icon|favicon)(\.|\/)/.test(file)), [])
 })
 
@@ -160,7 +161,7 @@ test("CT-19: canonical catalogue seam excludes private contracts and fixtures", 
   for (const file of await filesUnder(join(root, ".next/static"))) {
     if (!file.endsWith(".js")) continue
     const body = await readFile(file, "utf8")
-    assert.doesNotMatch(body, /Fictional Learning Workshop|PRIVATE_REVIEW_SENTINEL|PRIVATE_QUEUE_SENTINEL|fixture_explanation|SKILVED_OPERATOR_TOKEN_FILE|m0_operators|PRIVATE_REPORT_SENTINEL/)
+    assert.doesNotMatch(body, /Fictional Learning Workshop|PRIVATE_REVIEW_SENTINEL|PRIVATE_QUEUE_SENTINEL|fixture_explanation|SKILVED_OPERATOR_TOKEN_FILE|m0_operators|PRIVATE_REPORT_SENTINEL|SKILVED_SUGGESTIONS_CONFIG|m0_suggestion_receipts|skilved\.suggestion\.receipt\.status-withdraw/)
   }
 })
 
@@ -184,5 +185,18 @@ test("unconfigured catalogue detail and application handoff never expose a desti
     assert.equal(response.headers.get("location"), null)
     assert.equal(response.headers.get("cache-control"), "no-store")
     assert.doesNotMatch(await response.text(), /evil\.example|m0_|stack|secret/i)
+  }
+})
+
+test("suggestion routes default unavailable with private headers and no withdrawal acknowledgement", async () => {
+  const id = "a".repeat(64), root = "/api/v1/opportunity-suggestions"
+  for (const [path, method] of [[root, "POST"], [`${root}/${id}/status`, "GET"], [`${root}/${id}`, "DELETE"], [root, "OPTIONS"], [root, "PUT"], [`${root}/${id}/status`, "HEAD"]]) {
+    const response = await fetch(base + path, { method, headers: { "Content-Type": "application/json", "Authorization": `Bearer ${"b".repeat(64)}` }, ...(method === "POST" ? { body: "{PRIVATE_INVALID" } : {}) })
+    assert.equal(response.status, 503)
+    assert.equal(response.headers.get("cache-control"), "private, no-store")
+    assert.equal(response.headers.get("referrer-policy"), "no-referrer")
+    assert.equal(response.headers.has("access-control-allow-origin"), false)
+    assert.equal(response.headers.has("set-cookie"), false)
+    if (method !== "HEAD") assert.deepEqual(await response.json(), { error: { code: "SERVICE_UNAVAILABLE" } })
   }
 })

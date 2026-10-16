@@ -75,3 +75,7 @@ The original all-workspace commands remain separate. Agent package wiring, admin
 | Remaining M0 | Useful representative catalogue; local continuity and loss notices; public checklist export/share; reviewed link intake; issuer/shelf experiences; operations, accessibility and release evidence |
 
 The empty catalogue is an honest interim state, not a scope reduction or launch substitute. Restoring prototype data to make the site appear populated would invalidate this boundary. The [delivery plan](../planning/03_M0_COMPANION_DELIVERY_PLAN.md) and [M0 acceptance cases](../quality/02_DISCOVERY_COMPANION_ACCEPTANCE.md) still govern completion. No measured labour total or new launch date follows from these checks.
+
+## Route inventory addendum — 16 October 2026
+
+The B06 suggestion routes are now deliberately registered and covered by the production boundary inventory. POST /api/v1/opportunity-suggestions and GET /api/v1/opportunity-suggestions/{id}/status default to private/no-store/no-referrer 503 before SDK initialization. DELETE /api/v1/opportunity-suggestions/{id} remains unavailable pending lifecycle work. Explicit method wrappers preserve disabled responses and deny unsupported methods without CORS grants. No operator/worker route or UI is added. Actual synthetic emulator HTTP/create/status/retry/restart evidence and the full remaining gates are recorded in [operations94](../operations/94_SUGGESTION_RUNTIME_ROUTES_AND_EMULATOR_HTTP_2026-10-16.md); no public intake or deployment is activated.

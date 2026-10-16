@@ -115,3 +115,14 @@ test('known service failures map to stable codes and arbitrary errors/invalid pr
   for (const result of [{ ...state, receiptId:'d'.repeat(64) },{ ...state, capability }])
     assert.equal((await fixture({ status:async () => result }).run(request('GET',`${base}/${id}/status`))).status,503);
 });
+
+test('Next-normalized loopback URLs require explicit emulator mode, same port and exact browser Origin', async () => {
+  const settings = { ...config, emulator: true, origin: 'http://127.0.0.1:3010' };
+  const make = (url = 'http://localhost:3010', browserOrigin = settings.origin) => new Request(url + base,{method:'POST',
+    headers:{'Content-Type':'application/json','Idempotency-Key':key,Origin:browserOrigin},body:JSON.stringify({url:'https://source.example/notice'})});
+  const provider = async () => ({create:async () => received});
+  assert.equal((await handleSuggestion(make(),{config:settings,provider})).status,202);
+  assert.equal((await handleSuggestion(make(undefined,'http://localhost:3010'),{config:settings,provider})).status,403);
+  assert.equal((await handleSuggestion(make('http://localhost:3011'),{config:settings,provider})).status,403);
+  assert.equal((await handleSuggestion(make(),{config:{...settings,emulator:false},provider})).status,503);
+});

@@ -69,7 +69,11 @@ export async function handleSuggestion(request, { config, provider } = {}) {
     if (!create && !status && !withdraw) return errorReply('NOT_FOUND', 404);
     // Withdrawal has no lifecycle implementation yet; never return a false acknowledgement.
     if (withdraw || (create && !settings.intakeEnabled)) return errorReply('SERVICE_UNAVAILABLE', 503);
-    if (url.origin !== settings.origin || (request.headers.has('origin') && request.headers.get('origin') !== settings.origin) ||
+    const configured = new URL(settings.origin);
+    // Next normalizes 127.0.0.1 request URLs to localhost. Preserve exact browser Origin checks.
+    const normalizedLoopback = settings.emulator && url.protocol === 'http:' && configured.protocol === 'http:' &&
+      url.port === configured.port && ['localhost', '127.0.0.1'].includes(url.hostname) && ['localhost', '127.0.0.1'].includes(configured.hostname);
+    if ((!normalizedLoopback && url.origin !== settings.origin) || (request.headers.has('origin') && request.headers.get('origin') !== settings.origin) ||
         (request.headers.has('sec-fetch-site') && !['same-origin', 'none'].includes(request.headers.get('sec-fetch-site')))) reject('FORBIDDEN_ORIGIN', 403);
     if (request.url.includes('?') || request.url.includes('#') || url.username || url.password || request.headers.has('cookie') || request.headers.has('content-encoding')) reject();
     let headerBytes = 0, count = 0;
