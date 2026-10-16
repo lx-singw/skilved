@@ -103,6 +103,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Private suggestion receipts, capability scope and response-loss replay](90_PRIVATE_SUGGESTION_RECEIPTS_AND_REPLAY_2026-10-16.md)
 - [Suggestion review admission, shared work and bounded rates/capacity](91_SUGGESTION_REVIEW_ADMISSION_AND_LIMITS_2026-10-16.md)
 - [Approved suggestion results, retry outcomes and safe queue initialization](92_APPROVED_SUGGESTION_RESULTS_AND_SAFE_INITIALIZATION_2026-10-16.md)
+- [Disabled-before-runtime and bounded suggestion HTTP transport core](93_SUGGESTION_HTTP_TRANSPORT_CORE_2026-10-16.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
