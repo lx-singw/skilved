@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { SuggestionRequestSchema, SuggestionUrlSchema } = require('../dist/opportunities/suggestions.js');
+const { SuggestionAccessSchema, SuggestionStatusResponseSchema } = require('../dist/opportunities/suggestions.js');
 
 test('suggestions accept only a bounded URL field and normalize scheme/host without rewriting the path', () => {
   assert.deepEqual(SuggestionRequestSchema.parse({ url: 'HTTPS://SOURCE.EXAMPLE/Notice-A/' }), { url: 'https://source.example/Notice-A/' });
@@ -11,6 +12,24 @@ test('suggestions accept only a bounded URL field and normalize scheme/host with
     assert.equal(SuggestionRequestSchema.safeParse({ url: 'https://source.example/notice', [field]: 'PRIVATE_SENTINEL' }).success, false, field);
   for (const value of [null, [], 'https://source.example', {}, { url: 12 }, { url: 'https://source.example/' + 'a'.repeat(2048) }])
     assert.equal(SuggestionRequestSchema.safeParse(value).success, false);
+});
+
+test('private access and status contracts are strict, bounded and contain no URL or notes', () => {
+  const receiptId = 'a'.repeat(64), capability = 'b'.repeat(64);
+  const createdAt = '2026-10-16T10:00:00.000Z', expiresAt = '2026-10-17T10:00:00.000Z';
+  assert.deepEqual(SuggestionAccessSchema.parse({ receiptId, capability, expiresAt }), { receiptId, capability, expiresAt });
+  const status = { schemaVersion: 1, receiptId, status: 'received', revision: 1,
+    createdAt, updatedAt: createdAt, expiresAt, publicResultIds: [] };
+  assert.deepEqual(SuggestionStatusResponseSchema.parse(status), status);
+  for (const field of ['url', 'capability', 'nonce', 'keyId', 'workId', 'notes', 'email'])
+    assert.equal(SuggestionStatusResponseSchema.safeParse({ ...status, [field]: 'PRIVATE' }).success, false);
+  for (const extra of [{ publicResultIds: ['draft'] }, { revision: 0 }, { updatedAt: expiresAt },
+    { createdAt: expiresAt }, { status: 'published' }, { status: 'resolved_to_listing' }])
+    assert.equal(SuggestionStatusResponseSchema.safeParse({ ...status, ...extra }).success, false);
+  assert.equal(SuggestionStatusResponseSchema.safeParse({ ...status, status: 'resolved_to_listing', publicResultIds: ['approved'] }).success, true);
+  assert.equal(SuggestionStatusResponseSchema.safeParse({ ...status, status: 'resolved_to_listing', publicResultIds: ['a', 'a'] }).success, false);
+  for (const invalid of ['b'.repeat(63), 'B'.repeat(64), 'b'.repeat(65), '../receipt', 'b'.repeat(64) + '\n'])
+    assert.equal(SuggestionAccessSchema.safeParse({ receiptId, capability: invalid, expiresAt }).success, false);
 });
 
 test('unsafe, session-bearing and parser-normalized URL forms are rejected rather than stripped', () => {
