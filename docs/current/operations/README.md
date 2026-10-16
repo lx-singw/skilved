@@ -105,6 +105,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Approved suggestion results, retry outcomes and safe queue initialization](92_APPROVED_SUGGESTION_RESULTS_AND_SAFE_INITIALIZATION_2026-10-16.md)
 - [Disabled-before-runtime and bounded suggestion HTTP transport core](93_SUGGESTION_HTTP_TRANSPORT_CORE_2026-10-16.md)
 - [Suggestion runtime, app routes and actual emulator HTTP integration](94_SUGGESTION_RUNTIME_ROUTES_AND_EMULATOR_HTTP_2026-10-16.md)
+- [Authenticated suggestion review and current approved receipt status](95_AUTHENTICATED_SUGGESTION_REVIEW_AND_CURRENT_STATUS_2026-10-16.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

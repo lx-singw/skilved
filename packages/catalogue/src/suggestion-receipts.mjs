@@ -4,6 +4,8 @@ import { IdSchema, InstantSchema } from '@skilved/types/opportunities';
 import { SuggestionAccessSchema, SuggestionReceiptIdSchema, SuggestionSecretSchema,
   SuggestionStatusResponseSchema, SuggestionStatusSchema, SuggestionUrlSchema } from '@skilved/types/opportunities/suggestions';
 import { DomainError } from './config.mjs';
+import { SuggestionWork, decodeSuggestion, suggestionHash, readSuggestionSource } from './suggestion-records.mjs';
+import { approvedSuggestionResults } from './suggestion-approved.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = (domain, value) => createHash('sha256').update(JSON.stringify([domain, value])).digest('hex');
@@ -34,6 +36,8 @@ export const ReceiptCreateCommand = z.object({ url: SuggestionUrlSchema,
   workId: SuggestionSecretSchema, idempotencyKey: SuggestionSecretSchema, expiresAt: InstantSchema,
 }).strict();
 const AccessCommand = z.object({ receiptId: SuggestionReceiptIdSchema, capability: SuggestionSecretSchema }).strict();
+const InitialState = z.object({ status: z.enum(['received', 'reviewing', 'unresolved', 'unsupported', 'paused']),
+  publicResultIds: z.array(IdSchema).max(0) }).strict();
 const payload = value => ({ json: JSON.stringify(value) });
 function stored(snapshot, schema) {
   if (!snapshot.exists) return null;
@@ -45,7 +49,7 @@ function stored(snapshot, schema) {
   } catch { return null; }
 }
 
-/** Backend-only primitives. No route, source access, queue admission or worker authority. */
+/** Backend-only receipt persistence/status. No transport, source fetching or worker authority. */
 export class SuggestionReceipts {
   #keys; #activeKeyId;
   constructor(db, { keyRing, maxTtlMs, now } = {}) {
@@ -99,9 +103,10 @@ export class SuggestionReceipts {
     return null;
   }
   /** Compose ONLY inside admitted intake after all admission reads; never a public create API. */
-  async createOrReplay(tx, input) {
+  async createOrReplay(tx, input, initial = { status: 'received', publicResultIds: [] }) {
     const parsed = ReceiptCreateCommand.safeParse(input);
-    if (!parsed.success) fail('INVALID_COMMAND');
+    const selected = InitialState.safeParse(initial);
+    if (!parsed.success || !selected.success) fail('INVALID_COMMAND');
     const command = parsed.data, replay = await this.readReplay(tx, command);
     if (replay) return replay;
     const now = this.instant(), mapRef = this.replayRef(command.idempotencyKey);
@@ -109,7 +114,7 @@ export class SuggestionReceipts {
     const ttl = Date.parse(command.expiresAt) - Date.parse(now);
     if (ttl <= 0 || ttl > this.maxTtlMs) fail('INVALID_COMMAND');
     const record = { schemaVersion: 1, id: randomBytes(32).toString('hex'), keyId: this.#activeKeyId,
-      nonce: randomBytes(32).toString('hex'), workId: command.workId, status: 'received', revision: 1,
+      nonce: randomBytes(32).toString('hex'), workId: command.workId, status: selected.data.status, revision: 1,
       createdAt: now, updatedAt: now, expiresAt: command.expiresAt, revokedAt: null, publicResultIds: [],
     };
     record.capabilityHash = hash('skilved.suggestion.capability.v1', this.derive(record));
@@ -125,11 +130,24 @@ export class SuggestionReceipts {
       const now = this.instant(), command = parsed.data;
       const record = stored(await tx.get(this.receiptRef(command.receiptId)), ReceiptRecord);
       if (!this.authorized(record, command.receiptId, command.capability, now)) fail('SUGGESTION_NOT_FOUND');
-      // Resolution requires the current-public-result guard in B06-5, never stored IDs alone.
-      if (record.status === 'resolved_to_listing') fail('SUGGESTION_UNAVAILABLE');
+      let status = record.status, publicResultIds = [];
+      if (status === 'resolved_to_listing') {
+        const work = decodeSuggestion(await tx.get(this.db.collection('m0_suggestion_work').doc(record.workId)), SuggestionWork);
+        if (work.id !== record.workId || work.id !== suggestionHash('skilved.suggestion.work.v1', work.url) ||
+            work.state !== 'resolved_to_listing' || work.updatedAt > now ||
+            record.publicResultIds.some(id => !work.publicResultIds.includes(id))) fail('SUGGESTION_UNAVAILABLE');
+        const { source, selected } = await readSuggestionSource(tx, this.db, work);
+        if (selected.kind === 'eligible' && selected.sourceId === work.sourceId && source.revision === work.sourceRevision &&
+            suggestionHash('skilved.suggestion.permission.v1', source.permission) === work.permissionHash) {
+          const approved = await approvedSuggestionResults(tx, this.db, work.url, source, now);
+          // Never substitute a new result that this receipt's reviewer did not select.
+          publicResultIds = record.publicResultIds.filter(id => approved.includes(id));
+        }
+        if (!publicResultIds.length) status = 'unresolved';
+      }
       return SuggestionStatusResponseSchema.parse({ schemaVersion: 1, receiptId: record.id,
-        status: record.status, revision: record.revision, createdAt: record.createdAt,
-        updatedAt: record.updatedAt, expiresAt: record.expiresAt, publicResultIds: [],
+        status, revision: record.revision, createdAt: record.createdAt,
+        updatedAt: record.updatedAt, expiresAt: record.expiresAt, publicResultIds,
       });
     });
   }

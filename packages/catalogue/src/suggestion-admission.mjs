@@ -1,47 +1,28 @@
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { IdSchema, InstantSchema } from '@skilved/types/opportunities';
-import { SuggestionRequestSchema, SuggestionSecretSchema, SuggestionUrlSchema, SuggestionCreateResponseSchema } from '@skilved/types/opportunities/suggestions';
+import { InstantSchema } from '@skilved/types/opportunities';
+import { SuggestionRequestSchema, SuggestionSecretSchema, SuggestionCreateResponseSchema } from '@skilved/types/opportunities/suggestions';
 import { classifySuggestion } from './suggestion-policy.mjs';
 import { Source } from './schemas.mjs';
 import { ReceiptRecord } from './suggestion-receipts.mjs';
 import { DomainError } from './config.mjs';
 import { Catalogue } from './store.mjs';
 import { approvedSuggestionResults } from './suggestion-approved.mjs';
+import { AdmissionState, SuggestionWork, suggestionHash as hash, suggestionPayload as payload,
+  decodeSuggestion as decode } from './suggestion-records.mjs';
+export { AdmissionState, SuggestionWork } from './suggestion-records.mjs';
 
 const fail = code => { throw new DomainError(code); };
-const hash = (domain, input) => createHash('sha256').update(JSON.stringify([domain, input])).digest('hex');
-const Integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 export const AdmissionPolicy = z.object({ intakeEnabled: z.boolean(),
   maxWork: z.number().int().min(1).max(100), maxReceipts: z.number().int().min(1).max(500),
   createAttemptsPerHour: z.number().int().min(1).max(50), statusReadsPerHour: z.number().int().min(1).max(600),
   receiptTtlMs: z.number().int().min(1).max(30 * 86400000),
 }).strict();
-export const AdmissionState = z.object({ schemaVersion: z.literal(1), revision: Integer.refine(v => v > 0),
-  workCount: Integer.refine(v => v <= 100), receiptCount: Integer.refine(v => v <= 500),
-}).strict();
-export const SuggestionWork = z.object({ schemaVersion: z.literal(1), id: SuggestionSecretSchema,
-  url: SuggestionUrlSchema, sourceId: IdSchema, sourceRevision: Integer.refine(v => v > 0),
-  permissionHash: SuggestionSecretSchema, mode: z.literal('review_only'), state: z.literal('pending'),
-  revision: Integer.refine(v => v > 0), receiptCount: z.number().int().min(1).max(500),
-  createdAt: InstantSchema, updatedAt: InstantSchema,
-}).strict().refine(v => v.createdAt <= v.updatedAt);
 const Counter = z.object({ schemaVersion: z.literal(1), kind: z.enum(['create', 'status']),
   windowStart: InstantSchema, count: z.number().int().min(1).max(600),
 }).strict();
 const PublicReplay = z.object({ schemaVersion: z.literal(1), workId: SuggestionSecretSchema,
   createdAt: InstantSchema, expiresAt: InstantSchema,
 }).strict().refine(v => v.createdAt < v.expiresAt);
-const payload = value => ({ json: JSON.stringify(value) });
-function decode(snapshot, schema) {
-  try {
-    const data = snapshot.data();
-    if (!snapshot.exists || !data || Object.keys(data).length !== 1 || typeof data.json !== 'string' || Buffer.byteLength(data.json) > 32768) fail('SUGGESTION_UNAVAILABLE');
-    const parsed = schema.safeParse(JSON.parse(data.json));
-    if (!parsed.success) fail('SUGGESTION_UNAVAILABLE');
-    return parsed.data;
-  } catch { fail('SUGGESTION_UNAVAILABLE'); }
-}
 
 /** Backend-only create orchestration; no HTTP/runtime activation or worker authority. */
 export class SuggestionAdmission {
@@ -53,6 +34,28 @@ export class SuggestionAdmission {
   stateRef() { return this.db.doc('m0_suggestion_state/admission'); }
   workRef(id) { return this.db.collection('m0_suggestion_work').doc(id); }
   publicReplayRef(key) { return this.db.collection('m0_suggestion_public_replays').doc(this.receipts.replayRef(key).id); }
+  /** Bounded physical accounting shared by intake and authenticated lifecycle mutations. */
+  async inventory(tx) {
+    const state = decode(await tx.get(this.stateRef()), AdmissionState);
+    const receiptRows = await tx.get(this.db.collection('m0_suggestion_receipts').limit(501));
+    const workRows = await tx.get(this.db.collection('m0_suggestion_work').limit(101));
+    if (receiptRows.size > 500 || workRows.size > 100 || state.receiptCount !== receiptRows.size || state.workCount !== workRows.size)
+      fail('SUGGESTION_UNAVAILABLE');
+    const counts = new Map(), works = new Map(), receipts = new Map();
+    for (const row of receiptRows.docs) {
+      const receipt = decode(row, ReceiptRecord);
+      if (receipt.id !== row.id) fail('SUGGESTION_UNAVAILABLE');
+      counts.set(receipt.workId, (counts.get(receipt.workId) ?? 0) + 1); receipts.set(row.id, receipt);
+    }
+    for (const row of workRows.docs) {
+      const work = decode(row, SuggestionWork);
+      if (work.id !== row.id || work.id !== hash('skilved.suggestion.work.v1', work.url) || work.receiptCount !== counts.get(work.id))
+        fail('SUGGESTION_UNAVAILABLE');
+      works.set(work.id, work);
+    }
+    if ([...counts.keys()].some(id => !works.has(id))) fail('SUGGESTION_UNAVAILABLE');
+    return { state, works, receipts };
+  }
   async initialize(token, catalogue, reason) {
     if (!(catalogue instanceof Catalogue) || catalogue.db !== this.db) fail('SUGGESTION_UNAVAILABLE');
     return catalogue.mutate(token, 'source', 'suggestions.initialize', 'admission', reason, async tx => {
@@ -117,8 +120,8 @@ export class SuggestionAdmission {
       const permissionHash = hash('skilved.suggestion.permission.v1', source.permission);
       const approved = includeApproved ? await approvedSuggestionResults(tx, this.db, url, source, now) : [];
       if (publicReplay) return approved.length ? { kind: 'approved', publicResultIds: approved } : { kind: 'previous_result_unavailable' };
-      const state = decode(await tx.get(this.stateRef()), AdmissionState);
       if (approved.length) {
+        const state = decode(await tx.get(this.stateRef()), AdmissionState);
         const bindings = await tx.get(this.db.collection('m0_suggestion_public_replays').limit(501));
         if (bindings.size > 500) fail('SUGGESTION_UNAVAILABLE');
         for (const binding of bindings.docs) decode(binding, PublicReplay);
@@ -130,29 +133,15 @@ export class SuggestionAdmission {
         return { kind: 'approved', publicResultIds: approved };
       }
       // Conservative physical slots include expired records until explicit B06-5 cleanup.
-      const receiptRows = await tx.get(this.db.collection('m0_suggestion_receipts').limit(501));
-      const workRows = await tx.get(this.db.collection('m0_suggestion_work').limit(101));
-      if (receiptRows.size > 500 || workRows.size > 100 || state.receiptCount !== receiptRows.size || state.workCount !== workRows.size)
-        fail('SUGGESTION_UNAVAILABLE');
-      const counts = new Map(), works = new Map();
-      for (const row of receiptRows.docs) {
-        const receipt = decode(row, ReceiptRecord);
-        if (receipt.id !== row.id) fail('SUGGESTION_UNAVAILABLE');
-        counts.set(receipt.workId, (counts.get(receipt.workId) ?? 0) + 1);
-      }
-      for (const row of workRows.docs) {
-        const work = decode(row, SuggestionWork);
-        if (work.id !== row.id || work.id !== hash('skilved.suggestion.work.v1', work.url) || work.receiptCount !== counts.get(work.id))
-          fail('SUGGESTION_UNAVAILABLE');
-        works.set(work.id, work);
-      }
-      if ([...counts.keys()].some(id => !works.has(id))) fail('SUGGESTION_UNAVAILABLE');
+      const { state, works } = await this.inventory(tx);
       const old = works.get(workId);
       if (old && (old.sourceId !== source.id || old.sourceRevision !== source.revision || old.permissionHash !== permissionHash))
         fail('SUGGESTION_SOURCE_CHANGED');
       if (state.receiptCount >= this.policy.maxReceipts || (!old && state.workCount >= this.policy.maxWork)) fail('SUGGESTION_CAPACITY');
+      if (old && (old.updatedAt > now || old.state === 'resolved_to_listing')) fail('SUGGESTION_UNAVAILABLE');
       // All admission/source/capacity reads precede the receipt primitive's writes.
-      const issued = await this.receipts.createOrReplay(tx, command);
+      const issued = await this.receipts.createOrReplay(tx, command, { status: !old || old.state === 'pending' ? 'received' : old.state,
+        publicResultIds: [] });
       if (!issued.created) return { kind: 'received', access: issued.access };
       const work = old ? { ...old, revision: old.revision + 1, receiptCount: old.receiptCount + 1, updatedAt: now } :
         { schemaVersion: 1, id: workId, url, sourceId: source.id, sourceRevision: source.revision, permissionHash,

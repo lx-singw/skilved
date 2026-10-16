@@ -9,6 +9,10 @@ import { fileURLToPath } from 'node:url';
 import { projectOpportunity } from '@skilved/types/opportunities/internal';
 import { makeRecord } from '../../types/tests/fixtures/opportunities.mjs';
 import { getRuntime } from '../src/runtime.mjs';
+import { SuggestionReceipts } from '../src/suggestion-receipts.mjs';
+import { SuggestionAdmission } from '../src/suggestion-admission.mjs';
+import { SuggestionReview } from '../src/suggestion-review.mjs';
+import { Catalogue } from '../src/store.mjs';
 
 test('actual suggestion routes persist private access and current results across restart with intake off', { timeout: 180000 }, async () => {
   assert.match(process.env.FIRESTORE_EMULATOR_HOST ?? '', /^127\.0\.0\.1:[1-9]\d{3,4}$/);
@@ -79,8 +83,17 @@ test('actual suggestion routes persist private access and current results across
     }
     await db.doc('m0_snapshots/snapshot_fixture_1').set(json({id:'snapshot_fixture_1',sourceId:source.id,sourceRevision:1,url:sourceUrl,retrievedAt:now,hash:'b'.repeat(64),text:'Synthetic source only'}));
     const publicKey=random();response=await post(publicKey);assert.equal(response.status,200);assert.deepEqual(await safe(response),{kind:'approved',publicResultIds:ids.sort()});
+    // Authenticated operator class writes decisions; the app exposes only capability-authorized status.
+    await db.doc('m0_operators/synthetic_operator').set({active:true,roles:['source']});
+    const receiptStore=new SuggestionReceipts(db,{keyRing:{activeKeyId:'synthetic',keys:[{id:'synthetic',secret:'a1'.repeat(32)}]},maxTtlMs:86400000,now:()=>new Date().toISOString()});
+    const review=new SuggestionReview(new SuggestionAdmission(db,receiptStore,policy),new Catalogue(db,{verifyIdToken:async()=>({uid:'synthetic_operator'})}));
+    const currentWork=JSON.parse((await work[0].ref.get()).data().json);
+    await review.decide('synthetic-token',{workId:currentWork.id,expectedRevision:currentWork.revision,outcome:'resolved_to_listing',publicResultIds:ids});
+    response=await status(first.access);assert.equal(response.status,200);assert.deepEqual((await safe(response)).publicResultIds,ids);
     for(const id of ids)await db.doc('m0_public/'+id).delete();
     response=await post(publicKey);assert.equal(response.status,200);assert.deepEqual(await safe(response),{kind:'previous_result_unavailable'});
+    response=await status(first.access);assert.equal(response.status,200);const latestReceipt=await safe(response);
+    assert.equal(latestReceipt.status,'unresolved');assert.deepEqual(latestReceipt.publicResultIds,[]);
     response=await fetch(`${base}${root}/${first.access.receiptId}`,{method:'DELETE',headers:{Authorization:`Bearer ${first.access.capability}`}});
     assert.equal(response.status,503);assert.deepEqual(await safe(response),{error:{code:'SERVICE_UNAVAILABLE'}});
     assert.equal((await status(first.access)).status,200);
@@ -94,7 +107,7 @@ test('actual suggestion routes persist private access and current results across
     assert.ok(!raw.includes(first.access.capability));assert.ok(!raw.includes(key));assert.ok(!raw.includes(sourceUrl));
     await stop();await start(false);
     response=await post(key);assert.equal(response.status,503);await safe(response);
-    response=await status(first.access);assert.equal(response.status,200);assert.deepEqual(await safe(response),receipt);
+    response=await status(first.access);assert.equal(response.status,200);assert.deepEqual(await safe(response),latestReceipt);
     assert.equal((await read('m0_suggestion_state/admission')).receiptCount,2);
   }finally{await stop();await db.terminate();}
 });
