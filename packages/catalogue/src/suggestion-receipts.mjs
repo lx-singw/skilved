@@ -80,9 +80,8 @@ export class SuggestionReceipts {
     if (!capability || !this.authorized(record, record.id, capability, now)) fail('SUGGESTION_NOT_FOUND');
     return SuggestionAccessSchema.parse({ receiptId: record.id, capability, expiresAt: record.expiresAt });
   }
-  /** Compose ONLY inside the future admitted intake transaction, after all admission reads.
-   * No independent create endpoint: the caller must enforce source, capacity and queue policy. */
-  async createOrReplay(tx, input) {
+  /** Authorized recovery only: no source, queue or receipt mutation. */
+  async readReplay(tx, input) {
     const parsed = ReceiptCreateCommand.safeParse(input);
     if (!parsed.success) fail('INVALID_COMMAND');
     const command = parsed.data, now = this.instant();
@@ -96,6 +95,16 @@ export class SuggestionReceipts {
       if (!record || record.expiresAt !== mapping.expiresAt || record.workId !== command.workId) fail('SUGGESTION_NOT_FOUND');
       return { access: this.access(record, now), created: false };
     }
+    return null;
+  }
+  /** Compose ONLY inside admitted intake after all admission reads; never a public create API. */
+  async createOrReplay(tx, input) {
+    const parsed = ReceiptCreateCommand.safeParse(input);
+    if (!parsed.success) fail('INVALID_COMMAND');
+    const command = parsed.data, replay = await this.readReplay(tx, command);
+    if (replay) return replay;
+    const now = this.instant(), mapRef = this.replayRef(command.idempotencyKey);
+    const inputHash = hash('skilved.suggestion.input.v1', [command.url, command.workId]);
     const ttl = Date.parse(command.expiresAt) - Date.parse(now);
     if (ttl <= 0 || ttl > this.maxTtlMs) fail('INVALID_COMMAND');
     const record = { schemaVersion: 1, id: randomBytes(32).toString('hex'), keyId: this.#activeKeyId,

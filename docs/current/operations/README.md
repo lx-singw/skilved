@@ -101,6 +101,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Native local-progress loss, unreadable data and scoped recovery](88_NATIVE_LOCAL_PROGRESS_LOSS_AND_RECOVERY_2026-10-16.md)
 - [Suggestion URL-only contract and reviewed-source classification](89_SUGGESTION_URL_BOUNDARY_AND_SOURCE_POLICY_2026-10-16.md)
 - [Private suggestion receipts, capability scope and response-loss replay](90_PRIVATE_SUGGESTION_RECEIPTS_AND_REPLAY_2026-10-16.md)
+- [Suggestion review admission, shared work and bounded rates/capacity](91_SUGGESTION_REVIEW_ADMISSION_AND_LIMITS_2026-10-16.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

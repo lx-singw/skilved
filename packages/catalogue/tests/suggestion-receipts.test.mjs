@@ -17,7 +17,8 @@ const denied = promise => assert.rejects(promise, error => error.message === 'SU
 before(() => {
   // Never instantiate an Admin client against a real project or untrusted host.
   assert.match(process.env.FIRESTORE_EMULATOR_HOST ?? '', /^127\.0\.0\.1:[1-9]\d{3,4}$/);
-  assert.equal(process.env.GCLOUD_PROJECT, 'demo-skilved-receipts');
+  // Keep fixtures isolated while accepting the repository's standard catalogue runner.
+  assert.match(process.env.GCLOUD_PROJECT ?? '', /^demo-skilved-(?:b03|admission|receipts)$/);
   app = initializeApp({ projectId: 'demo-skilved-receipts' }, 'suggestion-receipts-test');
   db = getFirestore(app); store = new SuggestionReceipts(db, options());
 });
