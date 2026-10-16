@@ -10,6 +10,7 @@ import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/S
 import { catalogueReturnHref } from "@/lib/catalogue-query"
 import { EntryStage } from "@/components/catalogue/EntryStage"
 import { OpportunityContext, OpportunityConditions } from "@/components/catalogue/OpportunityConditions"
+import { SaveOpportunity } from "@/components/catalogue/SavedProgress"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +39,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
     <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl">{o.title.value ?? "Opportunity details"}</h1>
     <p className="mt-3 text-muted-foreground">{o.issuer.value ?? "Issuer not stated"} · {placeLabel(o)}</p>
     {o.summary.value && <p className="mt-6 text-lg leading-relaxed">{o.summary.value}</p>}
+    <SaveOpportunity key={o.id} id={o.id} revision={o.revision} />
     <OpportunityContext opportunity={o} />
     <section className="mt-8 rounded-xl border border-border bg-card p-6" aria-labelledby="application-heading">
       <h2 id="application-heading" className="text-xl font-semibold">Application details</h2>

@@ -111,6 +111,7 @@ test("canonical detail renders original instructions before explanation and actu
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
     "@/components/catalogue/EntryStage": stage,
+    "@/components/catalogue/SavedProgress": { SaveOpportunity: () => null },
     "@/components/catalogue/OpportunityConditions": conditions,
     "@/lib/catalogue-query": navigation,
   })

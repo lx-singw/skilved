@@ -84,7 +84,7 @@ test("every routed entry is included in the reviewed public boundary", async () 
   const appRoot = join(root, "src/app")
   const files = (await filesUnder(appRoot)).map((file) => relative(appRoot, file).split(sep).join("/"))
   assert.deepEqual(files.filter((file) => file.endsWith("/page.tsx") || file === "page.tsx").sort(),
-    ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx"])
+    ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx", "saved/page.tsx"])
   assert.deepEqual(files.filter((file) => file.endsWith("/route.ts")).sort(),
     [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports", "/opportunities/[id]/apply"].map((path) => `${path.slice(1)}/route.ts`).sort())
   assert.deepEqual(files.filter((file) => /(^|\/)(opengraph-image|twitter-image|sitemap|robots|icon|apple-icon|favicon)(\.|\/)/.test(file)), [])

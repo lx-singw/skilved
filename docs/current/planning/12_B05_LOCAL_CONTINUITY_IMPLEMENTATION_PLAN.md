@@ -30,7 +30,7 @@ Older or future document versions are not automatically migrated or overwritten.
 
 ## Verification and completion
 
-B05-1 foundation is locally implemented and evidenced in [operations 82](../operations/82_LOCAL_PROGRESS_STORAGE_FOUNDATION_2026-10-16.md): 32 contract and 69 web tests plus frozen install/lint/typecheck/build pass. B05-2–5 and integrated browser/user acceptance remain pending.
+B05-1 foundation is locally implemented and evidenced in [operations 82](../operations/82_LOCAL_PROGRESS_STORAGE_FOUNDATION_2026-10-16.md): 32 contract and 69 web tests plus frozen install/lint/typecheck/build pass. [B05-2 save/resume UI](../operations/83_LOCAL_SAVE_AND_RESUME_UI_2026-10-16.md) now passes 74 web tests and lint/typecheck/build with actual synthetic save/reload/two-tab/remove/clear checks and corrected narrow/wide presentation. B05-3–5 and full browser/user/device/loss acceptance remain pending; local clear coverage does not establish OS/browser site-data-loss behavior.
 
 Foundation tests use a pinned test-only in-memory IndexedDB implementation to exercise transactions, quota/abort injection, strict boundaries and competing connections. These are not evidence of actual disk durability, a physical phone, eviction policy or browser restart. UI packets require real browser observations of the shipped component/adapter, relevant source/render/privacy tests and web build/lint/typecheck. Contract export changes require contract checks. Repeat affected checks after a concrete correction; do not weaken acceptance or manufacture data-loss/user observations.
 
