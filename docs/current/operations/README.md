@@ -110,6 +110,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Suggestion withdrawal, reference counts and cancellation core](97_SUGGESTION_WITHDRAWAL_REFERENCE_AND_CANCELLATION_CORE_2026-10-16.md)
 - [Suggestion lease fences and header-authorized HTTP withdrawal](98_SUGGESTION_LEASE_FENCES_AND_HTTP_WITHDRAWAL_2026-10-16.md)
 - [Gemini 3.1 Flash-Lite availability timeout and preserved quota history](99_GEMINI31_AVAILABILITY_TIMEOUT_2026-10-18.md)
+- [Gemini 3.1 HTTP timing and fresh ALPLA fidelity failures](100_GEMINI31_HTTP_TIMING_AND_ALPLA_FIDELITY_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
