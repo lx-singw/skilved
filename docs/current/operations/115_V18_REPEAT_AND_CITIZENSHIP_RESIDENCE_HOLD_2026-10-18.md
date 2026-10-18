@@ -1,0 +1,33 @@
+# Frozen V18 repeat and citizenship-versus-residence hold
+
+Date: 18 October 2026. Status: ALPLA completes the frozen private workflow again and advances from draft revision 2 to 3. Transnet incorrectly copies citizenship into residence and fails the unchanged private source checklist before candidate storage or validation; its earlier private draft remains revision 6. Existing local guards and canonical mapping accept the incorrect residence field. No public records are added. Overall extraction consistency remains unqualified.
+
+## Frozen repeat and refreshed sources
+
+This repeats the [V18/V14 familiar-notice trial](114_V18_V14_FAMILIAR_NOTICE_COMPLETION_2026-10-18.md), committed as `eebacc3`, using the unchanged implementation checked in the [title-evidence and grouping sprint](113_SHORTER_TITLE_LOCATION_EVIDENCE_AND_GROUPING_GUIDANCE_2026-10-18.md). Before calls, the private plan freezes Gemini 3.8 Flash, V18/compact V7 extraction, V14 validation, output schemas, source-policy context, 3,072/6,144-token caps, low/medium thinking and the semantic checklist. Both extraction request bodies and model endpoints are byte-identical to the preceding trial. Freshly extracted ALPLA facts account for its validation input differences. No fallback, semantic retry, answer repair or checklist relaxation is permitted.
+
+Three paced, guarded HTTP 200 requests refresh robots.txt and the two RecentJobs notices. Robots permits retrieval, expected content types and encoding checks pass, and parsed notice content, original employer application routes and notice-stated deadlines remain unchanged. The stated deadlines are ALPLA 31 October and Transnet 20 October. These dates do not independently establish that an employer opening remains available. Employer pages are not requested.
+
+## ALPLA: supported repeat, private revision 3
+
+Extraction reports 5,786 tokens and retains the recommended 1–7 location span, a contiguous 420-character quote supporting both Lanseria and Gauteng with complete work-base evidence. Four cumulative requirements, the standalone subject exclusion, maximum four-year duration and qualitative pay remain retained. Residence and experience remain unstated. Requirement logic is equivalent after resolving local IDs and order. Only the permitted issuer alias changes in the extracted values/evidence compared with the preceding answer.
+
+Local evidence checks, canonical mapping, the frozen checklist and model validation pass. Validation reports 4,103 tokens and returns supported with no issues and exact source evidence. The private draft advances from revision 2 to 3, retaining its original employer route, pending facts, unapproved citations and review-required publication disposition. Earlier answers, draft revisions and the V17 negative assessment remain historical records without override.
+
+## Transnet: citizenship incorrectly presented as residence
+
+Extraction reports 6,179 tokens. Residence becomes stated with value `South African citizen` and quote `You must be a South African citizen.` This condition states citizenship, not where the applicant lives. The citizenship requirement itself is correctly retained as a required item, and experience remains unstated. Residence is the only changed value/evidence field compared with the preceding V18 answer.
+
+The four locations, reference, deadline, three qualification alternatives, shared conditions, seven requirements and complete practical attachment instruction remain retained. Full and non-document requirement logic are equivalent after resolving IDs/order. All other frozen checklist criteria pass.
+
+The actual first hold is the private pilot wrapper's unchanged source checklist, with `PRIVATE_SOURCE_CHECKLIST_FAILED`. It stops the answer before caching, candidate storage, a decision or model validation. Existing ordinary/split parsing, local checks and canonical mapping accept the incorrect field. This is evidence of a missing early residence guard, not a production guard rejection or a model validator success. The raw response remains unchanged, Transnet receives no validation call, and its preceding private draft remains revision 6 byte-for-byte. Its reserved validation allowance remains unused; no repair, retry, reassignment or spending refund follows the failure.
+
+## Verification and retained accounting
+
+Product/test hashes still match the preceding contracts build, 86 focused tests and final 657-test serial suite. Those unchanged checks are reused, not rerun in this evaluation/documentation sprint. Fresh private audits verify source reparsing, frozen requests/contracts/checklists, returned fields and evidence, receipt hashes and usage, local mapping behaviour, stored drafts, historical failures and quota reconciliation. All 35 preceding trial artifact hashes and eleven additional historical raw hashes remain unchanged. This is an agent audit, not independent human review or source qualification.
+
+Three of four reserved generation calls return HTTP 200 and report 16,068 known tokens, with no new unknown usage. The repeat creates one private candidate, one shadow-pass decision, one exception and two cached results, updating one of the two existing private drafts. It adds no public records. ALPLA's private source grant advances from revision 11/cap 13 with thirteen calls spent to revision 12/cap 15 and fifteen spent. Transnet advances from revision 9/cap 14 with fourteen spent to revision 10/cap 16 and fifteen spent. Prior budget rows, receipts, snapshots, caches, decisions, failures and spending remain retained.
+
+Shared observations now retain 68 generation requests, 240,204 known tokens and 24 historical unknown-usage calls. The 18 October Pacific full-Flash bucket records seventeen requests and 91,653 known tokens. Other usage rows and availability/daily-exhaustion records remain unchanged. These are worker observations, not provider dashboard totals; missing historical usage is not zero consumption.
+
+Next add source-bound citizenship-versus-residence extraction/validation guidance and a narrow early residence-evidence guard with authored offline regressions. Preserve genuine explicit residence rules and correctly classified citizenship requirements. Keep the held answer and unused validation allowance unchanged rather than repairing or retrying this response. Broader consistency, unseen-source fidelity, independent employer verification and source reuse qualification remain open. Employer crawling stays optional/off; production scheduling and publication remain disabled. Credentials, source snapshots, provider responses and private evaluation artifacts remain ignored and uncommitted.
