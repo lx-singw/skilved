@@ -85,6 +85,8 @@ test('location completeness checks only the selected programme while retaining o
   const intakes=planRecentJobsProgrammes(changed).intakes,lines=(changed.title+'\n'+changed.sourceText).split('\n');let calls=0;
   for(const intake of intakes){
     const wire=programmeWire(changed,intake),text=intake===intakes[0]?own:foreign,city=intake===intakes[0]?'Exampletown':'North End',at=lines.indexOf(text)+1;
+    const hints=programmeExtractionPayload(changed,intake.id).locationSpanHints;
+    assert.deepEqual(hints.passages,[{span:[at,at],originalText:text}]);assert.deepEqual(hints.enclosingSpan,[at,at]);
     wire.location={state:'stated',value:{places:[{city,province:null,country:null}],coverage:'not_stated',attendance:'not_stated',relocation:null},span:[at,at]};
     const config={env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});}};
     const x=(await extractProgramme(changed,intake.id,config)).extraction,mapped=mapProgrammeExtraction(changed,intake.id,x,options);

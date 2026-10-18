@@ -19,6 +19,7 @@ import {metadataHtml,metadataWire} from './fixtures/metadata-completeness.mjs';
 import {locationHtml,locationWire} from './fixtures/location-metadata.mjs';
 import {completenessHtml,completenessWire,completenessExtraction} from './fixtures/location-completeness.mjs';
 import {extractMetadata} from '../src/ai/metadata.mjs';
+import {spanHtml,spanWire} from './fixtures/location-span-hints.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -212,6 +213,31 @@ test('canonical mapping rechecks cached province-only extraction without another
  const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);assert.equal(calls.length,1);assert.equal(calls[0].usage.totalTokens,15);
  assert.equal((await db.collection('m0_worker_candidates').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);
  assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
+});
+
+test('location range guidance reaches the worker without repairing a short answer or preventing supported private drafting',async()=>{
+ for(const complete of [false,true]){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=spanHtml;const wire=spanWire(complete),original=structuredClone(wire);let sends=0;
+  const worker=f.restart(geminiOptions(async(_url,init)=>{
+   sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+   if(input.extracted)return geminiAnswer({supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Fictional Workshop seeks an electrical apprentice.'}]});
+   assert.equal(input.locationSpanHints.passages.length,2);assert.deepEqual(input.locationSpanHints.enclosingSpan,spanWire().location.span);
+   return geminiAnswer(wire);
+  }));
+  const drafts=(await db.collection('m0_drafts').get()).size,cache=(await db.collection('m0_model_cache').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+  const result=await worker.run(f.sourceId),calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(sends,complete?2:1);assert.equal(calls.length,sends);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),sends*15);assert.deepEqual(wire,original);
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,sends);
+  if(complete){
+   const record=detailResult(result);assert.ok(record);const draft=value(await worker.ref('drafts',record.recordId).get());
+   assert.equal(draft.location.value.places[0].city,'Exampletown');assert.equal(draft.location.value.places[0].country,null);
+   assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+  }else{
+   assert.ok(result.results.some(r=>r.reason==='AI_LOCATION_EVIDENCE_UNRESOLVED'));assert.equal((await db.collection('m0_model_cache').get()).size,cache);
+   assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
 });
 
 test('Gemini shadow extraction and validation reserve every fallback call, preserve routes and cache without publishing',async()=>{
