@@ -10,6 +10,7 @@ import { requirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requi
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 import {assertPracticalEvidence, practicalEvidencePolicy, PRACTICAL_EVIDENCE_INSTRUCTION} from './practical-evidence.mjs';
 import {assertExperienceEvidence, EXPERIENCE_EVIDENCE_INSTRUCTION} from './qualification-evidence.mjs';
+import {assertMetadataCompleteness, metadataCompletenessPolicy, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,96}$/);
 const text = z.string().min(1).max(4000);
@@ -77,7 +78,7 @@ A list introduced by one of the following is ANY.
 Separate alternatives into items; subjects required together stay in the same item's span as their qualification.
 Example: Grade 12 with Maths OR N3 with Maths and Science means two items under ANY, not three independent subject alternatives.
 If source logic is genuinely unclear use "unknown(firstLine,lastLine)" citing its actual line numbers and empty items.
-Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}`;
+Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}`;
 
 function sourceLines(candidate) {
   if (typeof candidate?.title !== 'string' || typeof candidate?.sourceText !== 'string') throw new DomainError('AI_INVALID_SOURCE');
@@ -90,6 +91,7 @@ export function groqExtractionPayload(candidate) {
     requiredLineNumbers: requirementSourcePolicy(candidate).requiredLineNumbers,
     requirementSourcePolicy: requirementSourcePolicy(candidate),
     practicalEvidencePolicy: practicalEvidencePolicy(candidate),
+    metadataCompletenessPolicy: metadataCompletenessPolicy(candidate),
     locationEvidenceHints: locationEvidenceHints(candidate),
     excludedPromotionalLineNumbers: promotionalLineNumbers(candidate),
     applicationCandidates: candidate.applicationCandidates.map(({ method, destination, originalText }) => ({ method, destination, originalText })) };
@@ -177,5 +179,6 @@ export function decodeGroqMetadata(input,candidate) {
   let parsed;try { parsed=ExtractionSchema.omit({requirements:true}).parse(decoded); } catch { fail(); }
   assertPracticalEvidence(candidate,parsed.practicalConditions);
   assertExperienceEvidence(candidate,parsed.experience);
+  assertMetadataCompleteness(candidate,parsed);
   return parsed;
 }

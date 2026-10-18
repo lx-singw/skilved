@@ -15,6 +15,7 @@ import {extractProgramme,validateProgramme} from '../src/ai/programme-extraction
 import {programmeWire,subjectProgrammeWire} from './fixtures/programme-model.mjs';
 import {parseRecentJobsDetail} from '../src/adapters/recentjobs.mjs';
 import {qualificationHtml,qualificationWire,qualificationSpan,qualificationPassage} from './fixtures/qualification-model.mjs';
+import {metadataHtml,metadataWire} from './fixtures/metadata-completeness.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -109,6 +110,41 @@ test('qualification logic and experience source holds preserve spending and stop
   assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
   assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
  }
+});
+
+test('pay and duration omissions spend one call and stop before validation, storage or drafts',async()=>{
+ for(const [reason,change] of [
+  ['AI_QUALITATIVE_PAY_UNRESOLVED',wire=>{wire.compensation=[];}],
+  ['AI_MAXIMUM_DURATION_UNRESOLVED',wire=>{wire.summary=null;}],
+ ]){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false}),wire=metadataWire();f.state.html=metadataHtml;change(wire);
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;let sends=0;
+  const worker=f.restart(geminiOptions(async(_url,init)=>{sends++;assert.equal(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text).extracted,undefined);return geminiAnswer(wire);}));
+  const result=await worker.run(f.sourceId);assert.ok(result.results.some(r=>r.reason===reason));assert.equal(sends,1);
+  const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(calls.length,1);assert.equal(calls[0].usage.totalTokens,15);
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,1);
+  assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);
+  assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
+  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
+});
+
+test('complete qualitative pay and bounded duration reach validation and one private draft with original route',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false}),wire=metadataWire();f.state.html=metadataHtml;let sends=0;
+ const worker=f.restart(geminiOptions(async(_url,init)=>{
+  sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+  return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Fictional Workshop seeks an electrical apprentice.'}]}:wire);
+ }));
+ const publicRows=(await db.collection('m0_public').get()).size,record=detailResult(await worker.run(f.sourceId));assert.ok(record);assert.equal(sends,2);
+ const draft=value(await worker.ref('drafts',record.recordId).get());
+ assert.deepEqual(draft.compensation[0].value,wire.compensation[0].value);
+ assert.equal(draft.summary.value,wire.summary.value);assert.equal(draft.practicalConditions.value,wire.practicalConditions.value);
+ assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+ const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+ assert.equal(calls.length,2);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),30);
+ assert.equal((await db.collection('m0_public').get()).size,publicRows);
+ assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
 });
 
 test('Gemini shadow extraction and validation reserve every fallback call, preserve routes and cache without publishing',async()=>{

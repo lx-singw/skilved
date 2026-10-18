@@ -113,6 +113,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Gemini 3.1 HTTP timing and fresh ALPLA fidelity failures](100_GEMINI31_HTTP_TIMING_AND_ALPLA_FIDELITY_2026-10-18.md)
 - [Qualification logic and experience source checks](101_QUALIFICATION_LOGIC_AND_EXPERIENCE_GUARDS_2026-10-18.md)
 - [V14 fresh notices and remaining metadata completeness gaps](102_V14_FRESH_NOTICES_AND_METADATA_COMPLETENESS_2026-10-18.md)
+- [Qualitative pay and maximum programme duration checks](103_QUALITATIVE_PAY_AND_MAXIMUM_DURATION_GUARDS_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

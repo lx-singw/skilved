@@ -4,6 +4,7 @@ import { DomainError } from '../config.mjs';
 import { dailyQuotaFailure } from './gemini-quota.mjs';
 import { groqSchema } from './groq.mjs';
 import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } from './extraction.mjs';
+import {metadataCompletenessPolicy} from './metadata-completeness.mjs';
 
 import { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN } from './gemini-models.mjs';
 export { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN };
@@ -61,6 +62,7 @@ async function boundedBody(response) {
 /** Availability fallback retains the same evidence and extraction contract. */
 export async function extractWithGemini(candidate, options = {}) {
   const payload = { title: candidate.title, sourceText: candidate.sourceText,
+    metadataCompletenessPolicy: metadataCompletenessPolicy(candidate),
     applicationCandidates: candidate.applicationCandidates.map(({ method, destination, originalText }) => ({ method, destination, originalText })) };
   return generateStructured(payload, { instruction: EXTRACTION_INSTRUCTION, schema: EXTRACTION_JSON_SCHEMA,
     version: EXTRACTION_VERSION }, options);
