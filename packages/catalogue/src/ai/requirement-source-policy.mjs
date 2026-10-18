@@ -1,16 +1,22 @@
 import {DomainError} from '../config.mjs';
 import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
 import {assertNoPreparationEvidence} from './practical-evidence.mjs';
+import {qualificationLineKind,isSubjectExclusion,isEducationOnlyLine} from './qualification-evidence.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v6';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v7';
 export const REQUIREMENT_SOURCE_INSTRUCTION=`
 requirementSourcePolicy lists code-recognised bounded source passages, not new requirements.
 Cover every requiredLineNumbers line with its original requirement passage or exact unknown logic.
 layoutContextLineNumbers are recognised headings/table introductions, not standalone conditions.
 qualificationAlternatives lists complete route spans: one education item per route, with those
 item references as direct children of ANY. Keep shared conditions outside that ANY.
+qualificationConjunctions lists recognised cumulative school/minimum technical qualifications.
+Keep each complete qualification as an education item, unconditionally required under ALL.
+Never change these cumulative requirements into alternatives or conditional eligibility.
+educationOnlySpans identifies education/subject evidence, not prior work experience.
 Standalone subject pass-mark thresholds use kind subjects. A qualification and its attached
 subject list remain one complete education item; never split them to apply this standalone rule.
+Standalone Mathematics/Mathematical Literacy not applicable/not accepted exclusions use subjects.
 submissionInstructions are explicit required attachment rules. Retain each full originalText as
 a required document item OR in BOTH practicalConditions.value and its contiguous evidence span.
 Do not omit them. Unknown logic or ambiguous facts remain holds, never authority to publish.
@@ -66,6 +72,9 @@ const alternativeIntro=/^(?:(?:you need )?one of the following|either|or)\s*:?$/
 const tableIntro=/^You must meet the age and citizenship requirements and have completed one of the following educational pathways[.]?$/i;
 const routeLabel=/^(?:N[1-6](?:[–-]N?[1-6])?|NCV Level [1-4]|Technical Grade 12)$/i;
 const submission=/^(?:Attach|Submit|Provide|Include) (?:your |the )?(?:qualifications?|academic records|academic transcripts|CV|certificates?)(?: (?:and|with) (?:your |the )?(?:relevant )?(?:academic records|academic transcripts|qualifications?|certificates?))*[.]?$/i;
+const qualificationUncertainty=/\b(?:or|either|alternatives?|alternatively|equivalent|if|unless|provided|not|no|without|preferred|optional|may)\b/i;
+const resultsDocument=/^CV[’']?s? with (?:Statement of Results|certificates?)(?: or (?:Statement of Results|certificates?))? will be considered[.]?$/i;
+const simpleLicence=/^Valid (?:driving|driver[’']?s?) licen[cs]e[.]?$/i;
 
 // Preserve legacy selectors for historical replays. This policy applies only
 // to the current canonical extractor and its compact provider payload.
@@ -144,19 +153,48 @@ export function requirementSourcePolicy(candidate) {
    completeRequirementSpans.push({span:[index+1,index+3],kind:'other'});
   }
  }
- // Only complete, explicit standalone subject thresholds receive this kind hint.
+ const educationOnlySpans=[],qualificationConjunctions=[];
+ for(const section of sections){
+  if(section.kind==='documents')continue;
+  const rows=lines.slice(section.start,section.until).map((text,index)=>({text:label(text),line:section.start+index+1}));
+  rows.filter(row=>isEducationOnlyLine(row.text)).forEach(row=>educationOnlySpans.push([row.line,row.line]));
+  if(section.kind!=='required')continue;
+  const qualifications=rows.filter(row=>qualificationLineKind(row.text)!==null);
+  // Recognise only a closed flat profile containing one school qualification
+  // plus one explicitly minimum N-certificate, with known independent lines.
+  // Unknown continuations, alternatives, conditional wording and duplicate
+  // source occurrences abstain rather than supplying a new conjunction hint.
+  if(qualifications.length!==2||qualificationLineKind(qualifications[0].text)!=='school'||
+     !/^Minimum N[1-6]\b/i.test(qualifications[1].text)||
+     qualifications.some(row=>qualificationUncertainty.test(row.text))||
+     !rows.every(row=>qualifications.includes(row)||isSubjectExclusion(row.text)||resultsDocument.test(row.text)||simpleLicence.test(row.text)||/^(?:You need|Applicants should have)\s*:?$/i.test(row.text))||
+     qualifications.some(row=>lines.filter(line=>label(line)===row.text).length!==1))continue;
+  qualificationConjunctions.push({spans:qualifications.map(row=>[row.line,row.line]),relation:'all'});
+ }
+ // Only complete, explicit standalone subject rules receive this kind hint.
  // Known qualification/table groups retain their education kind and scope.
  for(const hint of lineHints)if(hint.kind===null&&!hint.conditional&&!completeRequirementSpans.some(group=>group.span[0]<=hint.line&&hint.line<=group.span[1])&&
-   /^(?:Mathematics|Physical Science) must have been passed with at least (?:100|[1-9]?\d)%[.]?$/i.test(label(lines[hint.line-1])))hint.kind='subjects';
- return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions,submissionInstructions,layoutContextLineNumbers:[...layoutContext],qualificationAlternatives};
+   (/^(?:Mathematics|Physical Science) must have been passed with at least (?:100|[1-9]?\d)%[.]?$/i.test(label(lines[hint.line-1]))||isSubjectExclusion(lines[hint.line-1])))hint.kind='subjects';
+ return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions,submissionInstructions,layoutContextLineNumbers:[...layoutContext],qualificationAlternatives,qualificationConjunctions,educationOnlySpans};
 }
 const unknownPassages=node=>node.op==='unknown'?[node.originalText]:node.children?node.children.flatMap(unknownPassages):node.op==='if'?[...unknownPassages(node.then),...(node.otherwise?unknownPassages(node.otherwise):[])]:[];
 const anyGroups=node=>[...(node.op==='any'?[node.children]:[]),...(node.children?node.children.flatMap(anyGroups):node.op==='if'?[...anyGroups(node.then),...(node.otherwise?anyGroups(node.otherwise):[])]:[])];
+const unconditionalRefs=node=>node.op==='ref'?[node.id]:node.op==='all'?node.children.flatMap(unconditionalRefs):[];
 export function assertRequirementSourcePolicy(candidate,extraction) {
  const policy=requirementSourcePolicy(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
  for(const item of extraction.requirements.items)if(item.fact.state==='stated'&&item.fact.quote)assertNoPreparationEvidence(candidate,item.fact.quote);
  if(uncoveredRequirementLines(candidate,extraction,policy.requiredLineNumbers).length)throw new DomainError('AI_REQUIREMENT_COVERAGE');
  const unknown=unknownPassages(extraction.requirements.expression);
+ for(const group of policy.qualificationConjunctions){
+  const passages=group.spans.map(([first,last])=>lines.slice(first-1,last).join('\n'));
+  const matches=passages.map(passage=>extraction.requirements.items.filter(i=>i.fact.quote?.split('\n').includes(passage)));
+  const whole=lines.slice(group.spans[0][0]-1,group.spans.at(-1)[1]).join('\n');
+  if(matches.every(items=>!items.length)&&unknown.some(q=>q.includes(whole)))continue;
+  const ids=matches.flatMap(items=>items.map(i=>i.id)),required=new Set(unconditionalRefs(extraction.requirements.expression));
+  if(matches.some(items=>items.length!==1)||new Set(ids).size!==passages.length||
+     matches.flat().some(i=>i.kind!=='education'||i.level!=='required')||ids.some(id=>!required.has(id)))
+   throw new DomainError('AI_REQUIREMENT_CONJUNCTION_UNRESOLVED');
+ }
  for(const instruction of policy.submissionInstructions){
   const text=instruction.originalText,items=extraction.requirements.items.filter(i=>i.fact.quote?.split('\n').includes(text)),fact=extraction.practicalConditions;
   if(items.some(i=>i.kind!=='document'||i.level!=='required'))throw new DomainError('AI_SUBMISSION_INSTRUCTION_UNRESOLVED');
