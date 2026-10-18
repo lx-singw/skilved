@@ -109,6 +109,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Frozen repeat availability failures and separately screened ALPLA](96_FROZEN_REPEAT_PROVIDER_FAILURES_AND_ALPLA_SCREEN_2026-10-16.md)
 - [Suggestion withdrawal, reference counts and cancellation core](97_SUGGESTION_WITHDRAWAL_REFERENCE_AND_CANCELLATION_CORE_2026-10-16.md)
 - [Suggestion lease fences and header-authorized HTTP withdrawal](98_SUGGESTION_LEASE_FENCES_AND_HTTP_WITHDRAWAL_2026-10-16.md)
+- [Gemini 3.1 Flash-Lite availability timeout and preserved quota history](99_GEMINI31_AVAILABILITY_TIMEOUT_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
