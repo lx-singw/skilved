@@ -20,6 +20,7 @@ import {locationHtml,locationWire} from './fixtures/location-metadata.mjs';
 import {completenessHtml,completenessWire,completenessExtraction} from './fixtures/location-completeness.mjs';
 import {extractMetadata} from '../src/ai/metadata.mjs';
 import {spanHtml,spanWire,titleSpanHtml,titleSpanWire,titleSpanCandidate,workBase} from './fixtures/location-span-hints.mjs';
+import {residenceHtml,residenceWire,residenceExtraction,residenceSpan,citizenship} from './fixtures/residence-model.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -114,6 +115,44 @@ test('qualification logic and experience source holds preserve spending and stop
   assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
   assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
  }
+});
+
+test('citizenship-only residence stops ordinary and split workers before cache, validation or drafting with spending retained',async()=>{
+ for(const split of [false,true]){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=residenceHtml;
+  const wire=residenceWire();wire.residence={state:'stated',value:'South African citizens',span:residenceSpan(citizenship)};
+  const {requirements,...metadata}=wire,data=split?metadata:wire,before=structuredClone(data);let sends=0;
+  const fetchImpl=async(_url,init)=>{sends++;assert.equal(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text).extracted,undefined);return geminiAnswer(data);};
+  const worker=f.restart({...geminiOptions(fetchImpl),...(split?{extractionMode:'split',metadataExtractor:(c,o)=>extractMetadata(c,{...o,fetchImpl}),requirementsExtractor:()=>assert.fail('Rejected residence reached requirements extraction')}:{} )});
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size,cache=(await db.collection('m0_model_cache').get()).size;
+  assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='AI_RESIDENCE_EVIDENCE_UNRESOLVED'));assert.equal(sends,1);
+  const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(calls.length,1);assert.equal(calls[0].usage.totalTokens,15);assert.equal(calls[0].state,'received');
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,1);
+  assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);assert.equal((await worker.ref('worker_decisions',calls[0].jobId).get()).exists,false);
+  assert.equal((await worker.ref('worker_exceptions',calls[0].jobId).get()).exists,true);
+  assert.equal((await db.collection('m0_model_cache').get()).size,cache);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.deepEqual(data,before);
+  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
+});
+
+test('canonical mapping rechecks cached citizenship residence without another model call, validation or repair',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=residenceHtml;let extracts=0;
+ const x=residenceExtraction();x.residence={state:'stated',value:'South African citizens',quote:citizenship};const before=structuredClone(x);
+ // An internal/older decoder bypasses the new compact guard; mapping still holds it.
+ const options={provider:'gemini',env:geminiEnv,extractor:(_c,o)=>o.runAttempt({model:'gemini-3.8-flash',requestHash:'a'.repeat(64)},async()=>{
+  extracts++;return {extraction:structuredClone(x),provenance:{usage:{totalTokens:15}}};
+ }),validator:()=>assert.fail('Citizenship residence reached validation')};
+ const worker=f.restart(options),drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+ assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='AI_RESIDENCE_EVIDENCE_UNRESOLVED'));
+ const cache=(await db.collection('m0_model_cache').get()).docs.map(d=>({id:d.id,...value(d)}));
+ f.advance(24*3600000);assert.ok((await f.restart(options).run(f.sourceId)).results.some(r=>r.reason==='AI_RESIDENCE_EVIDENCE_UNRESOLVED'));assert.equal(extracts,1);
+ assert.deepEqual((await db.collection('m0_model_cache').get()).docs.map(d=>({id:d.id,...value(d)})),cache);assert.deepEqual(x,before);
+ const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);assert.equal(calls.length,1);assert.equal(calls[0].usage.totalTokens,15);
+ assert.equal((await db.collection('m0_worker_candidates').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);
+ assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);
+ assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
 });
 
 test('pay and duration omissions spend one call and stop before validation, storage or drafts',async()=>{

@@ -61,7 +61,7 @@ test('oversized notices/trees and disabled mode make no requests',async()=>{
 
 test('diagnostic contracts have a separate version and cannot mutate the full worker contract',()=>{
   const full=validationContract(),diagnostic=requirementValidationContract();
-  assert.equal(full.version,VALIDATION_VERSION);assert.equal(VALIDATION_VERSION,'recentjobs_validation_v14');
+  assert.equal(full.version,VALIDATION_VERSION);assert.equal(VALIDATION_VERSION,'recentjobs_validation_v15');
   assert.notEqual(full.version,diagnostic.version);assert.deepEqual(full.schema,diagnostic.schema);
   assert.doesNotMatch(full.instruction,/REQUIREMENTS-ONLY/);
   diagnostic.schema.properties.supported.type='string';assert.equal(validationContract().schema.properties.supported.type,'boolean');

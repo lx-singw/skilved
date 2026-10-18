@@ -72,7 +72,7 @@ test('standalone exclusion guidance retains separate source facts and never rewr
     assert.match(request.systemInstruction.parts[0].text,/does not permit\s+detaching an attached affirmative subject list/);
     return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
   }});
-  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_validation_v14');assert.equal(result.supported,false);assert.deepEqual(result.issues,data.issues);
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_validation_v15');assert.equal(result.supported,false);assert.deepEqual(result.issues,data.issues);
   assert.deepEqual(extraction,before);assert.deepEqual(data,original);assert.deepEqual(validateAssessment(data,m.snapshot.text),data);
   assert.throws(()=>validateAssessment({...data,supported:true},m.snapshot.text),/AI_INVALID_VALIDATION/);
 });

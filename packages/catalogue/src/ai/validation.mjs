@@ -4,8 +4,9 @@ import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 import {practicalEvidencePolicyFromText} from './practical-evidence.mjs';
+import {RESIDENCE_EVIDENCE_INSTRUCTION} from './residence-evidence.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v14';
+export const VALIDATION_VERSION = 'recentjobs_validation_v15';
 const GEMINI_VALIDATION_MAX_TOKENS = 6144;
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
@@ -51,7 +52,7 @@ Publisher invitations to join social groups are promotional content, not applica
 Verbatim requirement text retains its internal alternatives; a single item may contain a complete results OR certificates condition.
 Check required versus preferred and ALL/ANY/IF qualification logic. OR changed into AND is a failure.
 Unknown fields may stay unknown only where the source does not clearly state their value.
-Intake/reference number, location, pay and experience are NOT required when absent from the notice.
+Intake/reference number, location, pay, experience and residence are NOT required when absent from the notice.
 Do not invent mandatory fields or fail a record merely because the notice leaves optional facts unstated.
 Check the application method and exact destination against the parsed candidates. An aggregator article,
 sharing link, generic contact email or unrelated URL is not an original application method.
@@ -67,6 +68,7 @@ Every recentjobs evidence quote must appear inside recentjobsText itself. Candid
 are structured evidence for checking the route, not text to quote unless literally in recentjobsText.
 For a link whose visible label is Apply now, quote that label; do not quote its hidden href URL.
 Agreement is an evidence-based model assessment, not authority to publish or a guarantee of truth.
+${RESIDENCE_EVIDENCE_INSTRUCTION}
 ${PREFERRED_EXPRESSION_INSTRUCTION}
 Audit strength using each item's level together with its source wording. Fail changed strengths,
 invented conditions or unsupported alternatives. A preferred-labelled reference under ALL is

@@ -126,6 +126,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Shorter title location evidence and consistent grouping guidance](113_SHORTER_TITLE_LOCATION_EVIDENCE_AND_GROUPING_GUIDANCE_2026-10-18.md)
 - [V18/V14 completion of both familiar private workflows](114_V18_V14_FAMILIAR_NOTICE_COMPLETION_2026-10-18.md)
 - [Frozen V18 repeat and citizenship-versus-residence hold](115_V18_REPEAT_AND_CITIZENSHIP_RESIDENCE_HOLD_2026-10-18.md)
+- [Citizenship and residence evidence guard](116_CITIZENSHIP_AND_RESIDENCE_EVIDENCE_GUARD_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
