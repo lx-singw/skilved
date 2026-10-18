@@ -180,7 +180,7 @@ export async function extractProgramme(candidate,id,options={}) {
       ...wire.compensation.map(f=>f.span),...wire.requirements.items.map(i=>i.span)].filter(Boolean);
     for (const span of spans) programmePassage(candidate,id,span);
     // The strict wire has no selector; only trusted code supplies the scoped index.
-    const extraction = decodeGroqExtraction({...wire,applicationCandidateIndex:0},{...candidate,applicationCandidates:programmeCandidate(candidate,id).applicationCandidates});
+    const extraction = decodeGroqExtraction({...wire,applicationCandidateIndex:0},programmeCandidate(candidate,id));
     return {...result,extraction};
   } catch (error) {error.usage=result.provenance.usage;throw error;}
 }

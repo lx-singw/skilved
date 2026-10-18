@@ -78,6 +78,23 @@ test('raw provider spans from another trade are rejected before canonical conver
   }}),/OUTSIDE_SCOPE/);assert.equal(calls,1);
 });
 
+test('location completeness checks only the selected programme while retaining original source line positions',async()=>{
+  const foreign='Successful candidates will be based in North End.',own='Successful candidates will be based in Exampletown.';
+  const changed=parseRecentJobsDetail({url:candidate.sourceUrl,html:html.replace('<p>Applicants require N2 Plumbing.</p>',`<p>Applicants require N2 Plumbing.</p><p>${foreign}</p>`)
+    .replace('<p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p>',`<p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p><p>${own}</p>`)});
+  const intakes=planRecentJobsProgrammes(changed).intakes,lines=(changed.title+'\n'+changed.sourceText).split('\n');let calls=0;
+  for(const intake of intakes){
+    const wire=programmeWire(changed,intake),text=intake===intakes[0]?own:foreign,city=intake===intakes[0]?'Exampletown':'North End',at=lines.indexOf(text)+1;
+    wire.location={state:'stated',value:{places:[{city,province:null,country:null}],coverage:'not_stated',attendance:'not_stated',relocation:null},span:[at,at]};
+    const config={env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});}};
+    const x=(await extractProgramme(changed,intake.id,config)).extraction,mapped=mapProgrammeExtraction(changed,intake.id,x,options);
+    assert.equal(mapped.record.location.value.places[0].city,city);assert.equal(mapped.record.location.originalText,text);
+    const evidence=mapped.evidence.find(e=>e.id===mapped.record.location.id);assert.equal(mapped.snapshot.text.slice(evidence.start,evidence.end),text);
+    wire.location=null;await assert.rejects(extractProgramme(changed,intake.id,config),e=>e.code==='AI_LOCATION_COMPLETENESS_UNRESOLVED'&&e.usage.totalTokens===15);
+  }
+  assert.equal(calls,4);
+});
+
 test('schema keywords returned as data fail once with bounded diagnostics and preserved usage',async()=>{
   const intake=plan.intakes[0],wire={...programmeWire(candidate,intake),type:'object',provider_secret_field:'private value'};let calls=0;
   await assert.rejects(extractProgramme(candidate,intake.id,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_programme_key_12345'},fetchImpl:async()=>{

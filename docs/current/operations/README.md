@@ -119,6 +119,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [V16 completion of two familiar private draft workflows](106_V16_PRIVATE_DRAFT_COMPLETION_2026-10-18.md)
 - [V16 repeatability holds for experience and practical evidence](107_V16_REPEATABILITY_HOLDS_2026-10-18.md)
 - [V16 full Flash comparison and structured location omission](108_V16_FULL_FLASH_COMPARISON_2026-10-18.md)
+- [Source-backed location completeness before validation](109_SOURCE_LOCATION_COMPLETENESS_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

@@ -5,6 +5,7 @@ import { IdSchema, InstantSchema, CompensationSchema, DeadlineSchema } from '@sk
 import { OpportunityRecordSchema, LocationSchema, RequirementValueSchema } from '@skilved/types/opportunities/internal';
 import { DomainError } from '../config.mjs';
 import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION } from './location-evidence.mjs';
+import {assertLocationCompleteness} from './location-completeness.mjs';
 import { isPromotionalLine } from './source-lines.mjs';
 import { assertRequirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
@@ -121,6 +122,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
   assertMetadataCompleteness(candidate, extracted);
   checkQuote(extracted.location.quote);
   assertLocationEvidence(extracted.location);
+  assertLocationCompleteness(candidate,extracted.location);
   const facts = [extracted.issuer, extracted.summary, extracted.intake, extracted.location, extracted.residence,
     extracted.experience, extracted.deadline, ...extracted.compensation, extracted.practicalConditions,
     ...extracted.requirements.items.map(item => item.fact)];
