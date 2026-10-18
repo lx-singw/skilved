@@ -115,6 +115,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [V14 fresh notices and remaining metadata completeness gaps](102_V14_FRESH_NOTICES_AND_METADATA_COMPLETENESS_2026-10-18.md)
 - [Qualitative pay and maximum programme duration checks](103_QUALITATIVE_PAY_AND_MAXIMUM_DURATION_GUARDS_2026-10-18.md)
 - [V15 current notices and validation policy disagreement](104_V15_CURRENT_NOTICES_AND_VALIDATION_DISAGREEMENT_2026-10-18.md)
+- [Publisher validation context and early location evidence checks](105_VALIDATION_CONTEXT_AND_EARLY_LOCATION_CHECKS_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

@@ -17,7 +17,11 @@ const preparation = /^documents to prepare\s*:?$/i;
 const boundary = /^(?:minimum requirements|requirements|qualifications and experience required|minimum qualifications|entry requirements|added advantages|preferred(?: qualifications| requirements)?|advantageous|required (?:application )?documents|documents required|application documents|main responsibilities|responsibilities|duties(?: and responsibilities)?|main training\/duties|location|closing date(?: and application advice)?|how to apply|application process|benefits|why you should apply|apply now)\s*:?$/i;
 
 export function practicalEvidencePolicy(candidate) {
-  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),publisherPreparationSpans=[];
+  return practicalEvidencePolicyFromText(`${candidate.title}\n${candidate.sourceText}`);
+}
+
+export function practicalEvidencePolicyFromText(text) {
+  const lines=text.split('\n'),publisherPreparationSpans=[];
   let start=null;
   for(const [index,line] of lines.entries()) {
     const text=heading(line);

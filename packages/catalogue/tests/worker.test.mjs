@@ -16,6 +16,7 @@ import {programmeWire,subjectProgrammeWire} from './fixtures/programme-model.mjs
 import {parseRecentJobsDetail} from '../src/adapters/recentjobs.mjs';
 import {qualificationHtml,qualificationWire,qualificationSpan,qualificationPassage} from './fixtures/qualification-model.mjs';
 import {metadataHtml,metadataWire} from './fixtures/metadata-completeness.mjs';
+import {locationHtml,locationWire} from './fixtures/location-metadata.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -145,6 +146,29 @@ test('complete qualitative pay and bounded duration reach validation and one pri
  assert.equal(calls.length,2);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),30);
  assert.equal((await db.collection('m0_public').get()).size,publicRows);
  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});
+
+test('location spans gate extraction caching and validation while complete separate place evidence reaches a private draft',async()=>{
+ for(const complete of [false,true]) {
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false}),wire=locationWire(complete);f.state.html=locationHtml;let sends=0;
+  const worker=f.restart(geminiOptions(async(_url,init)=>{
+   sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+   return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Fictional Workshop seeks an electrical apprentice.'}]}:wire);
+  }));
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size,cache=(await db.collection('m0_model_cache').get()).size;
+  const result=await worker.run(f.sourceId),calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(sends,complete?2:1);assert.equal(calls.length,sends);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),sends*15);
+  if(complete) {
+   const record=detailResult(result);assert.ok(record);const draft=value(await worker.ref('drafts',record.recordId).get());
+   assert.equal(draft.location.value.places[0].province,'gauteng');assert.equal(draft.location.value.places[0].country,null);
+   assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+  } else {
+   assert.ok(result.results.some(r=>r.reason==='AI_LOCATION_EVIDENCE_UNRESOLVED'));
+   assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);
+   assert.equal((await db.collection('m0_model_cache').get()).size,cache);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
 });
 
 test('Gemini shadow extraction and validation reserve every fallback call, preserve routes and cache without publishing',async()=>{

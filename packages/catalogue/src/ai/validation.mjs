@@ -3,8 +3,9 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { generateStructured, extractionConfiguration } from './provider.mjs';
 import { DomainError } from '../config.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
+import {practicalEvidencePolicyFromText} from './practical-evidence.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v12';
+export const VALIDATION_VERSION = 'recentjobs_validation_v13';
 const GEMINI_VALIDATION_MAX_TOKENS = 6144;
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
@@ -18,6 +19,13 @@ Verify same issuer, trade/role, location and recruitment intake; different refer
 The supplied source text includes the notice title. A title that names an employer and its role
 can support the stated issuer; a separate sentence saying employer is not required.
 Check every stated field, summary, requirements, document rules, compensation and deadline for support.
+sourcePolicyContext.publisherPreparationSections marks recognised publisher preparation passages
+with their original text and inclusive one-based spans in recentjobsText. Their omission from
+eligibility and practicalConditions is NOT a missing employer instruction, including conditional
+certificate/transcript advice. Do not demand that advice simply because it appears in the notice.
+If the same document is required independently elsewhere, audit that separate required passage.
+Fail publisher preparation promoted into employer conditions. These context hints are not exhaustive,
+do not establish employer verification and must never broaden a selected programme's source scope.
 Check completeness: omitted mandatory conditions are failures even when the extracted claims are true.
 Explicit required attachment instructions can be retained in a required document item or in
 practicalConditions. Audit both fields before calling an instruction missing. Publisher preparation
@@ -84,7 +92,12 @@ export function validationPayload({ record, recentjobsText, primary = null, appl
   if (record.entryStage) facts.entryStage = fact(record.entryStage);
   facts.requirements = { expression: record.requirements.expression,
     requirements: record.requirements.requirements.map(r => ({ id: r.id, kind: r.kind, level: r.level, fact: fact(r.fact) })) };
-  return { extracted: facts, recentjobsText, primary, applicationCandidates };
+  const lines=recentjobsText.split('\n');
+  const policy=practicalEvidencePolicyFromText(recentjobsText);
+  const sourcePolicyContext={version:'recentjobs_validation_context_v1',
+    publisherPreparationSections:policy.publisherPreparationSpans.map(span=>({span,
+      originalText:lines.slice(span[0]-1,span[1]).join('\n')}))};
+  return { extracted: facts, recentjobsText, primary, applicationCandidates, sourcePolicyContext };
 }
 
 export async function validateExtraction(input, options = {}) {

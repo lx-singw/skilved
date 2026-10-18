@@ -1,8 +1,10 @@
 import { DomainError } from '../config.mjs';
 
 export const LOCATION_EVIDENCE_INSTRUCTION = `
-Location values need evidence in the selected location span, not geographical knowledge.
-Never infer a province from a city, or a country from a province. Copy stated place names only.
+Location values need evidence in their own selected span. Check every non-null city/province/country.
+If city and province occur on separate lines, cite one inclusive span covering both. A province
+elsewhere does not support a city-only span. Retain stated places and their complete evidence.
+Never infer province from city or country from province. Copy stated place names only.
 Coverage is not a consequence of a work location; attendance is not a consequence of an apprenticeship.
 Only state attendance from an explicit Attendance, Work arrangement or Work mode label with
 in person/on site, remote or hybrid as its sole value. Only state coverage from an explicit

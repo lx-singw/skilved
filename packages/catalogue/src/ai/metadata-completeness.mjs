@@ -7,6 +7,10 @@ Retain explicitly labelled qualitative salary/stipend in compensation even witho
 For market related, competitive or negotiable pay, keep its wording in coverage and leave
 unstated amount, maximum and currency null and period not_stated. Cite the label and value.
 Retain a stated maximum programme duration with its upper bound, quantity and unit together.
+When metadataCompletenessPolicy.maximumDurations lists a passage, prioritise it in summary:
+copy its complete originalText into summary.value and cite its full span (or exact supporting quote).
+A generic programme-purpose summary is insufficient when it drops that maximum duration.
+Keep separate application/document instructions in practicalConditions with their own exact passage.
 Never turn up to four years into a fixed four years. Use a supported summary when a separate
 application instruction occupies practicalConditions; never join distant practical passages.
 metadataCompletenessPolicy lists narrow recognised source forms that must not disappear.

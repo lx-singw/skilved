@@ -12,7 +12,7 @@ import {assertPracticalEvidence, PRACTICAL_EVIDENCE_INSTRUCTION} from './practic
 import {assertExperienceEvidence, EXPERIENCE_EVIDENCE_INSTRUCTION} from './qualification-evidence.mjs';
 import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v15';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v16';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()

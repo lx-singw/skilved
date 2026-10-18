@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LOCATION_EVIDENCE_INSTRUCTION, locationEvidenceHints } from './location-evidence.mjs';
+import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION, locationEvidenceHints } from './location-evidence.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { CompensationSchema } from '@skilved/types/opportunities';
 import { LocationSchema } from '@skilved/types/opportunities/internal';
@@ -180,5 +180,6 @@ export function decodeGroqMetadata(input,candidate) {
   assertPracticalEvidence(candidate,parsed.practicalConditions);
   assertExperienceEvidence(candidate,parsed.experience);
   assertMetadataCompleteness(candidate,parsed);
+  assertLocationEvidence(parsed.location);
   return parsed;
 }
