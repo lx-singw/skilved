@@ -4,7 +4,7 @@ import {validationContract,validateAssessment} from './validation.mjs';
 import {DomainError} from '../config.mjs';
 
 // Development diagnostic only. This is not the worker's full-record validator.
-export const REQUIREMENT_VALIDATION_VERSION='recentjobs_requirements_validation_v1';
+export const REQUIREMENT_VALIDATION_VERSION='recentjobs_requirements_validation_v2';
 const fail=code=>{throw new DomainError(code);};
 export function requirementValidationContract() {
   const previous=validationContract();

@@ -12,8 +12,8 @@ import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 import {assertPracticalEvidence} from './practical-evidence.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v17';
-export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v12';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v18';
+export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v13';
 // Programme routes are resolved by the source planner, never selected by AI.
 // Strict parsing rejects old index-bearing outputs rather than repairing them.
 export const ProgrammeExtractionSchema = GroqExtractionSchema.omit({applicationCandidateIndex:true}).strict();

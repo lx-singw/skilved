@@ -123,6 +123,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Guarded full Flash repeat and incomplete province evidence](110_GUARDED_FULL_FLASH_REPEAT_2026-10-18.md)
 - [Source-bound guidance for complete location evidence](111_SOURCE_BOUND_LOCATION_SPAN_HINTS_2026-10-18.md)
 - [V17 current notices and remaining ALPLA validation hold](112_V17_CURRENT_NOTICES_AND_VALIDATION_HOLD_2026-10-18.md)
+- [Shorter title location evidence and consistent grouping guidance](113_SHORTER_TITLE_LOCATION_EVIDENCE_AND_GROUPING_GUIDANCE_2026-10-18.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

@@ -2,7 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';
 import {validationPayload,validationContract,validateExtraction,validateAssessment} from '../src/ai/validation.mjs';
 import {practicalEvidencePolicyFromText} from '../src/ai/practical-evidence.mjs';
 import {mapExtraction} from '../src/ai/extraction.mjs';
-import {qualificationCandidate,qualificationExtraction} from './fixtures/qualification-model.mjs';
+import {qualificationCandidate,qualificationExtraction,school,exclusion} from './fixtures/qualification-model.mjs';
 
 // Authored repeated wording in employer instructions and publisher advice.
 const required='Required application documents\nUpdated CV',attachment='Attach your qualifications and academic records.';
@@ -60,4 +60,19 @@ test('publisher context preserves independent primary evidence and cannot weaken
   assert.throws(()=>validateAssessment({...negative,supported:true},input.recentjobsText),/AI_INVALID_VALIDATION/);
   assert.throws(()=>validateAssessment({...negative,evidence:[{source:'recentjobs',quote:'Invented publisher boundary'}]},input.recentjobsText),/AI_INVALID_VALIDATION/);
   assert.throws(()=>validateAssessment(negative,input.recentjobsText,primary),/AI_INVALID_VALIDATION/);
+});
+
+test('standalone exclusion guidance retains separate source facts and never rewrites a negative verdict',async()=>{
+  const extraction=qualificationExtraction(),m=mapExtraction(qualificationCandidate,extraction,{sourceId:'grouping_validation_test',now:'2026-10-18T10:00:00.000Z'}),before=structuredClone(extraction);
+  const data={supported:false,issues:[{field:'requirements',reason:'Merge the standalone exclusion.'}],evidence:[{source:'recentjobs',quote:school+'\n'+exclusion}]},original=structuredClone(data);let calls=0;
+  const result=await validateExtraction({record:m.record,recentjobsText:m.snapshot.text,applicationCandidates:qualificationCandidate.applicationCandidates},{env,fetchImpl:async(_url,init)=>{
+    calls++;const request=JSON.parse(init.body),payload=JSON.parse(request.contents[0].parts[0].text),requirements=payload.extracted.requirements.requirements;
+    assert.equal(requirements.find(r=>r.kind==='education').fact.originalText,school);
+    assert.equal(requirements.find(r=>r.kind==='subjects').fact.originalText,exclusion);assert.equal(payload.extracted.requirements.expression.op,'all');
+    assert.match(request.systemInstruction.parts[0].text,/does not permit\s+detaching an attached affirmative subject list/);
+    return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
+  }});
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_validation_v14');assert.equal(result.supported,false);assert.deepEqual(result.issues,data.issues);
+  assert.deepEqual(extraction,before);assert.deepEqual(data,original);assert.deepEqual(validateAssessment(data,m.snapshot.text),data);
+  assert.throws(()=>validateAssessment({...data,supported:true},m.snapshot.text),/AI_INVALID_VALIDATION/);
 });

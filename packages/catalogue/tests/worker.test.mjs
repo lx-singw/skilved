@@ -19,7 +19,7 @@ import {metadataHtml,metadataWire} from './fixtures/metadata-completeness.mjs';
 import {locationHtml,locationWire} from './fixtures/location-metadata.mjs';
 import {completenessHtml,completenessWire,completenessExtraction} from './fixtures/location-completeness.mjs';
 import {extractMetadata} from '../src/ai/metadata.mjs';
-import {spanHtml,spanWire} from './fixtures/location-span-hints.mjs';
+import {spanHtml,spanWire,titleSpanHtml,titleSpanWire,titleSpanCandidate,workBase} from './fixtures/location-span-hints.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -221,7 +221,7 @@ test('location range guidance reaches the worker without repairing a short answe
   const worker=f.restart(geminiOptions(async(_url,init)=>{
    sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
    if(input.extracted)return geminiAnswer({supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Fictional Workshop seeks an electrical apprentice.'}]});
-   assert.equal(input.locationSpanHints.passages.length,2);assert.deepEqual(input.locationSpanHints.enclosingSpan,spanWire().location.span);
+   assert.equal(input.locationSpanHints.passages.length,2);assert.deepEqual(input.locationSpanHints.recommendedSpan,spanWire().location.span);
    return geminiAnswer(wire);
   }));
   const drafts=(await db.collection('m0_drafts').get()).size,cache=(await db.collection('m0_model_cache').get()).size,publicRows=(await db.collection('m0_public').get()).size;
@@ -235,6 +235,29 @@ test('location range guidance reaches the worker without repairing a short answe
   }else{
    assert.ok(result.results.some(r=>r.reason==='AI_LOCATION_EVIDENCE_UNRESOLVED'));assert.equal((await db.collection('m0_model_cache').get()).size,cache);
    assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
+});
+
+test('short title evidence can reach a private draft but never overrides a negative grouping assessment',async()=>{
+ for(const supported of [false,true]){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=titleSpanHtml;
+  const verdict={supported,issues:supported?[]:[{field:'requirements',reason:'Standalone exclusion must merge.'}],evidence:[{source:'recentjobs',quote:'Mathematical Literacy not accepted.'}]},original=structuredClone(verdict);let sends=0;
+  const worker=f.restart(geminiOptions(async(_url,init)=>{
+   sends++;const body=JSON.parse(init.body),input=JSON.parse(body.contents[0].parts[0].text);
+   if(input.extracted){assert.match(body.systemInstruction.parts[0].text,/standalone subject acceptance\/exclusion rule/);return geminiAnswer(verdict);}
+   assert.deepEqual(input.locationSpanHints.recommendedSpan,[1,2]);assert.equal(input.locationSpanHints.titleAlternatives.length,1);return geminiAnswer(titleSpanWire());
+  }));
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+  const result=await worker.run(f.sourceId),calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(sends,2);assert.equal(calls.length,2);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),30);assert.deepEqual(verdict,original);
+  if(supported){
+   const record=detailResult(result);assert.ok(record);assert.equal(record.published,false);const draft=value(await worker.ref('drafts',record.recordId).get());
+   assert.equal(draft.location.originalText,titleSpanCandidate.title+'\n'+workBase);assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+  }else{
+   assert.ok(result.results.some(r=>r.reason==='SEMANTIC_VALIDATION_FAILED'));assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+   assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,true);
   }
   assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
  }

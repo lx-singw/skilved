@@ -5,7 +5,7 @@ import { DomainError } from '../config.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 import {practicalEvidencePolicyFromText} from './practical-evidence.mjs';
 
-export const VALIDATION_VERSION = 'recentjobs_validation_v13';
+export const VALIDATION_VERSION = 'recentjobs_validation_v14';
 const GEMINI_VALIDATION_MAX_TOKENS = 6144;
 export const ValidationSchema = z.object({ supported: z.boolean(),
   issues: z.array(z.object({ field: z.string().min(1).max(100), reason: z.string().min(1).max(1000) }).strict()).max(40),
@@ -37,6 +37,12 @@ Check requirement kind too: a standalone subject pass-mark threshold is subjects
 with its attached subjects stays a complete education item.
 Keep a qualification and its listed subjects in one complete education passage. Splitting its
 subjects into independent conditions loses qualification scope even under an ALL expression.
+A complete qualification can coexist with a separate standalone subject acceptance/exclusion rule.
+An explicit standalone Mathematics/Mathematical Literacy not applicable/not accepted line uses
+kind subjects; do not demand merging it into an already complete qualification merely because
+the lines are adjacent. Preserve its stated strength and source scope. This does not permit
+detaching an attached affirmative subject list or creating an unconditional rule from a
+route-specific/conditional exclusion. Unclear scope remains a failure; do not invent applicability.
 Standalone supplemental-document instructions such as Other supporting certificates, if applicable
 belong in practicalConditions with their exact conditional wording. A stated instruction does not
 assert that it applies to every applicant. Verify the entire instruction is retained there, not
