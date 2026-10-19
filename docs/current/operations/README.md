@@ -135,6 +135,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Complete submission-block and attendance guidance](122_COMPLETE_SUBMISSION_BLOCK_AND_ATTENDANCE_GUIDANCE_2026-10-19.md)
 - [V21 UFS submission retained and experience field held](123_V21_UFS_SUBMISSION_RETAINED_AND_EXPERIENCE_FIELD_HELD_2026-10-19.md)
 - [Source-bound experience-field completeness](124_SOURCE_BOUND_EXPERIENCE_FIELD_COMPLETENESS_2026-10-19.md)
+- [V22 UFS private workflow completion](125_V22_UFS_PRIVATE_WORKFLOW_COMPLETION_2026-10-19.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
