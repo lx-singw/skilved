@@ -3,7 +3,7 @@ import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
 import {assertNoPreparationEvidence} from './practical-evidence.mjs';
 import {qualificationLineKind,isSubjectExclusion,isEducationOnlyLine} from './qualification-evidence.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v7';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v8';
 export const REQUIREMENT_SOURCE_INSTRUCTION=`
 requirementSourcePolicy lists code-recognised bounded source passages, not new requirements.
 Cover every requiredLineNumbers line with its original requirement passage or exact unknown logic.
@@ -19,11 +19,17 @@ subject list remain one complete education item; never split them to apply this 
 Standalone Mathematics/Mathematical Literacy not applicable/not accepted exclusions use subjects.
 submissionInstructions are explicit required attachment rules. Retain each full originalText as
 a required document item OR in BOTH practicalConditions.value and its contiguous evidence span.
+Instructions with unconditional=true cannot become optional ANY/IF requirement branches.
 Do not omit them. Unknown logic or ambiguous facts remain holds, never authority to publish.
 Publisher Documents to prepare advice is outside these required sections; do not promote it
 to employer eligibility or invent applicability for route-specific documents.
 Keep required and preferred levels as listed. In document sections retain the acceptance rule,
 including certified-copy restrictions, as well as each document. Do not replace the rule with a list.
+Inherent requirements and explicitly required competency details with unconditional=true must
+remain required under ALL, never optional branches of ANY or IF. Keep complete qualification
+alternatives within their original condition. Basic knowledge is kind other, not education.
+Recommendations remain preferred. Competency subheadings are layout context, not conditions;
+retain every detail beneath them. Duties and assumption-of-duties timing are outside these sections.
 conditionalDocumentInstructions are stated submission instructions, not eligibility facts. Retain each
 entire originalText, including applicability wording, in BOTH practicalConditions.value and its
 contiguous evidence span. Do not create requirement items or unknown/IF eligibility nodes for them.
@@ -43,10 +49,11 @@ const label=text=>text.trim().replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s
 // Normalise recognised heading labels only; evidence and numbered conditions
 // retain their original characters and line positions.
 const headingLabel=text=>label(text).replace(/^\d{1,2}[.)]\s+(?=[A-Za-z])/,'');
-const required=/^(?:minimum requirements|requirements|qualifications and experience required|minimum qualifications|entry requirements)\s*:?$/i;
-const preferred=/^(?:added advantages|preferred(?: qualifications| requirements)?|advantageous)\s*:?$/i;
+const required=/^(?:minimum requirements|requirements|qualifications and experience required|minimum qualifications|entry requirements|inherent job requirements|key competencies required)\s*:?$/i;
+const preferred=/^(?:added advantages|preferred(?: qualifications| requirements)?|advantageous|recommendations)\s*:?$/i;
 const documents=/^(?:required (?:application )?documents|documents required|application documents|documents\s*[—–-]\s*very important)\s*:?$/i;
 const ending=/^(?:main responsibilities|responsibilities|duties|main training\/duties|closing date|how to apply|application process|benefits|work level|job type|salary|apply now)\s*:?(?:\s+.*)?$/i;
+const profileEnding=/^(?:competencies|assumption of duties|stipend)\s*:?$/i;
 const editorial=/^(?:what makes (?:this|the) (?:opportunity|programme|apprenticeship) .+|why .+ (?:apprenticeship|opportunity|programme)(?: is .+)?|the \d+ km requirement is important)\s*:?$/i;
 const connective=/^(?:you need(?: one of the following)?|one of the following|either|or|and|prepare|applicants should have|important conditions)\s*:?$/i;
 const preferenceIntro=/^These (?:are not|aren't|aren’t) stated as mandatory, but can strengthen an application\s*:?$/i;
@@ -75,6 +82,11 @@ const submission=/^(?:Attach|Submit|Provide|Include) (?:your |the )?(?:qualifica
 const qualificationUncertainty=/\b(?:or|either|alternatives?|alternatively|equivalent|if|unless|provided|not|no|without|preferred|optional|may)\b/i;
 const resultsDocument=/^CV[’']?s? with (?:Statement of Results|certificates?)(?: or (?:Statement of Results|certificates?))? will be considered[.]?$/i;
 const simpleLicence=/^Valid (?:driving|driver[’']?s?) licen[cs]e[.]?$/i;
+// Explicit submission prose can introduce a bounded document block without a
+// document heading. Keep its context and scoped instructions, not just nouns.
+const standardDocumentation=/^(?:To ensure your application is complete, you must submit ALL documents listed under the inherent requirements, as well as the following standard documentation|(?:To complete your application, )?(?:you|applicants) must (?:submit|provide|attach) (?:all )?(?:the )?following (?:standard documentation|application documents))\s*:$/i;
+const incompleteApplications=/^INCOMPLETE APPLICATIONS WILL NOT BE CONSIDERED!$/i;
+const documentScope=/\b(?:if|where|when|applicable to|for foreign nationals|external applicants only)\b/i;
 
 // Preserve legacy selectors for historical replays. This policy applies only
 // to the current canonical extractor and its compact provider payload.
@@ -83,9 +95,12 @@ export function requirementSourcePolicy(candidate) {
  const close=until=>{if(active)sections.push({...active,until});active=null;};
  for(let index=0;index<lines.length;index++){
   const text=headingLabel(lines[index]);let kind=null;
-  if(required.test(text))kind='required';else if(preferred.test(text))kind='preferred';else if(documents.test(text))kind='documents';
-  if(kind){close(index);active={start:index+1,kind,level:kind==='documents'?( /\brequired\b/i.test(text)?'required':'unclear'):kind};}
-  else if(active&&(ending.test(text)||editorial.test(text)||/^documents to prepare\s*:?$/i.test(text)||isPromotionalLine(text)))close(index);
+  const submissionBlock=standardDocumentation.test(text),inherent=/^inherent job requirements\s*:?$/i.test(text),competencies=/^key competencies required\s*:?$/i.test(text);
+  if(required.test(text))kind='required';else if(preferred.test(text))kind='preferred';else if(documents.test(text)||submissionBlock)kind='documents';
+  if(kind){close(index);active={start:index+1,kind,level:kind==='documents'?(submissionBlock||/\brequired\b/i.test(text)?'required':'unclear'):kind,
+    ...(submissionBlock?{submissionBlock:true,instructionLine:index+1,acceptanceLine:index>0&&incompleteApplications.test(label(lines[index-1]))?index:null}:{}),
+    ...(inherent?{inherent:true}:{}),...(competencies?{competencies:true}:{})};}
+  else if(active&&(ending.test(text)||profileEnding.test(text)||editorial.test(text)||/^documents to prepare\s*:?$/i.test(text)||isPromotionalLine(text)))close(index);
  }
  // An unbounded section still abstains rather than treating a footer as evidence.
  const layoutContext=new Set(),qualificationAlternatives=[],tableSpans=[];
@@ -108,10 +123,21 @@ export function requirementSourcePolicy(candidate) {
  }
  const lineHints=[],conditionalDocumentInstructions=[],submissionInstructions=[];
  for(const section of sections){let level=section.level;
+  // An explicit alternative-list introduction changes the relationship between
+  // its rows. Do not supply ALL hints for that layout; keep semantic review.
+  const unconditionalSection=(section.inherent||section.competencies)&&!lines.slice(section.start,section.until).some(line=>alternativeIntro.test(label(line))||tableIntro.test(label(line)));
+  if(section.submissionBlock)for(const line of [section.acceptanceLine,section.instructionLine].filter(Boolean))submissionInstructions.push({originalText:lines[line-1],span:[line,line],level:'required',unconditional:true});
   for(let index=section.start;index<section.until;index++){
    const text=label(lines[index]),conditional=undefinedCondition.test(text);
    if(!text||layoutContext.has(index+1)||connective.test(text)||preferenceIntro.test(text)||blankForm(text))continue;
    if(candidate.programmeScope&&/\bfor WIL applicants\b/i.test(text))continue;
+   if(section.submissionBlock){
+    const instruction={originalText:lines[index],span:[index+1,index+1]};
+    if(documentScope.test(text))conditionalDocumentInstructions.push(instruction);
+    else submissionInstructions.push({...instruction,level:'required',unconditional:true});
+    continue;
+   }
+   if(section.competencies&&/:$/.test(text)){layoutContext.add(index+1);continue;}
    if(section.kind==='required'&&submission.test(text)){
     submissionInstructions.push({originalText:lines[index],span:[index+1,index+1],level:'required'});continue;
    }
@@ -121,7 +147,9 @@ export function requirementSourcePolicy(candidate) {
     conditionalDocumentInstructions.push({originalText:lines[index],span:[index+1,index+1]});continue;
    }
    if(section.kind==='documents'&&(documentAcceptance.test(text)||documentList.test(text)))level='required';
-   lineHints.push({line:index+1,level:conditional?'unclear':level,kind:section.kind==='documents'?'document':/^Valid passport[.]?$/i.test(text)?'other':null,conditional});
+   const kind=section.kind==='documents'?'document':section.competencies||section.inherent&&/^Basic knowledge of\b/i.test(text)||/^Valid passport[.]?$/i.test(text)?'other':section.kind==='preferred'&&/^Experience (?:with|in|of)\b/i.test(text)?'experience':null;
+   lineHints.push({line:index+1,level:conditional?'unclear':level,kind,conditional,
+    ...(!conditional&&unconditionalSection?{unconditional:true}:{})});
   }
  }
  const completeRequirementSpans=[...tableSpans];
@@ -183,6 +211,8 @@ const unconditionalRefs=node=>node.op==='ref'?[node.id]:node.op==='all'?node.chi
 export function assertRequirementSourcePolicy(candidate,extraction) {
  const policy=requirementSourcePolicy(candidate),lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
  for(const item of extraction.requirements.items)if(item.fact.state==='stated'&&item.fact.quote)assertNoPreparationEvidence(candidate,item.fact.quote);
+ const context=policy.layoutContextLineNumbers.map(line=>lines[line-1]);
+ if(extraction.requirements.items.some(i=>i.fact.quote&&i.fact.quote.split('\n').filter(line=>line.trim()).every(line=>context.includes(line))))throw new DomainError('AI_REQUIREMENT_CONTEXT_UNRESOLVED');
  if(uncoveredRequirementLines(candidate,extraction,policy.requiredLineNumbers).length)throw new DomainError('AI_REQUIREMENT_COVERAGE');
  const unknown=unknownPassages(extraction.requirements.expression);
  for(const group of policy.qualificationConjunctions){
@@ -198,6 +228,7 @@ export function assertRequirementSourcePolicy(candidate,extraction) {
  for(const instruction of policy.submissionInstructions){
   const text=instruction.originalText,items=extraction.requirements.items.filter(i=>i.fact.quote?.split('\n').includes(text)),fact=extraction.practicalConditions;
   if(items.some(i=>i.kind!=='document'||i.level!=='required'))throw new DomainError('AI_SUBMISSION_INSTRUCTION_UNRESOLVED');
+  if(instruction.unconditional&&items.some(i=>!unconditionalRefs(extraction.requirements.expression).includes(i.id)))throw new DomainError('AI_SUBMISSION_INSTRUCTION_UNRESOLVED');
   const practical=fact?.state==='stated'&&fact.value?.includes(text)&&fact.quote?.split('\n').includes(text);
   if(!items.length&&!practical&&!unknown.some(q=>q.split('\n').includes(text)))throw new DomainError('AI_SUBMISSION_INSTRUCTION_COVERAGE');
  }
@@ -214,6 +245,7 @@ export function assertRequirementSourcePolicy(candidate,extraction) {
    if(items.some(i=>i.level!=='unclear'||!['ambiguous','conflicting'].includes(i.fact.state)) || !items.length&&!unknown.some(q=>q.split('\n').includes(text)))throw new DomainError('AI_CONDITIONAL_REQUIREMENT_UNRESOLVED');
   }else if(['required','preferred'].includes(hint.level)&&items.some(i=>i.level!==hint.level))throw new DomainError('AI_REQUIREMENT_LEVEL_UNRESOLVED');
   if(hint.kind&&items.some(i=>i.kind!==hint.kind))throw new DomainError(hint.kind==='document'?'AI_DOCUMENT_REQUIREMENT_UNRESOLVED':'AI_REQUIREMENT_KIND_UNRESOLVED');
+  if(hint.unconditional&&items.some(i=>!unconditionalRefs(extraction.requirements.expression).includes(i.id)))throw new DomainError('AI_REQUIREMENT_CONJUNCTION_UNRESOLVED');
  }
  for(const group of policy.completeRequirementSpans){
   const passage=lines.slice(group.span[0]-1,group.span[1]).join('\n'),members=passage.split('\n');

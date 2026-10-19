@@ -130,6 +130,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [V19/V15 private completion and quota endpoint fallback](117_V19_V15_COMPLETION_AND_QUOTA_ENDPOINT_FALLBACK_2026-10-18.md)
 - [Unseen UFS screening and bounded availability failure](118_UNSEEN_UFS_SCREENING_AND_BOUNDED_AVAILABILITY_FAILURE_2026-10-19.md)
 - [UFS Flash-Lite answer and attendance/completeness hold](119_UFS_FLASH_LITE_ANSWER_AND_ATTENDANCE_COMPLETENESS_HOLD_2026-10-19.md)
+- [Bounded document and required-competency coverage](120_BOUNDED_DOCUMENT_AND_REQUIRED_COMPETENCY_COVERAGE_2026-10-19.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

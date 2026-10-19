@@ -21,6 +21,8 @@ import {completenessHtml,completenessWire,completenessExtraction} from './fixtur
 import {extractMetadata} from '../src/ai/metadata.mjs';
 import {spanHtml,spanWire,titleSpanHtml,titleSpanWire,titleSpanCandidate,workBase} from './fixtures/location-span-hints.mjs';
 import {residenceHtml,residenceWire,residenceExtraction,residenceSpan,citizenship} from './fixtures/residence-model.mjs';
+import {submissionHtml,submissionWire,submissionCandidate} from './fixtures/submission-competency.mjs';
+import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -40,6 +42,38 @@ before(async () => {
   configuration(); runtime = await getRuntime(); db = runtime.db;
 });
 after(async () => { await db?.terminate(); });
+
+test('bounded documents and required competency details gate candidate storage, validation and drafting',async()=>{
+ for(const scenario of ['missing_documents','missing_competency','wrong_knowledge_kind','optional_competency','complete']){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=submissionHtml;
+  f.worker.extractor=async()=>{
+   f.state.modelCalls++;const x=decodeGroqExtraction(submissionWire(),submissionCandidate);
+   if(scenario==='missing_documents')x.practicalConditions={state:'not_stated',value:null,quote:null};
+   if(scenario==='missing_competency'){
+    x.requirements.items=x.requirements.items.filter(i=>i.id!=='c8');x.requirements.expression.children=x.requirements.expression.children.filter(n=>n.id!=='c8');
+   }
+   if(scenario==='wrong_knowledge_kind')x.requirements.items.find(i=>i.id==='k').kind='education';
+   if(scenario==='optional_competency'){
+    x.requirements.expression.children=x.requirements.expression.children.filter(n=>n.id!=='c0');
+    x.requirements.expression.children.push({op:'any',children:[{op:'ref',id:'c0'},{op:'ref',id:'p'}]});
+   }
+   return {extraction:x,provenance:{usage:{totalTokens:20}}};
+  };
+  f.worker.validator=async()=>{f.state.validations++;return {supported:true,issues:[],evidence:[{source:'recentjobs',quote:submissionCandidate.title}],provenance:{usage:{totalTokens:20}}};};
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+  const result=await f.worker.run(f.sourceId);assert.equal(f.state.modelCalls,1);
+  if(scenario==='complete'){
+   const record=detailResult(result);assert.ok(record,JSON.stringify(result.results));assert.equal(f.state.validations,1);assert.equal(record.published,false);
+   const draft=value(await f.worker.ref('drafts',record.recordId).get());assert.equal(draft.publication.approved,false);assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');
+  }else{
+   const reason={missing_documents:'AI_SUBMISSION_INSTRUCTION_COVERAGE',missing_competency:'AI_REQUIREMENT_COVERAGE',wrong_knowledge_kind:'AI_REQUIREMENT_KIND_UNRESOLVED',optional_competency:'AI_REQUIREMENT_CONJUNCTION_UNRESOLVED'}[scenario];
+   assert.ok(result.results.some(r=>r.reason===reason),JSON.stringify(result.results));assert.equal(f.state.validations,0);
+   const exception=(await db.collection('m0_worker_exceptions').get()).docs.map(value).find(e=>e.sourceId===f.sourceId);
+   assert.equal((await f.worker.ref('worker_candidates',exception.jobId).get()).exists,false);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
+});
 
 async function fixture({ mode = 'automatic', calls = 10, publisher = true, cadenceHours = 24, employerCrawl = true } = {}) {
   const sourceId = `source_${randomUUID()}`, principal = `${randomUUID()}@example.test`;
