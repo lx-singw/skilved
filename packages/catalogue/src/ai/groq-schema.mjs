@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION, locationEvidenceHints } from './location-evidence.mjs';
 import {assertLocationCompleteness} from './location-completeness.mjs';
 import {LOCATION_SPAN_INSTRUCTION,locationSpanHints} from './location-span-hints.mjs';
+import {ATTENDANCE_EVIDENCE_INSTRUCTION,attendanceEvidencePolicy} from './attendance-evidence-hints.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { CompensationSchema } from '@skilved/types/opportunities';
 import { LocationSchema } from '@skilved/types/opportunities/internal';
@@ -81,7 +82,7 @@ A list introduced by one of the following is ANY.
 Separate alternatives into items; subjects required together stay in the same item's span as their qualification.
 Example: Grade 12 with Maths OR N3 with Maths and Science means two items under ANY, not three independent subject alternatives.
 If source logic is genuinely unclear use "unknown(firstLine,lastLine)" citing its actual line numbers and empty items.
-Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${LOCATION_SPAN_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${RESIDENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}`;
+Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${LOCATION_SPAN_INSTRUCTION}${ATTENDANCE_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${RESIDENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}`;
 
 function sourceLines(candidate) {
   if (typeof candidate?.title !== 'string' || typeof candidate?.sourceText !== 'string') throw new DomainError('AI_INVALID_SOURCE');
@@ -97,6 +98,7 @@ export function groqExtractionPayload(candidate) {
     metadataCompletenessPolicy: metadataCompletenessPolicy(candidate),
     locationEvidenceHints: locationEvidenceHints(candidate),
     locationSpanHints: locationSpanHints(candidate),
+    attendanceEvidencePolicy: attendanceEvidencePolicy(candidate),
     excludedPromotionalLineNumbers: promotionalLineNumbers(candidate),
     applicationCandidates: candidate.applicationCandidates.map(({ method, destination, originalText }) => ({ method, destination, originalText })) };
 }

@@ -1,9 +1,14 @@
 import {DomainError} from '../config.mjs';
 import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
-import {assertNoPreparationEvidence} from './practical-evidence.mjs';
+import {assertNoPreparationEvidence,practicalEvidencePolicy} from './practical-evidence.mjs';
 import {qualificationLineKind,isSubjectExclusion,isEducationOnlyLine} from './qualification-evidence.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v8';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v9';
+export const SUBMISSION_BLOCK_INSTRUCTION=`
+submissionBlocks supplies complete bounded submission passages, including context and conditional documents.
+Prefer one complete block for practicalConditions: copy its entire originalText and span, not only the
+incomplete-application sentence. Never join disjoint blocks or omit applicability wording. These are
+advisory ranges, not completed facts; absent hints do not excuse missing instructions. Code never repairs output.`;
 export const REQUIREMENT_SOURCE_INSTRUCTION=`
 requirementSourcePolicy lists code-recognised bounded source passages, not new requirements.
 Cover every requiredLineNumbers line with its original requirement passage or exact unknown logic.
@@ -44,7 +49,7 @@ Recognised Grade 12 subject spans likewise belong to ONE complete education item
 the listed subjects from their qualification, even when every split item would be under ALL.
 An unqualified Valid passport profile line is a held credential (kind other), not citizenship or a submission document.
 Document sections still use kind document for documents to submit.
-Headings, preparation labels and editorial explanations are context, not requirement items.`;
+Headings, preparation labels and editorial explanations are context, not requirement items.${SUBMISSION_BLOCK_INSTRUCTION}`;
 const label=text=>text.trim().replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s·•]+/u,'');
 // Normalise recognised heading labels only; evidence and numbered conditions
 // retain their original characters and line positions.
@@ -203,7 +208,23 @@ export function requirementSourcePolicy(candidate) {
  // Known qualification/table groups retain their education kind and scope.
  for(const hint of lineHints)if(hint.kind===null&&!hint.conditional&&!completeRequirementSpans.some(group=>group.span[0]<=hint.line&&hint.line<=group.span[1])&&
    (/^(?:Mathematics|Physical Science) must have been passed with at least (?:100|[1-9]?\d)%[.]?$/i.test(label(lines[hint.line-1]))||isSubjectExclusion(lines[hint.line-1])))hint.kind='subjects';
- return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions,submissionInstructions,layoutContextLineNumbers:[...layoutContext],qualificationAlternatives,qualificationConjunctions,educationOnlySpans};
+ // Advisory whole-block ranges use only already-recognised instruction lines.
+ // Never bridge a scope hole, preparation advice, unfamiliar skipped text or a
+ // passage too long for the existing practicalConditions evidence/value limit.
+ const submissionBlocks=[],excluded=practicalEvidencePolicy(candidate).publisherPreparationSpans;
+ for(const section of sections.filter(s=>s.submissionBlock)){
+  const first=section.acceptanceLine??section.instructionLine,members=[...submissionInstructions,...conditionalDocumentInstructions].filter(i=>i.span[0]>=first&&i.span[1]<=section.until);
+  if(!members.some(i=>i.span[0]>section.instructionLine))continue;
+  const last=Math.max(...members.map(i=>i.span[1])),known=new Set(members.flatMap(i=>Array.from({length:i.span[1]-i.span[0]+1},(_,n)=>i.span[0]+n)));
+  const span=[first,last],originalText=lines.slice(first-1,last).join('\n');
+  if(originalText.length>4000)continue;
+  let allowed=true;
+  for(let line=first;line<=last;line++)if(lines[line-1].trim()&&!known.has(line)||
+    candidate.programmeScope&&!candidate.programmeScope.includedSpans?.some(([from,to])=>from<=line&&line<=to)||
+    excluded.some(([from,to])=>from<=line&&line<=to)||isPromotionalLine(lines[line-1])){allowed=false;break;}
+  if(allowed)submissionBlocks.push({span,originalText});
+ }
+ return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions,submissionInstructions,submissionBlocks,layoutContextLineNumbers:[...layoutContext],qualificationAlternatives,qualificationConjunctions,educationOnlySpans};
 }
 const unknownPassages=node=>node.op==='unknown'?[node.originalText]:node.children?node.children.flatMap(unknownPassages):node.op==='if'?[...unknownPassages(node.then),...(node.otherwise?unknownPassages(node.otherwise):[])]:[];
 const anyGroups=node=>[...(node.op==='any'?[node.children]:[]),...(node.children?node.children.flatMap(anyGroups):node.op==='if'?[...anyGroups(node.then),...(node.otherwise?anyGroups(node.otherwise):[])]:[])];

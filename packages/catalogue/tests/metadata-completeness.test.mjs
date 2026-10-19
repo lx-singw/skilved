@@ -20,10 +20,10 @@ test('pay and maximum duration hints bind complete source passages without chang
     qualitativePay:[{kind:'salary',coverage:'Market related',span:span(qualitativePay),originalText:qualitativePay}],
     maximumDurations:[{amount:3,unit:'year',bound:'maximum',span:span(maximumDuration),originalText:maximumDuration}]});
   assert.deepEqual(groqExtractionPayload(candidate).metadataCompletenessPolicy,metadataCompletenessPolicy(candidate));
-  assert.equal(EXTRACTION_VERSION,'recentjobs_extraction_v20');
-  assert.equal(GROQ_EXTRACTION_VERSION,'recentjobs_extraction_v20_groq_v7');
-  assert.equal(METADATA_VERSION,'recentjobs_metadata_v13');
-  assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v20');
+  assert.equal(EXTRACTION_VERSION,'recentjobs_extraction_v21');
+  assert.equal(GROQ_EXTRACTION_VERSION,'recentjobs_extraction_v21_groq_v7');
+  assert.equal(METADATA_VERSION,'recentjobs_metadata_v14');
+  assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v21');
 });
 
 test('qualitative pay stays non-numeric; maximum duration fits summary beside separate practical evidence',()=>{

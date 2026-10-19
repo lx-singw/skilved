@@ -132,6 +132,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [UFS Flash-Lite answer and attendance/completeness hold](119_UFS_FLASH_LITE_ANSWER_AND_ATTENDANCE_COMPLETENESS_HOLD_2026-10-19.md)
 - [Bounded document and required-competency coverage](120_BOUNDED_DOCUMENT_AND_REQUIRED_COMPETENCY_COVERAGE_2026-10-19.md)
 - [V20 UFS requirements retained and metadata held](121_V20_UFS_REQUIREMENTS_RETAINED_AND_METADATA_HELD_2026-10-19.md)
+- [Complete submission-block and attendance guidance](122_COMPLETE_SUBMISSION_BLOCK_AND_ATTENDANCE_GUIDANCE_2026-10-19.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

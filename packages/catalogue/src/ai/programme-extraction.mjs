@@ -12,7 +12,7 @@ import { OpportunityRecordSchema } from '@skilved/types/opportunities/internal';
 import { rejectedOutputDiagnostic } from './rejected-output.mjs';
 import {assertPracticalEvidence} from './practical-evidence.mjs';
 
-export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v20';
+export const PROGRAMME_EXTRACTION_VERSION = 'recentjobs_programme_extraction_v21';
 export const PROGRAMME_VALIDATION_VERSION = 'recentjobs_programme_validation_v14';
 // Programme routes are resolved by the source planner, never selected by AI.
 // Strict parsing rejects old index-bearing outputs rather than repairing them.
