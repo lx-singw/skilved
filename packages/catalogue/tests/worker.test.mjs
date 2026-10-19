@@ -133,6 +133,43 @@ const programmeResponse=(input,candidate)=>input.extracted
   ? {supported:true,issues:[],evidence:[{source:'recentjobs',quote:input.selectedIntake.reference.originalText}]}
   : programmeWire(candidate,input.selectedIntake);
 
+test('experience completeness stops ordinary and split workers before cache or validation, while a complete preference reaches a private draft',async()=>{
+ for(const mode of ['ordinary_missing','split_missing','complete']){
+  const complete=mode==='complete',split=mode==='split_missing',f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=submissionHtml;
+  const wire=submissionWire();if(!complete)wire.experience=null;const {requirements,...metadata}=wire,data=split?metadata:wire,original=structuredClone(data);let sends=0;
+  const fetchImpl=async(_url,init)=>{sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:submissionCandidate.title}]}:data);};
+  const worker=f.restart({...geminiOptions(fetchImpl),...(split?{extractionMode:'split',metadataExtractor:(c,o)=>extractMetadata(c,{...o,fetchImpl}),requirementsExtractor:()=>assert.fail('Rejected experience must stop requirement extraction')}:{} )});
+  const drafts=(await db.collection('m0_drafts').get()).size,cache=(await db.collection('m0_model_cache').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+  const result=await worker.run(f.sourceId),calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.equal(sends,complete?2:1);assert.equal(calls.length,sends);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),sends*15);assert.deepEqual(data,original);
+  const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,sends);
+  if(complete){
+   const record=detailResult(result);assert.ok(record,JSON.stringify(result.results));assert.equal(record.published,false);const draft=value(await worker.ref('drafts',record.recordId).get());
+   assert.equal(draft.experience.value,submissionWire().experience.value);assert.equal(draft.requirements.requirements.find(r=>r.kind==='experience').level,'preferred');assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+  }else{
+   assert.ok(result.results.some(r=>r.reason==='AI_EXPERIENCE_COMPLETENESS_UNRESOLVED'),JSON.stringify(result.results));assert.equal(calls[0].state,'received');
+   assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);assert.equal((await worker.ref('worker_decisions',calls[0].jobId).get()).exists,false);assert.equal((await worker.ref('worker_exceptions',calls[0].jobId).get()).exists,true);
+   assert.equal((await db.collection('m0_model_cache').get()).size,cache);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
+});
+
+test('canonical mapping rechecks a cached missing experience fact without new spending or repair',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=submissionHtml;
+ const x=decodeGroqExtraction(submissionWire(),submissionCandidate);x.experience={state:'not_stated',value:null,quote:null};const original=structuredClone(x);let extracts=0;
+ // A simulated internal decoder bypasses compact validation; canonical mapping
+ // still rejects its cached result on both attempts.
+ const options={provider:'gemini',env:geminiEnv,extractor:(_c,o)=>o.runAttempt({model:'gemini-3.8-flash',requestHash:'e'.repeat(64)},async()=>{extracts++;return {extraction:structuredClone(x),provenance:{usage:{totalTokens:15}}};}),validator:()=>assert.fail('Missing experience reached validation')};
+ const worker=f.restart(options),drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+ assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='AI_EXPERIENCE_COMPLETENESS_UNRESOLVED'));
+ const cache=(await db.collection('m0_model_cache').get()).docs.map(d=>({id:d.id,...value(d)}));
+ f.advance(24*3600000);assert.ok((await f.restart(options).run(f.sourceId)).results.some(r=>r.reason==='AI_EXPERIENCE_COMPLETENESS_UNRESOLVED'));assert.equal(extracts,1);assert.deepEqual(x,original);
+ assert.deepEqual((await db.collection('m0_model_cache').get()).docs.map(d=>({id:d.id,...value(d)})),cache);
+ const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);assert.equal(calls.length,1);assert.equal(calls[0].usage.totalTokens,15);
+ assert.equal((await db.collection('m0_worker_candidates').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);assert.equal((await db.collection('m0_drafts').get()).size,drafts);assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});
+
 test('qualification logic and experience source holds preserve spending and stop before validation or drafting',async()=>{
  for(const [reason,change] of [
   ['AI_REQUIREMENT_CONJUNCTION_UNRESOLVED',wire=>{wire.requirements.expression='all(any(q1,q2),s,d)';}],
