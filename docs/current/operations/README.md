@@ -128,6 +128,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Frozen V18 repeat and citizenship-versus-residence hold](115_V18_REPEAT_AND_CITIZENSHIP_RESIDENCE_HOLD_2026-10-18.md)
 - [Citizenship and residence evidence guard](116_CITIZENSHIP_AND_RESIDENCE_EVIDENCE_GUARD_2026-10-18.md)
 - [V19/V15 private completion and quota endpoint fallback](117_V19_V15_COMPLETION_AND_QUOTA_ENDPOINT_FALLBACK_2026-10-18.md)
+- [Unseen UFS screening and bounded availability failure](118_UNSEEN_UFS_SCREENING_AND_BOUNDED_AVAILABILITY_FAILURE_2026-10-19.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
