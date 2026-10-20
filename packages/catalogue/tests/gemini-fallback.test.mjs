@@ -122,3 +122,43 @@ test('a persisted per-model cooldown skips that model without consuming a reques
   },fetchImpl:async url=>{sent.push(modelOf(url));return answer();}});
   assert.deepEqual(sent,[GEMINI_MODEL_CHAIN[1]]);assert.equal(result.provenance.attempts[0].status,'deferred');
 });
+
+test('model-independent request identity changes with evidence, contract, cap and thinking',async()=>{
+  const identities=[];
+  for(const change of [{},{payload:{source:'different'}},{contract:{...contract,version:'next'}},
+    {contract:{...contract,instruction:'Different instruction'}},{maxOutputTokens:1024},
+    {env:{...env,SKILVED_AI_THINKING:'medium'}}]){
+    const seen=[];
+    await generateStructured(change.payload??{source:'fictional'},change.contract??contract,{env,...change,
+      runAttempt:async(attempt,send)=>{seen.push(attempt);return send();},
+      fetchImpl:async()=>seen.length===1?new Response(null,{status:503}):answer()});
+    assert.equal(seen.length,2);assert.equal(seen[0].requestContextHash,seen[1].requestContextHash);
+    assert.notEqual(seen[0].requestHash,seen[1].requestHash);identities.push(seen[0].requestContextHash);
+  }
+  assert.equal(new Set(identities).size,identities.length);
+});
+
+test('continuation skips visited models before reservation without changing the request',async()=>{
+  const sent=[];
+  const result=await generateStructured({source:'fictional'},contract,{env,runAttempt:async({model},send)=>{
+    if(GEMINI_MODEL_CHAIN.indexOf(model)<2){const e=new Error();e.code='AI_MODEL_WINDOW_SKIPPED';e.retryAfterMs=0;throw e;}return send();
+  },fetchImpl:async(url,init)=>{sent.push({model:modelOf(url),body:JSON.parse(init.body)});return answer();}});
+  assert.deepEqual(sent.map(c=>c.model),['gemini-3.6-flash']);
+  assert.deepEqual(result.provenance.attempts.map(a=>a.status),['deferred','deferred','response']);
+  assert.ok(result.provenance.attempts.slice(0,2).every(a=>a.code==='AI_MODEL_WINDOW_SKIPPED'&&a.usage===null));
+  assert.deepEqual(JSON.parse(sent[0].body.contents[0].parts[0].text),{source:'fictional'});
+});
+
+test('all deferred models wake at the earliest hold rather than the last daily reset',async()=>{
+  await assert.rejects(generateStructured({},contract,{env,now:()=>1000,
+    runAttempt:async({model})=>{const e=new Error();e.code='AI_RATE_LIMITED';e.retryAfterMs=model===GEMINI_MODEL_CHAIN[0]?120000:86400000;throw e;},
+    fetchImpl:()=>assert.fail('Deferred models must not send')}),e=>e.code==='AI_RATE_LIMITED'&&e.retryAfterMs===120000&&e.attempts.length===6);
+});
+
+test('an injected generation clock bounds a window and retains the last visited attempts',async()=>{
+  let clock=0;const sent=[];
+  await assert.rejects(generateStructured({},contract,{env,now:()=>clock,fetchImpl:async url=>{
+    sent.push(modelOf(url));clock+=45000;throw Error('PRIVATE_SIMULATED_TIMEOUT');
+  }}),e=>e.code==='AI_TIMEOUT'&&e.attempts.length===2&&!JSON.stringify(e).includes('PRIVATE_SIMULATED_TIMEOUT'));
+  assert.deepEqual(sent,GEMINI_MODEL_CHAIN.slice(0,2));
+});

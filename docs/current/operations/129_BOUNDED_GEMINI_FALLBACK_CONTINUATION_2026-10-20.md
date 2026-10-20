@@ -1,0 +1,43 @@
+# Bounded Gemini fallback continuation
+
+Date: 20 October 2026. Status: implementation and authored offline checks let an interrupted Gemini stage continue through the remaining configured models on later worker invocations. Availability retries have a separate finite bound, while source spending, shared quota memory, evidence checks and publication policy remain enforced. No real source request or provider call is made in this sprint.
+
+## Problem and resulting behavior
+
+The [bounded RecentJobs screen](128_BOUNDED_RECENTJOBS_SCREEN_AND_NO_NEW_ELIGIBLE_CASE_2026-10-20.md), committed as `5b62601`, finds no eligible new AI case and identifies fallback continuation as the next worker task. Previously a ninety-second generation window could spend forty-five seconds on each of the first two models, then expire before trying the lower models. A later worker invocation started that stage from the configured top again and could exhaust the three ordinary job attempts without reaching Flash-Lite.
+
+The worker now saves the next model for the interrupted stage after each actual availability failure. A matching later invocation skips the already visited prefix before reserving a call, then continues down the configured chain. The default order remains 3.8 Flash, 3.7 Flash, 3.6 Flash, 3.5 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite. An explicitly configured lower starting model retains its suffix. Each generation window keeps its existing ninety-second bound and each request its forty-five-second bound.
+
+An authored emulator case makes each model above 3.1 unavailable. Extraction reaches 3.1 over three windows; validation has its own cursor and also reaches 3.1. Five worker invocations complete the private draft using twelve actual simulated generation calls. Completed extraction is cached while validation resumes. All ten failed-call usages remain unknown; the two successful calls report thirty synthetic tokens. The original application destination survives and the draft stays unapproved with no public record. These are simulated transport failures and answers, not evidence of real provider availability or extraction quality.
+
+## Cursor identity and reset
+
+The current-stage cursor is stored inside the private job. A model-independent SHA-256 binds it to the exact generation request and contract: evidence, system instruction/schema, contract version, output mode, token cap and thinking level. The existing request hash still distinguishes individual models. The worker additionally requires the same stage, source snapshot, source revision, configured start model, quota scope and Pacific quota day. Programme stage identifiers distinguish individual intakes; split extraction stages also remain distinct.
+
+Changed evidence, contracts, thinking, source revision, start model, quota scope or provider day cannot inherit an unrelated skip. A successful answer clears the cursor; subsequent schema, material-fact and semantic checks still decide acceptance. If the suffix has been completely examined, the cursor resets so a later invocation can reconsider earlier models as their holds expire. No answer, prompt, evidence, requirement or application method is repaired or relaxed.
+
+Continuation applies only when fallback is explicitly enabled for that generation attempt. Disabled fallback retains ordinary retry behavior. Extraction and validation contracts, semantic guards and cache identities stay unchanged; correctly cached completed stages remain reusable. An injectable generation clock supports deterministic offline timing tests without changing worker leases or requiring real waits.
+
+## Bounds, availability and spending
+
+There are at most six availability windows per job: the initial window and up to five continuation retries. The persisted `modelWindowRetries` counter distinguishes those retries from ordinary job failures. Actual claim attempts remain recorded, and the three-attempt ordinary-failure allowance remains available for source/system recovery. Neither a configuration/input change nor a provider-day reset refunds spending or resets the continuation allowance. Exhaustion produces an inspectable exception and removes the queue entry.
+
+Timeouts and transport failures now receive the same source/model cooldown floor as retryable provider availability statuses: two minutes or a longer provider delay. Daily exhaustion remains shared by quota scope and model until its existing reset/hold boundary. Existing RPD reservations, rolling RPM/known-token counters, concurrent reservations, source daily caps and unknown-usage accounting remain enforced.
+
+When every candidate is deferred, the job uses the earliest relevant model release plus the existing ordinary backoff floor. The final model's daily hold cannot unnecessarily hide an earlier model's shorter release. If the continued suffix is held, its completed pass resets the cursor so the earlier prefix can be reconsidered. Every later reservation rechecks all holds and limits; a shorter wake does not bypass a longer hold on any particular model. When every model is daily-exhausted, the job waits for the Pacific reset rather than polling them each minute. Skipped models create no generation reservation or receipt.
+
+Source budgets remain authoritative. Failed actual attempts keep their spending and receipts, including null usage. A spent source cap, revoked worker grant, paused source or stale claim cannot be bypassed by a continuation. Authentication, billing/configuration, malformed output, local schema/material checks and semantic validation failures do not become availability fallback retries. Groq behavior remains unchanged.
+
+## Verification and limits
+
+The contracts build, 107 focused provider/quota/worker checks and the final 720-test serial Firestore/Auth emulator suite pass. Thirteen new authored tests cover request identity, free prefix skips, bounded timing, restart progress to the final model, cached extraction during validation, finite exhaustion, earliest releases, all-model daily exhaustion/reset, a fully held suffix, changed context, semantic/authentication stops and source/grant/budget boundaries. Existing concurrent quota, Pacific/DST reset, source policy, programme and publication checks remain part of verification.
+
+The initial focused run passes 105 of 106 checks. Its failing new fixture edited outside the parsed notice, leaving the actual request unchanged. The corrected fixture changes the owned title and asserts its parsed hash differs before testing cursor invalidation. That log and diagnostic remain private and preserved. The final focused and full runs use the frozen final code/test hashes.
+
+The first full-suite launcher uses a demo project name that differs from the Auth fixtures' required `demo-skilved-b03`. Token-audience failures cause 93 failures, with 627 checks passing. The established project name is restored without changing product code. The next run passes 719 checks and encounters one `Transaction is invalid or closed` error in the unchanged concurrent suggestion-create test. All fourteen suggestion-create checks pass unchanged in a fresh isolated rerun. The final clean serial run passes all 720 checks; its private log is `clean-full-tests.log`. Both earlier full logs, launchers and diagnostics are preserved.
+
+An additional offline replay supplies the unchanged saved positive UFS answers through a mocked transport. Extraction and validation requests match their earlier bodies and per-model request hashes exactly. Decoded results and earlier provenance match, apart from the added private request-context hash. This verifies request compatibility and does not count as another live model result or change usage counters.
+
+All 509 frozen historical artifact hashes match; real quota state is byte-identical at 87 observed requests, 309,183 known tokens and 32 unknown-usage calls. Earlier real responses, failures, spending, exhaustion, caches, source snapshots and draft revisions remain private and unchanged. New synthetic emulator data is isolated. No real source grant, worker/database pilot, candidate or draft is added to the preserved real pilot history.
+
+Resumption requires a later worker invocation; this change enables no background service. Production scheduling and publication remain disabled, and Gemini remains shadow-only. Employer crawling stays optional/off. A separately bounded private pilot, with refreshed eligible source facts and frozen expectations before any real call, remains the next verification step. Broader real-source coverage and source qualification are still unresolved.

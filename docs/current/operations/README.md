@@ -139,6 +139,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [V22 frozen repeat and Optimum layout hold](126_V22_FROZEN_REPEAT_AND_OPTIMUM_LAYOUT_HOLD_2026-10-20.md)
 - [Explicit main-notice binding and Optimum deadline hold](127_EXPLICIT_MAIN_NOTICE_BINDING_AND_OPTIMUM_DEADLINE_HOLD_2026-10-20.md)
 - [Bounded RecentJobs screen and no new eligible case](128_BOUNDED_RECENTJOBS_SCREEN_AND_NO_NEW_ELIGIBLE_CASE_2026-10-20.md)
+- [Bounded Gemini fallback continuation](129_BOUNDED_GEMINI_FALLBACK_CONTINUATION_2026-10-20.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

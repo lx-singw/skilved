@@ -24,6 +24,7 @@ import {residenceHtml,residenceWire,residenceExtraction,residenceSpan,citizenshi
 import {submissionHtml,submissionWire,submissionCandidate} from './fixtures/submission-competency.mjs';
 import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
 import {boundDetail,boundBody} from './fixtures/recentjobs-bound-detail.mjs';
+import {GEMINI_MODEL_CHAIN} from '../src/ai/gemini-models.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -1082,6 +1083,146 @@ const quotaResponse = (_url,init) => {
 const quotaFixture = () => fixture({mode:'shadow',publisher:false,employerCrawl:false});
 const quotaOptions = (project,fetchImpl,limits={}) => ({...geminiOptions(fetchImpl),env:{...geminiEnv,SKILVED_GEMINI_PROJECT_ID:project,SKILVED_GEMINI_MODEL_LIMITS:JSON.stringify(limits)}});
 const quotaRows = async (worker,name) => (await db.collection('m0_'+name).get()).docs.map(value).filter(r=>r.scopeHash===worker.quotaScope);
+
+// Advance only the provider's generation clock. Firestore and worker leases keep
+// their own clocks, so authored 45-second failures need no real network or wait.
+const windowOptions = (handler, project=`authored-${randomUUID()}`) => {
+  let clock=0;const requests=[];
+  const fetchImpl=async(url,init)=>{
+    const body=JSON.parse(init.body),input=JSON.parse(body.contents[0].parts[0].text),row={model:url.split('/models/')[1].split(':')[0],validation:!!input.extracted,body};
+    requests.push(row);return handler(row,()=>{clock+=45000;throw Error('AUTHORED_UNAVAILABLE');},()=>quotaResponse(url,init));
+  };
+  const options=quotaOptions(project,fetchImpl);
+  options.extractor=(candidate,o)=>extractWithProvider(candidate,{...o,fetchImpl,now:()=>clock});
+  options.validator=(input,o)=>validateExtraction(input,{...o,fetchImpl,now:()=>clock});
+  return {options,requests};
+};
+const detailJob = async f => (await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');
+const advanceToJob = (f,job) => f.advance(Math.max(0,Date.parse(job.nextAt)-Date.parse(f.now())));
+const sourceCalls = async f => (await db.collection('m0_model_calls').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);
+
+test('Gemini model windows reach the final model across restarts and reuse extraction during validation continuation',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:12});
+  const {options,requests}=windowOptions((r,expire,respond)=>r.model===GEMINI_MODEL_CHAIN.at(-1)?respond():expire());
+  let worker=f.restart(options),result=await worker.run(f.sourceId),job=await detailJob(f);
+  assert.ok(result.results.some(r=>r.state==='pending'&&r.reason==='AI_TIMEOUT'));
+  assert.equal(job.modelWindow.nextModel,'gemini-3.6-flash');assert.equal(job.modelWindow.stage,'extraction');
+  assert.equal(job.modelWindowRetries,1);const preserved=await sourceCalls(f);assert.equal(preserved.length,2);
+  for(let run=2;run<=5;run++){
+    advanceToJob(f,job);worker=f.restart(options);result=await worker.runJob(f.sourceId,job.id);job=await detailJob(f);
+    if(run<5)assert.equal(result.state,'pending');
+    if(run===3){assert.equal(job.modelWindow.stage,'validation');assert.equal(requests.filter(r=>!r.validation).length,6);}
+  }
+  assert.equal(result.state,'done');assert.equal(result.published,false);assert.equal(job.attempts,5);assert.equal(job.modelWindowRetries,4);assert.equal(job.modelWindow,null);
+  for(const validation of [false,true]){
+    const rows=requests.filter(r=>r.validation===validation);assert.deepEqual(rows.map(r=>r.model),GEMINI_MODEL_CHAIN);
+    for(const row of rows)assert.deepEqual(row.body,rows[0].body);
+  }
+  const calls=await sourceCalls(f);assert.equal(calls.length,12);assert.equal(calls.filter(c=>c.usage===null).length,10);
+  for(const prior of preserved)assert.deepEqual(calls.find(c=>c.requestHash===prior.requestHash),prior);
+  const budgets=(await db.collection('m0_model_budgets').get()).docs.map(value).filter(b=>b.sourceId===f.sourceId);assert.equal(budgets[0].calls,12);
+  const usage=await quotaRows(worker,'model_usage');assert.equal(usage.reduce((n,u)=>n+u.requests,0),12);assert.equal(usage.reduce((n,u)=>n+u.unknownUsageCalls,0),10);assert.equal(usage.reduce((n,u)=>n+u.knownTotalTokens,0),30);
+  const draft=value(await worker.ref('drafts',result.recordId).get());assert.equal(draft.publication.approved,false);assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal((await worker.ref('public',result.recordId).get()).exists,false);
+});
+
+test('Gemini model windows stop after six availability windows with every failed call still spent',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:40}),{options,requests}=windowOptions(()=>new Response(null,{status:503}));
+  let worker=f.restart(options);await worker.run(f.sourceId);let job=await detailJob(f),result;
+  for(let run=2;run<=6;run++){advanceToJob(f,job);worker=f.restart(options);result=await worker.runJob(f.sourceId,job.id);job=await detailJob(f);}
+  assert.equal(result.state,'exception');assert.equal(result.reason,'AI_PROVIDER_REJECTED');assert.equal(job.attempts,6);assert.equal(job.modelWindowRetries,5);assert.equal(requests.length,36);
+  assert.equal((await sourceCalls(f)).length,36);assert.ok((await sourceCalls(f)).every(c=>c.usage===null));
+  assert.equal((await worker.ref('worker_queue',job.id).get()).exists,false);assert.equal(value(await worker.ref('worker_exceptions',job.id).get()).modelWindowRetries,5);
+  advanceToJob(f,job);await assert.rejects(worker.runJob(f.sourceId,job.id),/JOB_UNAVAILABLE/);assert.equal(requests.length,36);
+});
+
+test('Gemini model windows wait for the earliest model hold and create no skipped reservations',async()=>{
+  const f=await quotaFixture(),{options,requests}=windowOptions((_r,_expire,respond)=>respond()),worker=f.restart(options);
+  for(const model of GEMINI_MODEL_CHAIN.slice(1))await worker.holdModelForDay(f.sourceId,model);
+  const budgetId=createHash('sha256').update(`${f.sourceId}:2026-09-26`).digest('hex');
+  await worker.ref('model_budgets',budgetId).set(payload({sourceId:f.sourceId,date:'2026-09-26',calls:0,nextCallByModel:{'gemini-3.8-flash':new Date(Date.parse(f.now())+120000).toISOString()}}));
+  await worker.run(f.sourceId);const job=await detailJob(f);assert.equal(job.nextAt,'2026-09-26T10:02:00.000Z');assert.equal(requests.length,0);assert.equal((await sourceCalls(f)).length,0);assert.equal((await quotaRows(worker,'model_usage')).length,0);
+  f.advance(119999);await assert.rejects(f.restart(options).runJob(f.sourceId,job.id),/JOB_UNAVAILABLE/);
+  f.advance(1);const result=await f.restart(options).runJob(f.sourceId,job.id);assert.equal(result.state,'done');assert.deepEqual(requests.map(r=>r.model),['gemini-3.8-flash','gemini-3.8-flash']);
+});
+
+test('Gemini model windows preserve all daily holds until Pacific reset without polling them',async()=>{
+  const f=await quotaFixture(),{options,requests}=windowOptions((_r,_expire,respond)=>respond()),worker=f.restart(options);
+  for(const model of GEMINI_MODEL_CHAIN)await worker.holdModelForDay(f.sourceId,model);
+  await worker.run(f.sourceId);const job=await detailJob(f);assert.equal(job.nextAt,'2026-09-27T07:00:00.000Z');assert.equal(job.modelWindowRetries,1);assert.equal(requests.length,0);assert.equal((await sourceCalls(f)).length,0);
+  const holds=await quotaRows(worker,'model_availability');advanceToJob(f,job);assert.equal((await f.restart(options).runJob(f.sourceId,job.id)).state,'done');
+  assert.deepEqual(requests.map(r=>r.model),['gemini-3.8-flash','gemini-3.8-flash']);assert.deepEqual(await quotaRows(worker,'model_availability'),holds);
+});
+
+test('Gemini model windows reconsider earlier models after a continued suffix is entirely held',async()=>{
+  const f=await quotaFixture();let unavailable=true;
+  const {options,requests}=windowOptions((_r,expire,respond)=>unavailable?expire():respond());let worker=f.restart(options);
+  await worker.run(f.sourceId);let job=await detailJob(f);assert.equal(job.modelWindow.nextModel,'gemini-3.6-flash');
+  for(const model of GEMINI_MODEL_CHAIN.slice(2))await worker.holdModelForDay(f.sourceId,model);
+  unavailable=false;advanceToJob(f,job);worker=f.restart(options);
+  assert.equal((await worker.runJob(f.sourceId,job.id)).state,'pending');job=await detailJob(f);
+  assert.equal(job.modelWindow,null);assert.equal(requests.length,2);assert.ok(Date.parse(job.nextAt)-Date.parse(f.now())<=120000);
+  advanceToJob(f,job);assert.equal((await f.restart(options).runJob(f.sourceId,job.id)).state,'done');
+  assert.deepEqual(requests.slice(2).map(r=>r.model),['gemini-3.8-flash','gemini-3.8-flash']);assert.equal((await sourceCalls(f)).length,4);
+});
+
+test('Gemini model windows do not carry a cursor into changed evidence, source revision, configuration, scope or provider day',async()=>{
+  for(const change of ['evidence','revision','thinking','configured_model','scope','provider_day']){
+    const f=await quotaFixture();let unavailable=true;
+    const {options,requests}=windowOptions((_r,expire,respond)=>unavailable?expire():respond());let worker=f.restart(options);
+    await worker.run(f.sourceId);const job=await detailJob(f);assert.equal(job.modelWindow.nextModel,'gemini-3.6-flash');unavailable=false;f.advance(180000);
+    if(change==='evidence'){
+      const before=parseRecentJobsDetail({html:f.state.html,url:detailUrl});
+      f.state.html=f.state.html.replace('Fictional electrical apprentice','Fictional electrical apprentice Updated');
+      assert.notEqual(parseRecentJobsDetail({html:f.state.html,url:detailUrl}).contentHash,before.contentHash);
+    }
+    if(change==='revision'){f.source.revision++;await worker.ref('sources',f.sourceId).set(payload(f.source));}
+    if(change==='thinking')options.thinking='medium';
+    if(change==='configured_model')options.model='gemini-3.7-flash';
+    if(change==='scope')options.env={...options.env,SKILVED_GEMINI_PROJECT_ID:`authored-${randomUUID()}`};
+    if(change==='provider_day')f.advance(21*3600000);
+    worker=f.restart(options);const result=await worker.runJob(f.sourceId,job.id);assert.equal(result.state,'done',change);
+    assert.equal(requests[2].model,change==='configured_model'?'gemini-3.7-flash':'gemini-3.8-flash',change);
+    assert.equal((await sourceCalls(f)).length,4);assert.equal(value(await worker.ref('drafts',result.recordId).get()).publication.approved,false);
+  }
+});
+
+test('Gemini model windows stop on schema, authentication and semantic validation failures without another model',async()=>{
+  for(const failure of ['schema','authentication','semantic_validation']){
+    const f=await quotaFixture();let unavailable=true;
+    const {options,requests}=windowOptions((r,expire,respond)=>{
+      if(unavailable)return expire();
+      if(failure==='authentication')return new Response(null,{status:401});
+      if(failure==='schema')return geminiAnswer({});
+      if(r.validation)return geminiAnswer({supported:false,issues:[{field:'requirements',reason:'Authored semantic rejection'}],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}]});
+      return respond();
+    });
+    await f.restart(options).run(f.sourceId);const job=await detailJob(f);unavailable=false;advanceToJob(f,job);
+    const result=await f.restart(options).runJob(f.sourceId,job.id);assert.equal(result.state,'exception');
+    assert.equal(result.reason,{schema:'AI_INVALID_EXTRACTION',authentication:'AI_PROVIDER_REJECTED',semantic_validation:'SEMANTIC_VALIDATION_FAILED'}[failure]);
+    assert.equal(requests.length,failure==='semantic_validation'?4:3);assert.equal((await sourceCalls(f)).length,requests.length);
+    const final=await detailJob(f);assert.equal(final.modelWindowRetries,1);assert.equal((await f.worker.ref('drafts',final.recordId).get()).exists,false);
+  }
+});
+
+test('Gemini model windows do not consume the three ordinary source-failure attempts',async()=>{
+  const f=await quotaFixture(),{options,requests}=windowOptions((_r,expire)=>expire());await f.restart(options).run(f.sourceId);let job=await detailJob(f),result;
+  options.fetcher=async()=>{throw new DomainError('UNSUPPORTED_RESPONSE');};
+  for(let n=0;n<3;n++){advanceToJob(f,job);result=await f.restart(options).runJob(f.sourceId,job.id);job=await detailJob(f);if(n<2)assert.equal(result.state,'pending');}
+  assert.equal(result.state,'exception');assert.equal(job.attempts,4);assert.equal(job.modelWindowRetries,1);assert.equal(requests.length,2);assert.equal((await sourceCalls(f)).length,2);
+});
+
+test('Gemini model windows cannot bypass spent source budgets, revoked grants or a paused source',async()=>{
+  for(const boundary of ['budget','revoked','paused']){
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:2}),{options,requests}=windowOptions((_r,expire)=>expire());
+    const worker=f.restart(options);await worker.run(f.sourceId);const job=await detailJob(f);advanceToJob(f,job);
+    if(boundary==='revoked')await worker.ref('workers',worker.actor).update({active:false});
+    if(boundary==='paused'){f.source.paused=true;await worker.ref('sources',f.sourceId).set(payload(f.source));}
+    if(boundary==='budget')assert.equal((await f.restart(options).runJob(f.sourceId,job.id)).reason,'MODEL_BUDGET_EXHAUSTED');
+    else await assert.rejects(f.restart(options).runJob(f.sourceId,job.id),new RegExp(boundary==='revoked'?'WORKER_FORBIDDEN':'SOURCE_PAUSED'));
+    assert.equal(requests.length,2);assert.equal((await sourceCalls(f)).length,2);
+    const budgets=(await db.collection('m0_model_budgets').get()).docs.map(value).filter(b=>b.sourceId===f.sourceId);assert.equal(budgets[0].calls,2);
+  }
+});
 
 test('daily provider exhaustion is shared across sources and keys, survives restart and expires at Pacific reset',async()=>{
   const project=`authored-${randomUUID()}`, f=await quotaFixture(),g=await quotaFixture(),requests=[];

@@ -7,7 +7,7 @@ import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } fr
 import {metadataCompletenessPolicy} from './metadata-completeness.mjs';
 import {locationSpanHints} from './location-span-hints.mjs';
 
-import { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN } from './gemini-models.mjs';
+import { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN, geminiAvailabilityFailure } from './gemini-models.mjs';
 export { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN };
 const MAX_RESPONSE_BYTES = 256_000;
 export class ExtractionError extends DomainError {
@@ -73,11 +73,11 @@ export async function extractWithGemini(candidate, options = {}) {
 /** JSON-object mode requires caller-owned schema validation. A smaller explicit
  * token cap and fallback:false support fixed development comparisons. */
 export async function generateStructured(payload, { instruction, schema, version, outputMode = 'json_schema' },
-  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens, fallback, runAttempt } = {}) {
+  { env = process.env, fetchImpl = globalThis.fetch, maxOutputTokens, fallback, runAttempt, now = Date.now } = {}) {
   const config = extractionConfiguration(env);
   const useFallback = fallback ?? config.fallback;
   const cap = maxOutputTokens ?? config.maxOutputTokens;
-  if (typeof useFallback !== 'boolean' || (runAttempt !== undefined && typeof runAttempt !== 'function') ||
+  if (typeof useFallback !== 'boolean' || typeof now !== 'function' || (runAttempt !== undefined && typeof runAttempt !== 'function') ||
       !['json_schema', 'json_object'].includes(outputMode) || !Number.isInteger(cap) || cap < 1 || cap > config.maxOutputTokens)
     failure('AI_CONFIGURATION_REQUIRED');
   const input = JSON.stringify(payload);
@@ -91,11 +91,22 @@ export async function generateStructured(payload, { instruction, schema, version
     generationConfig: { responseMimeType: 'application/json', ...(outputMode === 'json_schema' ? { responseJsonSchema: schema } : {}),
       maxOutputTokens: cap, thinkingConfig: { thinkingLevel: config.thinking.toUpperCase(), includeThoughts: false } } };
   const models = useFallback ? GEMINI_MODEL_CHAIN.slice(GEMINI_MODEL_CHAIN.indexOf(config.model)) : [config.model];
-  const attempts = [], deadline = Date.now() + (useFallback ? config.fallbackTimeoutMs : config.timeoutMs);
+  // Model-independent identity binds a continuation to the exact request and
+  // contract without changing its payload or reusing a different stage's cursor.
+  const requestContextHash = createHash('sha256').update(JSON.stringify({request, version, outputMode})).digest('hex');
+  const attempts = [], readyAt = [], deadline = now() + (useFallback ? config.fallbackTimeoutMs : config.timeoutMs);
+  const annotate = error => {
+    if (useFallback) error.attempts = attempts;
+    // The last model can be held until tomorrow while an earlier one releases
+    // in a minute. Wake for the earliest relevant availability, then recheck.
+    if (useFallback && geminiAvailabilityFailure(error) && readyAt.length)
+      error.retryAfterMs = Math.max(0, Math.min(...readyAt) - now());
+    return error;
+  };
   for (const model of models) {
-    const remainingMs = deadline - Date.now();
+    const remainingMs = deadline - now();
     if (remainingMs <= 0) {
-      const error = new ExtractionError('AI_TIMEOUT', true); error.attempts = attempts; throw error;
+      throw annotate(new ExtractionError('AI_TIMEOUT', true));
     }
     const requestHash = createHash('sha256').update(JSON.stringify({ model, request })).digest('hex');
     let started = false;
@@ -103,12 +114,13 @@ export async function generateStructured(payload, { instruction, schema, version
       const send = () => {
         if (started) failure('AI_CONFIGURATION_REQUIRED');
         started = true;
-        const remaining = deadline - Date.now();
+        const remaining = deadline - now();
         if (remaining <= 0) failure('AI_TIMEOUT', true);
         return generateForModel(request, { ...config, model, timeoutMs: Math.min(config.timeoutMs, remaining) },
           { fetchImpl, version, outputMode, requestHash });
       };
-      const result = await (runAttempt ? runAttempt({model, requestHash}, send) : send());
+      const result = await (runAttempt ? runAttempt({model, requestHash, requestContextHash, fallback:useFallback}, send) : send());
+      result.provenance.requestContextHash = requestContextHash;
       if (useFallback) {
         attempts.push({ model, requestHash, status: 'response', usage: result.provenance.usage });
         Object.assign(result.provenance, { requestedModel: config.model, attempts });
@@ -116,19 +128,18 @@ export async function generateStructured(payload, { instruction, schema, version
       return result;
     } catch (error) {
       if (!started) {
-        if (useFallback && error.code === 'AI_RATE_LIMITED') {
+        if (useFallback && ['AI_RATE_LIMITED', 'AI_MODEL_WINDOW_SKIPPED'].includes(error.code)) {
           attempts.push({model, requestHash, status:'deferred', code:error.code, retryAfterMs:error.retryAfterMs ?? null, usage:null});
-          error.attempts = attempts;
+          readyAt.push(now() + (error.retryAfterMs ?? 60_000));
           if (model !== models.at(-1)) continue;
-        } else if (useFallback) error.attempts = attempts;
-        throw error;
+        }
+        throw annotate(error);
       }
       attempts.push({ model, requestHash, status: 'error', code: error.code, providerStatus: error.providerStatus,
         retryable: error.retryable, retryAfterMs: error.retryAfterMs, usage: error.usage });
-      if (useFallback) error.attempts = attempts;
-      const unavailable = ['AI_TIMEOUT', 'AI_TRANSPORT_FAILED', 'AI_RATE_LIMITED'].includes(error.code) ||
-        (error.code === 'AI_PROVIDER_REJECTED' && [404, 500, 502, 503, 504].includes(error.providerStatus));
-      if (!unavailable || model === models.at(-1)) throw error;
+      const unavailable = geminiAvailabilityFailure(error);
+      if (unavailable) readyAt.push(now() + (error.retryAfterMs ?? 60_000));
+      if (!unavailable || model === models.at(-1)) throw annotate(error);
     }
   }
 }

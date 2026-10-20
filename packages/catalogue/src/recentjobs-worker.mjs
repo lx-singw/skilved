@@ -14,6 +14,7 @@ import { parsePrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { mapExtraction, EXTRACTION_VERSION } from './ai/extraction.mjs';
 import { GROQ_MODEL } from './ai/groq.mjs';
 import { GEMINI_MODEL, GEMINI_MODEL_CHAIN } from './ai/gemini.mjs';
+import { geminiAvailabilityFailure } from './ai/gemini-models.mjs';
 import { extractWithProvider } from './ai/provider.mjs';
 import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
@@ -28,6 +29,8 @@ const value = snap => snap.exists ? JSON.parse(snap.data().json) : null;
 const fail = code => { throw new DomainError(code); };
 const LEASE_MS = 600_000;
 const GEMINI_UNAVAILABLE_MS = 120_000;
+const GEMINI_MAX_MODEL_WINDOWS = 6;
+const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0);
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
   'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'ABORT_ERR'].includes(error.code);
@@ -112,7 +115,9 @@ export class RecentJobsWorker {
       const leaseRef = this.ref('worker_leases', sourceId), previous = value(await tx.get(leaseRef));
       if (!job || job.sourceId !== sourceId || !['pending', 'running'].includes(job.state) || job.nextAt > this.now() || job.leaseUntil > this.now()) fail('JOB_UNAVAILABLE');
       if (previous?.until > this.now()) fail('SOURCE_BUSY');
-      if (job.attempts >= 3) {
+      if (!Number.isInteger(job.modelWindowRetries ?? 0) || (job.modelWindowRetries ?? 0) < 0 ||
+          (job.modelWindowRetries ?? 0) >= GEMINI_MAX_MODEL_WINDOWS || ordinaryAttempts(job) < 0) fail('JOB_UNAVAILABLE');
+      if (ordinaryAttempts(job) >= 3) {
         tx.set(ref, payload({ ...job, state: 'exception', error: 'ATTEMPTS_EXHAUSTED', lease: null }));
         tx.delete(this.ref('worker_queue', id));
         tx.set(this.ref('worker_exceptions', id), payload({ jobId: id, sourceId, reason: 'ATTEMPTS_EXHAUSTED', at: this.now() }));
@@ -150,9 +155,34 @@ export class RecentJobsWorker {
   async modelStage(claim, stage, work) {
     const options = {env:{...this.env, SKILVED_AI_MODEL:this.model,
       SKILVED_AI_THINKING:this.thinking, SKILVED_AI_VALIDATION_THINKING:this.validationThinking}};
-    if (this.provider === 'gemini') return work({...options,
-      runAttempt:(attempt, send) => this.modelCall(claim, stage, send, attempt)});
+    if (this.provider === 'gemini') {
+      try { return await work({...options,
+        runAttempt:(attempt, send) => this.modelCall(claim, stage, send, attempt)}); }
+      catch (error) {
+        if (this.fallback && error.attempts?.length && geminiAvailabilityFailure(error)) {
+          error.modelWindowFailed = true;
+          // A complete pass through the suffix must reconsider the full chain
+          // after its earliest hold releases, including models skipped by a cursor.
+          if (error.attempts?.at(-1)?.model === GEMINI_MODEL_CHAIN.at(-1)) {
+            await this.transaction(claim.sourceId, 'worker.model.window_reset', async (tx, source) => {
+              const job = await this.assertClaim(tx, source, claim);
+              if (job.modelWindow?.stage === stage)
+                tx.set(this.ref('worker_jobs', claim.id), payload({...job, modelWindow:null}));
+            });
+          }
+        }
+        throw error;
+      }
+    }
     return this.modelCall(claim, stage, () => work(options));
+  }
+  sameModelWindow(job, stage, attempt) {
+    const window = job.modelWindow;
+    return this.fallback && attempt.fallback === true && /^[a-f0-9]{64}$/.test(attempt.requestContextHash ?? '') &&
+      window?.stage === stage && window.requestContextHash === attempt.requestContextHash &&
+      window.snapshotId === job.snapshotId && window.sourceRevision === job.sourceRevision &&
+      window.scopeHash === this.quotaScope && window.configuredModel === this.model &&
+      window.quotaDate === geminiQuotaDay(this.now()) && GEMINI_MODEL_CHAIN.includes(window.nextModel);
   }
   modelAvailabilityId(model) { return hash(`${this.quotaScope}:${model}`); }
   async holdModelForDay(sourceId,model) {
@@ -184,9 +214,15 @@ export class RecentJobsWorker {
         blocked=availability?.until>this.now()?{until:availability.until,kind:'daily'}:geminiUsageDelay(usage,this.quotaLimits[attempt.model],this.now());
       }
       const nextCallAt = this.provider === 'gemini' ? budget.nextCallByModel?.[attempt.model] : budget.nextCallAt;
+      const delayMs = Math.max(0, Date.parse(blocked?.until ?? this.now()) - Date.parse(this.now()),
+        Date.parse(nextCallAt ?? this.now()) - Date.parse(this.now()));
+      if (this.provider === 'gemini' && this.sameModelWindow(job, stage, attempt) &&
+          GEMINI_MODEL_CHAIN.indexOf(attempt.model) < GEMINI_MODEL_CHAIN.indexOf(job.modelWindow.nextModel)) {
+        const error = new DomainError('AI_MODEL_WINDOW_SKIPPED'); error.retryAfterMs = delayMs; throw error;
+      }
       if (blocked || nextCallAt > this.now()) {
         const error = new DomainError('AI_RATE_LIMITED'); error.retryable = true;
-        error.retryAfterMs = Date.parse(blocked?.until??nextCallAt) - Date.parse(this.now());
+        error.retryAfterMs = delayMs;
         if(blocked)error.rateLimitKind=blocked.kind;throw error;
       }
       if (budget.calls >= source.automation.maxModelCallsPerDay) fail('MODEL_BUDGET_EXHAUSTED');
@@ -197,13 +233,12 @@ export class RecentJobsWorker {
     let result, error;
     try { result = await work(); } catch (caught) { error = caught; }
     const daily=this.provider==='gemini'&&error?.code==='AI_RATE_LIMITED'&&error.rateLimitKind==='daily';
-    const unavailable = this.provider === 'gemini' && error?.code === 'AI_PROVIDER_REJECTED' &&
-      [404,500,502,503,504].includes(error.providerStatus);
+    const unavailable = this.provider === 'gemini' && error?.code !== 'AI_RATE_LIMITED' && geminiAvailabilityFailure(error);
     if (unavailable) error.retryAfterMs = Math.max(GEMINI_UNAVAILABLE_MS,error.retryAfterMs ?? 0);
     if(daily)error.retryAfterMs=Math.max(Date.parse(nextGeminiQuotaReset(this.now()))-Date.parse(this.now()),error.retryAfterMs??0);
     // Source spending and shared quota reservations are not refunded on failure.
     await this.transaction(claim.sourceId, 'worker.model.result', async (tx, source) => {
-      await this.assertClaim(tx, source, claim);
+      const job = await this.assertClaim(tx, source, claim);
       const budgetRef = this.ref('model_budgets', hash(`${source.id}:${dayInSA(this.now())}`));
       const budget = error?.code === 'AI_RATE_LIMITED' || unavailable ? value(await tx.get(budgetRef)) : null;
       const usage=this.provider==='gemini'?value(await tx.get(this.ref('model_usage',usageId))):null;
@@ -219,6 +254,14 @@ export class RecentJobsWorker {
         const until = new Date(Date.parse(this.now()) + Math.max(60000, error.retryAfterMs ?? 0)).toISOString();
         tx.set(budgetRef, payload({...budget, ...(this.provider === 'gemini'
           ? {nextCallByModel:{...budget.nextCallByModel, [attempt.model]:until}} : {nextCallAt:until})}));
+      }
+      if (this.provider === 'gemini' && this.fallback && attempt.fallback === true && /^[a-f0-9]{64}$/.test(attempt.requestContextHash ?? '') &&
+          GEMINI_MODEL_CHAIN.includes(attempt.model)) {
+        const modelWindow = geminiAvailabilityFailure(error) ? {stage, requestContextHash:attempt.requestContextHash,
+          snapshotId:job.snapshotId ?? null, sourceRevision:job.sourceRevision, scopeHash:this.quotaScope,
+          configuredModel:this.model, quotaDate,
+          nextModel:GEMINI_MODEL_CHAIN[GEMINI_MODEL_CHAIN.indexOf(attempt.model) + 1] ?? this.model} : null;
+        tx.set(this.ref('worker_jobs', claim.id), payload({...job, modelWindow}));
       }
       tx.create(this.ref('model_calls', callId), payload({ jobId: claim.id, sourceId: source.id, stage,
         state: error ? 'failed' : 'received', usage: receivedUsage,at:this.now(),error:error?.code??null,
@@ -246,7 +289,9 @@ export class RecentJobsWorker {
     return this.transaction(claim.sourceId, 'worker.failure', async (tx, source) => {
       const job = await this.assertClaim(tx, source, claim);
       const ref = this.ref('worker_leases', source.id), lease = value(await tx.get(ref));
-      const retry = isRetryable(error) && job.attempts < 3;
+      const windowFailure = this.provider === 'gemini' && this.fallback && error.modelWindowFailed === true && geminiAvailabilityFailure(error);
+      const windowRetry = windowFailure && (job.modelWindowRetries ?? 0) < GEMINI_MAX_MODEL_WINDOWS - 1;
+      const retry = windowFailure ? windowRetry : isRetryable(error) && ordinaryAttempts(job) < 3;
       const candidateCode = error.code ?? (/^RECENTJOBS_[A-Z_]+$/.test(error.message ?? '') ? error.message : null);
       const code = /^[A-Z_]+$/.test(candidateCode ?? '') ? candidateCode : 'WORKER_STAGE_FAILED';
       const recordId = hash(`${source.id}:${hash(job.url)}`);
@@ -259,7 +304,8 @@ export class RecentJobsWorker {
           revision: old.revision, status: 'under_review', application: 'unavailable' } }, catalogueState.revision + 1, 'worker.recheck_failed', this.actor);
       }
       tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, state: retry ? 'pending' : 'exception', error: code,
-        nextAt: new Date(Date.parse(this.now()) + Math.max(60_000 * job.attempts, error.retryAfterMs ?? 0)).toISOString(), lease: null, leaseUntil: null }));
+        ...(windowRetry ? {modelWindowRetries:(job.modelWindowRetries ?? 0) + 1} : {}),
+        nextAt: new Date(Date.parse(this.now()) + Math.max(60_000 * ordinaryAttempts(job), error.retryAfterMs ?? 0)).toISOString(), lease: null, leaseUntil: null }));
       tx.set(ref, payload({ ...lease, lease: null, until: null }));
       if (!retry) {
         tx.delete(this.ref('worker_queue', claim.id));
@@ -267,7 +313,7 @@ export class RecentJobsWorker {
           reason: code, stage: job.stage ?? job.kind, url: job.url, snapshotId: job.snapshotId ?? null,
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
           programmePlanId:job.programmePlanId ?? null,
-          attempts: job.attempts, at: this.now() }));
+          attempts: job.attempts, modelWindowRetries:job.modelWindowRetries ?? 0, at: this.now() }));
       }
       return { state: retry ? 'pending' : 'exception', reason: code };
     });
