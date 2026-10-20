@@ -137,6 +137,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Source-bound experience-field completeness](124_SOURCE_BOUND_EXPERIENCE_FIELD_COMPLETENESS_2026-10-19.md)
 - [V22 UFS private workflow completion](125_V22_UFS_PRIVATE_WORKFLOW_COMPLETION_2026-10-19.md)
 - [V22 frozen repeat and Optimum layout hold](126_V22_FROZEN_REPEAT_AND_OPTIMUM_LAYOUT_HOLD_2026-10-20.md)
+- [Explicit main-notice binding and Optimum deadline hold](127_EXPLICIT_MAIN_NOTICE_BINDING_AND_OPTIMUM_DEADLINE_HOLD_2026-10-20.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

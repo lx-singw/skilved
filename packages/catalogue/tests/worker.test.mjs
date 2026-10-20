@@ -23,6 +23,7 @@ import {spanHtml,spanWire,titleSpanHtml,titleSpanWire,titleSpanCandidate,workBas
 import {residenceHtml,residenceWire,residenceExtraction,residenceSpan,citizenship} from './fixtures/residence-model.mjs';
 import {submissionHtml,submissionWire,submissionCandidate} from './fixtures/submission-competency.mjs';
 import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
+import {boundDetail,boundBody} from './fixtures/recentjobs-bound-detail.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -132,6 +133,24 @@ const programmeOptions=fetchImpl=>({provider:'gemini',env:geminiEnv,programmeExt
 const programmeResponse=(input,candidate)=>input.extracted
   ? {supported:true,issues:[],evidence:[{source:'recentjobs',quote:input.selectedIntake.reference.originalText}]}
   : programmeWire(candidate,input.selectedIntake);
+
+test('main-notice binding preserves worker safety: eligible authored wrappers draft privately, while ambiguous layouts and missing dates spend no calls',async()=>{
+ for(const scenario of ['eligible','missing_deadline','wrong_canonical','independent_nested_notice']){
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=boundDetail({url:detailUrl});
+  if(scenario==='missing_deadline')f.state.html=boundDetail({url:detailUrl,body:boundBody.replace('<p>Closing date: 30 October 2026</p>','<p>Training may commence in October 2026.</p>')});
+  if(scenario==='wrong_canonical')f.state.html=f.state.html.replace('href="'+detailUrl+'"','href="https://recentjobs.co.za/2026/09/26/another-notice/"');
+  if(scenario==='independent_nested_notice')f.state.html=f.state.html.replace('<div class="entry-content mt-5">','<div class="entry-content mt-5"><h1>Different notice</h1>');
+  const drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size,cache=(await db.collection('m0_model_cache').get()).size,result=await f.worker.run(f.sourceId);
+  if(scenario==='eligible'){
+   const completion=detailResult(result);assert.ok(completion,JSON.stringify(result.results));assert.equal(completion.published,false);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+   const draft=value(await f.worker.ref('drafts',completion.recordId).get());assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+  }else{
+   const reason=scenario==='missing_deadline'?'NOTICE_PRECISION_UNSUPPORTED':'RECENTJOBS_LAYOUT_CHANGED';assert.ok(result.results.some(r=>r.reason===reason),JSON.stringify(result.results));assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+   assert.equal((await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);assert.equal((await db.collection('m0_worker_candidates').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);assert.equal((await db.collection('m0_model_cache').get()).size,cache);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+  }
+  assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+ }
+});
 
 test('experience completeness stops ordinary and split workers before cache or validation, while a complete preference reaches a private draft',async()=>{
  for(const mode of ['ordinary_missing','split_missing','complete']){

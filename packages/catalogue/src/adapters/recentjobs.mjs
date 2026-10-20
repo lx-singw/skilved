@@ -6,6 +6,7 @@ import { applicationMethods } from './application-methods.mjs';
 // Pure extraction only. These candidates are not canonical records, approvals,
 // source permissions or instructions to fetch an application destination.
 export const RECENTJOBS_ADAPTER = 'recentjobs_html_v1';
+export const RECENTJOBS_BOUND_DETAIL_ADAPTER = 'recentjobs_html_bound_detail_v2';
 const ARTICLE_PATH = /^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i;
 const LIST_PATH = /^\/category\/apprenticeships\/(?:page\/([1-9]\d*)\/)?$/;
 const IGNORE_TAGS = new Set(['script', 'style', 'iframe', 'noscript', 'template', 'svg', 'form', 'aside', 'nav', 'footer']);
@@ -70,6 +71,49 @@ function text(root) {
 
 const posts = root => find(root, n => n.tagName === 'article' && hasClass(n, 'type-post'));
 const one = nodes => nodes.length === 1 ? nodes[0] : fail('RECENTJOBS_LAYOUT_CHANGED');
+const ancestor = (node, predicate) => {
+  for (let parent = node.parentNode; parent; parent = parent.parentNode) if (predicate(parent)) return parent;
+  return null;
+};
+const within = (node, parent) => ancestor(node, n => n === parent) !== null;
+
+function detailBinding(root, url) {
+  const candidates = posts(root);
+  if (candidates.length === 1) {
+    const post = candidates[0];
+    if (find(post, n => n.tagName === 'article').length !== 1) fail('RECENTJOBS_LAYOUT_CHANGED');
+    return { post, content: one(find(post, n => hasClass(n, 'entry-content'))), adapter: RECENTJOBS_ADAPTER };
+  }
+  // One known unheaded template wrapper may live inside the complete outer body.
+  // Bind the outer notice to page identity; retain its introduction AND nested
+  // body. Independent embedded notices and unfamiliar structures stay held.
+  if (candidates.length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const post = one(candidates.filter(n => !ancestor(n, p => p.tagName === 'article')));
+  const nested = candidates.find(n => n !== post);
+  if (!hasClass(nested, 'sensy-entry') || ancestor(nested, n => n.tagName === 'article') !== post ||
+      find(post, n => n.tagName === 'article').length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const body = one(find(root, n => n.tagName === 'body'));
+  const identity = one(classes(body).filter(c => /^postid-\d{1,12}$/.test(c))).slice(7);
+  const main = one(find(root, n => n.tagName === 'main' && attr(n, 'id') === 'main' && hasClass(n, 'site-main')));
+  if (!hasClass(body, 'single-post') || post.parentNode !== main || attr(post, 'id') !== `post-${identity}` ||
+      !hasClass(post, `post-${identity}`)) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const canonical = one(find(root, n => n.tagName === 'link' && attr(n, 'rel').toLowerCase().split(/\s+/).includes('canonical')));
+  if (!attr(canonical, 'href').trim()) fail('RECENTJOBS_LAYOUT_CHANGED');
+  let target;
+  try { target = sourceUrl(new URL(attr(canonical, 'href'), url).href, 'detail'); } catch { fail('RECENTJOBS_LAYOUT_CHANGED'); }
+  if (canonical.parentNode?.tagName !== 'head' || target !== url) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const title = one(find(post, n => n.tagName === 'h1' && hasClass(n, 'entry-title')));
+  if (ancestor(title, n => n.tagName === 'article') !== post ||
+      find(nested, n => n.tagName === 'h1' || hasClass(n, 'entry-title') || hasClass(n, 'entry-header') ||
+        n.tagName === 'time' && hasClass(n, 'published')).length) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const contents = find(post, n => hasClass(n, 'entry-content'));
+  if (contents.length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const content = one(contents.filter(n => ancestor(n, p => p.tagName === 'article') === post));
+  const nestedContent = one(contents.filter(n => ancestor(n, p => p.tagName === 'article') === nested));
+  const shell = one(find(content, n => n.tagName === 'section' && hasClass(n, 'sensy-shell')));
+  if (shell.parentNode !== content || !within(nested, shell) || !within(nestedContent, nested)) fail('RECENTJOBS_LAYOUT_CHANGED');
+  return { post, content, adapter: RECENTJOBS_BOUND_DETAIL_ADAPTER };
+}
 
 export function parseRecentJobsList({ html, url }) {
   url = sourceUrl(url, 'list');
@@ -167,9 +211,8 @@ function applicationCandidate(anchor, source) {
 export function parseRecentJobsDetail({ html, url, observedOn = null }) {
   url = sourceUrl(url, 'detail');
   if (observedOn !== null && (typeof observedOn !== 'string' || dateOnly(observedOn) !== observedOn)) fail('RECENTJOBS_INVALID_OBSERVATION_DATE');
-  const post = one(posts(document(html)));
+  const { post, content, adapter } = detailBinding(document(html), url);
   const title = text(one(find(post, n => n.tagName === 'h1' && hasClass(n, 'entry-title'))));
-  const content = one(find(post, n => hasClass(n, 'entry-content')));
   const sourceText = text(content);
   if (!title || title.length > 500 || !sourceText || sourceText.length > 20_000) fail('RECENTJOBS_CONTENT_LIMIT');
   const times = find(post, n => n.tagName === 'time' && hasClass(n, 'published'));
@@ -192,7 +235,7 @@ export function parseRecentJobsDetail({ html, url, observedOn = null }) {
   if (observedOn && deadlineCandidates.some(d => d.localDate && d.localDate < observedOn)) issues.push('source_deadline_before_observation');
   const categoryHint = /\bapprentice(?:ship)?s?\b/i.test(title) ? 'apprenticeship' : null;
   if (!categoryHint) issues.push('category_needs_review');
-  const candidate = { adapter: RECENTJOBS_ADAPTER, sourceUrl: url, sourceRecordId: hash(url),
+  const candidate = { adapter, sourceUrl: url, sourceRecordId: hash(url),
     title, categoryHint, sourcePublishedAtRaw, sourceText, deadlineCandidates, applicationCandidates,
     ...(methods.instructions.length ? {applicationInstructions:methods.instructions} : {}) };
   return { ...candidate, contentHash: hash(JSON.stringify(candidate)), observedOn, review: 'pending', issues };
