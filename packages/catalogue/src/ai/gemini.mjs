@@ -6,6 +6,7 @@ import { groqSchema } from './groq.mjs';
 import { EXTRACTION_INSTRUCTION, EXTRACTION_JSON_SCHEMA, EXTRACTION_VERSION } from './extraction.mjs';
 import {metadataCompletenessPolicy} from './metadata-completeness.mjs';
 import {locationSpanHints} from './location-span-hints.mjs';
+import {transportCodeOf} from './transport-diagnostic.mjs';
 
 import { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN, geminiAvailabilityFailure } from './gemini-models.mjs';
 export { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN };
@@ -136,7 +137,8 @@ export async function generateStructured(payload, { instruction, schema, version
         throw annotate(error);
       }
       attempts.push({ model, requestHash, status: 'error', code: error.code, providerStatus: error.providerStatus,
-        retryable: error.retryable, retryAfterMs: error.retryAfterMs, usage: error.usage });
+        retryable: error.retryable, retryAfterMs: error.retryAfterMs, usage: error.usage,
+        ...(['AI_TIMEOUT', 'AI_TRANSPORT_FAILED'].includes(error.code) ? {transportCode:transportCodeOf(error)} : {}) });
       const unavailable = geminiAvailabilityFailure(error);
       if (unavailable) readyAt.push(now() + (error.retryAfterMs ?? 60_000));
       if (!unavailable || model === models.at(-1)) throw annotate(error);
@@ -180,6 +182,8 @@ async function generateForModel(request, config, { fetchImpl, version, outputMod
       ...(outputMode === 'json_object' ? { outputMode } : {}) } };
   } catch (error) {
     if (error instanceof ExtractionError) throw error;
-    failure(controller.signal.aborted ? 'AI_TIMEOUT' : 'AI_TRANSPORT_FAILED', true);
+    const normalized = new ExtractionError(controller.signal.aborted ? 'AI_TIMEOUT' : 'AI_TRANSPORT_FAILED', true);
+    normalized.transportCode = controller.signal.aborted ? 'CLIENT_DEADLINE' : transportCodeOf(error);
+    throw normalized;
   } finally { clearTimeout(timer); }
 }

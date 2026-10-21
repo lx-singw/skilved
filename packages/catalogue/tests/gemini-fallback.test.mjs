@@ -87,10 +87,25 @@ test('fallback stops at an available answer even when local requirement coverage
 test('transport failure descends without exposing transport details',async()=>{
   const calls=[];
   const result=await generateStructured({},contract,{env,fetchImpl:async url=>{
-    calls.push(modelOf(url));if(calls.length===1)throw new Error('PRIVATE_TRANSPORT_DETAIL');return answer();
+    calls.push(modelOf(url));if(calls.length===1)throw new TypeError('PRIVATE_TRANSPORT_DETAIL',{
+      cause:Object.assign(new Error('PRIVATE_ADDRESS_AND_KEY'),{code:'EAI_AGAIN'})});return answer();
   }});
   assert.deepEqual(calls,GEMINI_MODEL_CHAIN.slice(0,2));
-  assert.equal(result.provenance.attempts[0].code,'AI_TRANSPORT_FAILED');assert.doesNotMatch(JSON.stringify(result),/PRIVATE_TRANSPORT_DETAIL/);
+  assert.equal(result.provenance.attempts[0].code,'AI_TRANSPORT_FAILED');
+  assert.equal(result.provenance.attempts[0].transportCode,'EAI_AGAIN');
+  assert.equal(result.provenance.attempts[0].usage,null);
+  assert.doesNotMatch(JSON.stringify(result),/PRIVATE_TRANSPORT_DETAIL|PRIVATE_ADDRESS_AND_KEY/);
+});
+
+test('fixed-model transport failures expose an allowlisted cause without copying unknown codes or secrets',async()=>{
+  for(const [code,expected] of [['UND_ERR_CONNECT_TIMEOUT','UND_ERR_CONNECT_TIMEOUT'],['PRIVATE_API_KEY',null]]){
+    let calls=0;
+    await assert.rejects(generateStructured({},contract,{env,fallback:false,fetchImpl:async()=>{
+      calls++;throw new TypeError('PRIVATE_AUTH_HEADER',{cause:Object.assign(new Error('PRIVATE_ENDPOINT'),{code})});
+    }}),error=>error.code==='AI_TRANSPORT_FAILED'&&error.retryable&&error.transportCode===expected&&error.usage===null&&
+      !JSON.stringify(error).includes('PRIVATE_')&&error.cause===undefined);
+    assert.equal(calls,1);
+  }
 });
 
 test('timeouts abort each attempt and the whole chain stops after its ninety-second budget',async t=>{
@@ -101,9 +116,19 @@ test('timeouts abort each attempt and the whole chain stops after its ninety-sec
     signals.push(init.signal);if(signals.length===2)secondStarted();
     return new Promise((_resolve,reject)=>init.signal.addEventListener('abort',()=>reject(new Error('PRIVATE_TIMEOUT')),{once:true}));
   }});
-  const rejection=assert.rejects(pending,error=>error.code==='AI_TIMEOUT'&&error.retryable&&error.attempts.length===2);
+  const rejection=assert.rejects(pending,error=>error.code==='AI_TIMEOUT'&&error.retryable&&
+    error.attempts.length===2&&error.attempts.every(a=>a.transportCode==='CLIENT_DEADLINE'&&a.usage===null));
   t.mock.timers.tick(45000);await second;t.mock.timers.tick(45000);await rejection;
   assert.equal(signals.length,2);assert.ok(signals.every(signal=>signal.aborted));
+});
+
+test('a fixed-model client deadline is distinguished from a socket timeout',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']});
+  const pending=generateStructured({},contract,{env,fallback:false,fetchImpl:async(_url,init)=>
+    new Promise((_resolve,reject)=>init.signal.addEventListener('abort',()=>reject(new Error('PRIVATE_ABORT')),{once:true}))});
+  const rejection=assert.rejects(pending,error=>error.code==='AI_TIMEOUT'&&error.transportCode==='CLIENT_DEADLINE'&&
+    error.retryable&&error.usage===null&&!JSON.stringify(error).includes('PRIVATE_ABORT'));
+  t.mock.timers.tick(45000);await rejection;
 });
 
 test('reservation refusal stops before a request and does not become another billed attempt',async()=>{

@@ -15,6 +15,7 @@ import { mapExtraction, EXTRACTION_VERSION } from './ai/extraction.mjs';
 import { GROQ_MODEL } from './ai/groq.mjs';
 import { GEMINI_MODEL, GEMINI_MODEL_CHAIN } from './ai/gemini.mjs';
 import { geminiAvailabilityFailure } from './ai/gemini-models.mjs';
+import { transportCodeOf } from './ai/transport-diagnostic.mjs';
 import { extractWithProvider } from './ai/provider.mjs';
 import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
@@ -267,6 +268,7 @@ export class RecentJobsWorker {
         state: error ? 'failed' : 'received', usage: receivedUsage,at:this.now(),error:error?.code??null,
         provider:this.provider,model:attempt.model??this.model,rateLimitKind:error?.rateLimitKind??null,
         requestHash:attempt.requestHash??result?.provenance?.requestHash??null,
+        transportCode:this.provider==='gemini'&&['AI_TIMEOUT','AI_TRANSPORT_FAILED'].includes(error?.code)?transportCodeOf(error):null,
         providerStatus:Number.isInteger(error?.providerStatus)?error.providerStatus:null }));
     });
     if (error) throw error;

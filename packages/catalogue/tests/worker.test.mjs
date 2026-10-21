@@ -1101,6 +1101,53 @@ const detailJob = async f => (await db.collection('m0_worker_jobs').get()).docs.
 const advanceToJob = (f,job) => f.advance(Math.max(0,Date.parse(job.nextAt)-Date.parse(f.now())));
 const sourceCalls = async f => (await db.collection('m0_model_calls').get()).docs.map(value).filter(r=>r.sourceId===f.sourceId);
 
+test('Gemini worker receipts retain only safe transport labels and preserve failed spending across restart',async()=>{
+  for(const [code,expected] of [['EAI_AGAIN','EAI_AGAIN'],['UND_ERR_CONNECT_TIMEOUT','UND_ERR_CONNECT_TIMEOUT'],['PRIVATE_API_KEY',null]]){
+    const f=await quotaFixture(),requests=[];let unavailable=true;
+    const options=quotaOptions(`authored-${randomUUID()}`,async(url,init)=>{
+      requests.push(url.split('/models/')[1].split(':')[0]);
+      if(unavailable)throw new TypeError('PRIVATE_TRANSPORT_MESSAGE',{cause:Object.assign(new Error('PRIVATE_HOST_AND_KEY'),{code})});
+      return quotaResponse(url,init);
+    });
+    const worker=f.restart(options);await worker.run(f.sourceId);
+    const job=await detailJob(f),receipts=await sourceCalls(f);
+    assert.equal(job.state,'pending');assert.equal(job.error,'AI_TRANSPORT_FAILED');assert.equal(job.modelWindowRetries,1);
+    assert.deepEqual(requests,GEMINI_MODEL_CHAIN);assert.equal(receipts.length,6);
+    assert.ok(receipts.every(r=>r.transportCode===expected&&r.error==='AI_TRANSPORT_FAILED'&&r.usage===null&&r.providerStatus===null));
+    assert.doesNotMatch(JSON.stringify(receipts),/PRIVATE_/);
+    let usage=await quotaRows(worker,'model_usage');assert.equal(usage.reduce((n,u)=>n+u.requests,0),6);
+    assert.equal(usage.reduce((n,u)=>n+u.unknownUsageCalls,0),6);assert.equal(usage.reduce((n,u)=>n+u.knownTotalTokens,0),0);
+    assert.equal((await quotaRows(worker,'model_availability')).length,0);
+    // The real generation clock can round the earliest retry just before the
+    // fixture clock's per-model cooldown. Resume at the stored holds, not a
+    // guessed delay, when testing receipt preservation rather than wake timing.
+    const beforeBudget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);
+    const resumeAt=Math.max(Date.parse(job.nextAt),...Object.values(beforeBudget.nextCallByModel).map(at=>Date.parse(at)));
+    unavailable=false;f.advance(resumeAt-Date.parse(f.now()));const result=await f.restart(options).runJob(f.sourceId,job.id);
+    assert.equal(result.state,'done');assert.equal(result.published,false);
+    const final=await sourceCalls(f);assert.equal(final.length,8);
+    for(const row of receipts)assert.deepEqual(final.find(r=>r.model===row.model&&r.state==='failed'),row);
+    assert.ok(final.filter(r=>r.state==='received').every(r=>r.transportCode===null));
+    usage=await quotaRows(worker,'model_usage');assert.equal(usage.reduce((n,u)=>n+u.requests,0),8);
+    assert.equal(usage.reduce((n,u)=>n+u.unknownUsageCalls,0),6);assert.equal(usage.reduce((n,u)=>n+u.knownTotalTokens,0),30);
+    const budget=(await db.collection('m0_model_budgets').get()).docs.map(value).find(b=>b.sourceId===f.sourceId);assert.equal(budget.calls,8);
+    const draft=value(await worker.ref('drafts',result.recordId).get());assert.equal(draft.publication.approved,false);
+    assert.equal((await worker.ref('public',result.recordId).get()).exists,false);
+  }
+});
+
+test('worker receipt transport labels cannot be populated by arbitrary injected fields or provider rejections',async()=>{
+  for(const [code,label,expected] of [['AI_TRANSPORT_FAILED','PRIVATE_API_KEY',null],['AI_PROVIDER_REJECTED','EAI_AGAIN',null],['AI_TRANSPORT_FAILED','ECONNRESET','ECONNRESET']]){
+    const f=await quotaFixture(),worker=f.restart(quotaOptions(`authored-${randomUUID()}`,()=>assert.fail('No network expected')));
+    const claim=await worker.claim(f.sourceId,await worker.schedule(f.sourceId));
+    const error=Object.assign(new DomainError(code),{transportCode:label,retryable:true});
+    await assert.rejects(worker.modelCall(claim,'extraction',async()=>{throw error;},{model:GEMINI_MODEL_CHAIN[0]}),e=>e===error);
+    const calls=await sourceCalls(f);assert.equal(calls.length,1);assert.equal(calls[0].transportCode,expected);
+    assert.equal(calls[0].usage,null);assert.doesNotMatch(JSON.stringify(calls),/PRIVATE_API_KEY/);
+    assert.equal((await quotaRows(worker,'model_usage'))[0].unknownUsageCalls,1);
+  }
+});
+
 test('Gemini model windows reach the final model across restarts and reuse extraction during validation continuation',async()=>{
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:12});
   const {options,requests}=windowOptions((r,expire,respond)=>r.model===GEMINI_MODEL_CHAIN.at(-1)?respond():expire());
