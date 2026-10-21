@@ -117,6 +117,31 @@ async function fixture({ mode = 'automatic', calls = 10, publisher = true, caden
 }
 const detailResult = result => result.results.find(r => r.recordId);
 
+test('unsupported source categories stop before model spending even with an open deadline and original route',async()=>{
+  for(const scenario of ['missing_evidence','conflicting_intake']){
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+    if(scenario==='missing_evidence')f.state.html=detailHtml.replaceAll(/\bapprentice(?:ship)?s?\b/gi,'assistant');
+    else f.state.html=detailHtml.replace('<p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p>','<p>Join our internship programme!</p><p>Applicants require Grade 12 with Mathematics OR N3 Electrical.</p>');
+    const result=await f.worker.run(f.sourceId),expected=scenario==='missing_evidence'?'NOTICE_CATEGORY_REVIEW_REQUIRED':'NOTICE_CATEGORY_CONFLICT';
+    assert.ok(result.results.some(r=>r.reason===expected),JSON.stringify(result.results));
+    assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+    assert.equal((await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);
+    assert.equal((await db.collection('m0_worker_candidates').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);
+    assert.equal((await db.collection('m0_model_budgets').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId).length,0);
+    assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+  }
+});
+
+test('a trade-only title with explicit apprenticeship body evidence retains the existing private workflow',async()=>{
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+  f.state.html=detailHtml.replace('Fictional electrical apprentice','Fictional Turner Machinist');
+  f.worker.extractor=async()=>{f.state.modelCalls++;const extraction=syntheticExtraction();
+    extraction.categoryQuote='Fictional Workshop seeks an electrical apprentice.';
+    return {extraction,provenance:{model:'synthetic',usage:{totalTokens:20}}};};
+  const result=detailResult(await f.worker.run(f.sourceId));assert.ok(result);assert.equal(result.published,false);
+  assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+});
+
 const geminiEnv = {SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_worker_gemini_key',SKILVED_AI_FALLBACK:'true'};
 const compactWire = () => ({category:'apprenticeship',categorySpan:[1,1],issuer:{state:'stated',value:'Fictional Workshop',span:[3,3]},
   summary:{state:'stated',value:'Fictional Workshop seeks an electrical apprentice.',span:[3,3]},

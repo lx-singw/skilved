@@ -38,12 +38,30 @@ export function approvedRoute(source, route) {
 export function preflightCandidate(source, candidate, now) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
   if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
+  assertApprenticeshipSource(candidate);
   if (candidate.applicationCandidates.length !== 1) fail('NOTICE_PRECISION_UNSUPPORTED');
   const deadline = candidateDeadline(candidate);
   if (deadline <= dayInSA(now)) fail('NOTICE_NOT_OPEN');
   const route = candidate.applicationCandidates[0];
   approvedRoute(source, route);
   return route;
+}
+
+function assertApprenticeshipSource(candidate) {
+  if (!/\bapprentice(?:ship)?s?\b/i.test(`${candidate.title ?? ''}\n${candidate.sourceText ?? ''}`))
+    fail('NOTICE_CATEGORY_REVIEW_REQUIRED');
+  // A headline cannot resolve a competing current intake invitation. Background
+  // experience and qualifications alone do not establish a conflicting category.
+  for (const line of (candidate.sourceText ?? '').split('\n')) {
+    const invitations = line.matchAll(/\b(?:join|apply\s+(?:for|to))\s+(?:(?:our|the|an?)\s+)?internship\s+program(?:me)?\b/gi);
+    for (const match of invitations) {
+      const before = line.slice(0, match.index).split(/[.!?]/).at(-1);
+      if (/\b(?:not|never|don't)\s*$/i.test(before) ||
+          /\b(?:previously|formerly|last year|previous intake|prior intake)\b/i.test(before) &&
+          !/\b(?:now|currently|today|this year|this intake)\b/i.test(before)) continue;
+      fail('NOTICE_CATEGORY_CONFLICT');
+    }
+  }
 }
 
 function candidateDeadline(candidate) {
@@ -72,6 +90,7 @@ export function assertMaterialFacts(record) {
 export function publicationGate(source, candidate, record, primary, assessment, now) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
   if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
+  assertApprenticeshipSource(candidate);
   const issuer = approvedIssuer(source, record);
   if (primary && !issuerNames(issuer).includes(nameKey(primary.issuer))) fail('PRIMARY_ISSUER_MISMATCH');
   assertMaterialFacts(record);

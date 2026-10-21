@@ -144,6 +144,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Cached validation readiness and connectivity gate](131_CACHED_VALIDATION_READINESS_AND_CONNECTIVITY_GATE_2026-10-21.md)
 - [Sanitized Gemini transport diagnostics and DNS hold](132_SANITIZED_GEMINI_TRANSPORT_DIAGNOSTICS_AND_DNS_HOLD_2026-10-21.md)
 - [Live cached validation completion and private draft refresh](133_LIVE_CACHED_VALIDATION_COMPLETION_AND_PRIVATE_DRAFT_REFRESH_2026-10-21.md)
+- [Source-category preflight and current notice holds](134_SOURCE_CATEGORY_PREFLIGHT_AND_CURRENT_NOTICE_HOLDS_2026-10-21.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
