@@ -1,0 +1,35 @@
+# Live cached validation completion and private draft refresh
+
+Date: 21 October 2026. Status: Gemini 3.5 Flash-Lite validates the accepted cached ALPLA extraction with zero issues. A shadow worker refreshes its existing private draft from revision four to five, retaining the original employer application link. Five validation calls and zero extraction calls are made across two separately bounded jobs. No public record is added; product code, contracts and acceptance checks are unchanged.
+
+## Connectivity and fresh source
+
+The [transport-diagnostics implementation](132_SANITIZED_GEMINI_TRANSPORT_DIAGNOSTICS_AND_DNS_HOLD_2026-10-21.md), committed as `3126a1e`, is the tested baseline. The new plan allows at most four WSL connectivity observations and requires two successful DNS/TLS/HTTP observations before source refresh or generation. Separate DNS, connection/TLS and response deadlines remain fifteen, twenty and fifteen seconds. The first two observations pass, completing in 1,420 and 555 milliseconds, so no further observations are needed. Their unauthenticated HEAD responses are HTTP 404, evidence of connection completion rather than model access or generation availability.
+
+Two native Windows OS-resolver observations also pass. They may use the OS DNS cache and do not substitute for WSL TLS checks or establish the cause of earlier failures. No unsigned script file is loaded, no execution policy is bypassed or changed, and no resolver, adapter or WSL configuration is modified. Intermittent DNS failure is not reproduced by this comparison; continuous stability or a repaired root cause is not established.
+
+Robots and ALPLA each return HTTP 200 on their first attempt, using two of the four permitted source attempts. The fresh parsed notice matches the accepted candidate and source fingerprint. The deadline remains 31 October, and the source-supported application anchor retains the original employer-named ATS destination. Source revision fourteen and the seventeen-call daily cap are unchanged. Employer crawling is off.
+
+## Bounded validation and remaining-suffix completion
+
+Before generation, the unchanged raw extraction decodes again and passes the frozen four-condition checklist, material and issuer checks. The worker's computed extraction-cache identity matches the accepted entry. Its extractor is configured to stop on a cache miss, so this experiment cannot silently spend another extraction call. Every validation request must equal the previously frozen V15 request, including the source, facts, requirement expression, application candidates, instruction, schema, 6,144-token cap and medium thinking.
+
+The first job has a four-call cap. Gemini 3.8 fails with the sanitized transport code `ETIMEDOUT` after about 2.2 seconds, with its client-abort signal still false. Gemini 3.7, 3.6 and 3.5 return HTTP 503. All four usages remain unknown and spent. The private cap closes the job as an inspectable exception before a fifth reservation. Its persisted validation cursor points to 3.5 Flash-Lite.
+
+After preserving and auditing that closed run, a separate prospective plan allows at most two additional calls for the remaining suffix, within the unchanged source cap. A distinct fresh job is explicitly seeded with the fully bound saved cursor. Snapshot, source revision, scope, provider day, configured model and exact request context must match. The earlier closed jobs and their exceptions are not reopened. The combined prospective allowance is six calls; five are used.
+
+The new worker reuses extraction and defers the four already examined models before reservations. Its first sent request reaches 3.5 Flash-Lite, which returns HTTP 200 with `supported=true`, zero issues and five exact discovery-source evidence quotes. Local validation accepts the unchanged raw answer. Usage is 2,927 input, 183 output and 895 thinking tokens, totaling 4,005. The available answer ends the chain; 3.1 Flash-Lite is not called. No semantic rejection is retried, no answer is repaired and no acceptance rule changes.
+
+The successful shadow decision refreshes ALPLA's existing draft from revision four to five, with its requirements revision also five and original creation date retained. All four required conditions, their qualification/subject grouping and internal alternatives, qualitative pay, maximum-duration wording, unstated fields and original ATS route remain intact. The draft remains in review, with publication unapproved and no public projection. Validation is based on the discovery notice; there is no claim of independent employer verification or destination reachability.
+
+## Accounting, verification and limits
+
+Five new receipts match five actual validation calls and five source-budget reservations. Source-day spending increases from eight to thirteen against the unchanged seventeen-call cap. Four failed-call usages stay unknown; the successful response reports 4,005 tokens. Cumulative shared observations become 100 generation attempts, 319,554 known tokens and 43 unknown-usage calls. These are cumulative figures across evaluations, not today's RPD totals. All earlier provider-day rows, daily-exhaustion records and historical budgets remain preserved; no failed call is refunded.
+
+There are two new private worker candidates, one new bounded exception, one validation-cache entry and one shadow decision. One existing draft is refreshed; all three private drafts still exist. Earlier extraction caches, closed jobs, failures, snapshots and unrelated drafts remain unchanged. There are zero new public records.
+
+The independent audit checks all 627 historical artifact hashes and twenty-eight tested code/test hashes; fresh source parsing; immutable contracts/checklist; raw extraction and validation decoding; exact request bodies and context hashes; cursor binding and skipped-model accounting; cache reuse; original application route; draft revision/facts; and exact receipt, source-budget and shared-quota deltas. This evaluation/documentation sprint reuses the unchanged product's passing contracts build, twenty unit checks, 115 focused checks and full 728-test serial suite; those tests are not rerun.
+
+Both evaluator children complete with exit zero and save complete records and quota exports. Firebase CLI reports an unclassified shutdown error afterward for each launch and exits one. Both private debug logs are retained, the emulator ports are closed, and the evaluator records are independently audited. The launcher exits are not represented as clean successes and do not cause any model request to be repeated.
+
+One refreshed familiar notice and one accepted validation answer do not establish broad source fidelity, model repeatability, continuous connectivity or production qualification. The new private job is explicitly seeded with the persisted cursor; this does not implement automatic reopening of closed exceptions. Next assess more current eligible RecentJobs notices under the same frozen checks, with all spending preserved. Employer crawling remains optional/off; production scheduling and publication remain disabled.
