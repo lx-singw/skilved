@@ -141,6 +141,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Bounded RecentJobs screen and no new eligible case](128_BOUNDED_RECENTJOBS_SCREEN_AND_NO_NEW_ELIGIBLE_CASE_2026-10-20.md)
 - [Bounded Gemini fallback continuation](129_BOUNDED_GEMINI_FALLBACK_CONTINUATION_2026-10-20.md)
 - [Live ALPLA continuation and transport hold](130_LIVE_ALPLA_CONTINUATION_AND_TRANSPORT_HOLD_2026-10-21.md)
+- [Cached validation readiness and connectivity gate](131_CACHED_VALIDATION_READINESS_AND_CONNECTIVITY_GATE_2026-10-21.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
