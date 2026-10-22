@@ -16,8 +16,9 @@ import {assertExperienceEvidence, EXPERIENCE_EVIDENCE_INSTRUCTION} from './quali
 import {assertExperienceCompleteness, EXPERIENCE_COMPLETENESS_INSTRUCTION} from './experience-completeness.mjs';
 import {assertResidenceEvidence, RESIDENCE_EVIDENCE_INSTRUCTION} from './residence-evidence.mjs';
 import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
+import {noticeMetadataPolicy,assertReferenceCompleteness} from './notice-metadata.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v24';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v25';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -109,10 +110,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
   const checkQuote = quote => { if (quote !== null && !corpus.includes(quote)) fail('AI_UNSUPPORTED_EVIDENCE'); };
   // Labelled reference codes identify the intake and must not disappear even if
   // a second model overlooks the omission. Unsupported formats remain for review.
-  const references = [...candidate.sourceText.matchAll(/^(?:reference(?: number| no\.?)?|ref(?:erence)?\s*#)[ \t]*(?::[ \t]*(?:\n[ \t]*)?|\n[ \t]*)([A-Za-z0-9][A-Za-z0-9/-]{2,79})[ \t]*$/gim)].map(m => m[1]);
-  if (references.length && (new Set(references).size !== 1 || extracted.intake.state !== 'stated' ||
-      !extracted.intake.value.split(/[^A-Za-z0-9/-]+/).includes(references[0]) || !extracted.intake.quote.includes(references[0])))
-    fail('AI_SOURCE_REFERENCE_UNRESOLVED');
+  assertReferenceCompleteness(extracted,noticeMetadataPolicy(candidate));
   checkQuote(extracted.categoryQuote);
   if (extracted.category !== 'unknown' && !extracted.categoryQuote) fail('AI_UNSUPPORTED_EVIDENCE');
   const issues = new Set(candidate.issues);

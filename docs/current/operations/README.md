@@ -151,6 +151,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Undated notices: bounded private assessment](138_UNDATED_NOTICE_SHADOW_ASSESSMENT_2026-10-22.md)
 - [CNH undated shadow trial and source-label corrections](139_CNH_UNDATED_PILOT_AND_SOURCE_LABELS_2026-10-22.md)
 - [CNH V23 trial and labelled qualification groups](140_CNH_V23_TRIAL_AND_LABELLED_QUALIFICATION_GROUPS_2026-10-22.md)
+- [CNH metadata completeness and summary evidence](142_CNH_METADATA_COMPLETENESS_AND_SUMMARY_EVIDENCE_2026-10-22.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

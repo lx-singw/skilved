@@ -26,6 +26,7 @@ import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
 import {boundDetail,boundBody} from './fixtures/recentjobs-bound-detail.mjs';
 import {GEMINI_MODEL_CHAIN} from '../src/ai/gemini-models.mjs';
 import {labelHtml,labelCandidate,labelWire,labelSpan,labelLines} from './fixtures/source-labels.mjs';
+import {noticeHtml,noticeWire,invitation,regionalBenefits} from './fixtures/notice-metadata.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -146,6 +147,38 @@ test('source-label checks stop incomplete skills, qualification groups and locat
       assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
     }
     assert.equal((await f.worker.ref('public',job.recordId).get()).exists,false);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+  }
+});
+
+test('notice metadata omissions stop before cache or validation and complete scoped evidence reaches only a private draft',async()=>{
+  for(const [reason,change]of [
+    ['AI_SOURCE_REFERENCE_UNRESOLVED',x=>{x.intake=null;}],
+    ['AI_AUDIENCE_UNRESOLVED',x=>{x.summary.value='An apprenticeship programme.';}],
+    ['AI_REGIONAL_BENEFITS_UNRESOLVED',x=>{x.compensation=[];}],
+    ['AI_SUMMARY_EVIDENCE_UNRESOLVED',x=>{x.summary.value+=' In Gauteng.';}],
+    [null,()=>{}]
+  ]) {
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=noticeHtml;
+    const wire=noticeWire();change(wire);const before=structuredClone(wire);let sends=0;
+    const worker=f.restart(geminiOptions(async(_url,init)=>{
+      sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+      return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:invitation}]}:wire);
+    }));
+    const cache=(await db.collection('m0_model_cache').get()).size,drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;
+    const result=await worker.run(f.sourceId),calls=await sourceRows(f,'model_calls');assert.equal(sends,reason?1:2);
+    assert.equal(calls.length,sends);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),sends*15);assert.deepEqual(wire,before);
+    assert.equal((await sourceRows(f,'model_budgets'))[0].calls,sends);
+    if(reason) {
+      assert.ok(result.results.some(r=>r.reason===reason));assert.equal(calls[0].stage,'extraction');
+      assert.equal((await worker.ref('worker_candidates',calls[0].jobId).get()).exists,false);
+      assert.equal((await db.collection('m0_model_cache').get()).size,cache);assert.equal((await db.collection('m0_drafts').get()).size,drafts);
+    }else{
+      const row=detailResult(result);assert.ok(row);const draft=value(await worker.ref('drafts',row.recordId).get());
+      assert.equal(draft.intake.value,'APP/TEST-042');assert.equal(draft.summary.value,invitation);
+      assert.ok(draft.compensation.every(fact=>fact.originalText===regionalBenefits&&fact.value.amount===null));
+      assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
+    }
+    assert.equal((await db.collection('m0_public').get()).size,publicRows);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
   }
 });
 

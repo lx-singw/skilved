@@ -16,14 +16,14 @@ const env={SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_metadata_key',SKIL
 const answer=data=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
 
 test('pay and maximum duration hints bind complete source passages without changing the compact wire',()=>{
-  assert.deepEqual(metadataCompletenessPolicy(candidate),{version:'source_metadata_completeness_v1',
+  assert.deepEqual(metadataCompletenessPolicy(candidate),{version:'source_metadata_completeness_v2',references:[],audiences:[],regionalBenefits:[],
     qualitativePay:[{kind:'salary',coverage:'Market related',span:span(qualitativePay),originalText:qualitativePay}],
     maximumDurations:[{amount:3,unit:'year',bound:'maximum',span:span(maximumDuration),originalText:maximumDuration}]});
   assert.deepEqual(groqExtractionPayload(candidate).metadataCompletenessPolicy,metadataCompletenessPolicy(candidate));
-  assert.equal(EXTRACTION_VERSION,'recentjobs_extraction_v24');
-  assert.equal(GROQ_EXTRACTION_VERSION,'recentjobs_extraction_v24_groq_v7');
-  assert.equal(METADATA_VERSION,'recentjobs_metadata_v16');
-  assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v24');
+  assert.equal(EXTRACTION_VERSION,'recentjobs_extraction_v25');
+  assert.equal(GROQ_EXTRACTION_VERSION,'recentjobs_extraction_v25_groq_v7');
+  assert.equal(METADATA_VERSION,'recentjobs_metadata_v17');
+  assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v25');
 });
 
 test('qualitative pay stays non-numeric; maximum duration fits summary beside separate practical evidence',()=>{

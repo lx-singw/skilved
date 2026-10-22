@@ -1,6 +1,7 @@
 import {DomainError} from '../config.mjs';
 import {practicalEvidencePolicy} from './practical-evidence.mjs';
 import {isPromotionalLine} from './source-lines.mjs';
+import {noticeMetadataPolicy,assertNoticeMetadata} from './notice-metadata.mjs';
 
 export const METADATA_COMPLETENESS_INSTRUCTION = `
 Retain explicitly labelled qualitative salary/stipend in compensation even without a number.
@@ -14,6 +15,18 @@ Keep separate application/document instructions in practicalConditions with thei
 Never turn up to four years into a fixed four years. Use a supported summary when a separate
 application instruction occupies practicalConditions; never join distant practical passages.
 metadataCompletenessPolicy lists narrow recognised source forms that must not disappear.
+Its references include explicit Requisition ID/number and Reference labels: copy the exact
+identifier into intake and cite the complete label/value passage, including next-line values.
+Its audiences identify an explicit invitation to unemployed youth. Retain that audience in
+summary.value with the entire invitation in summary evidence; do not infer a numeric age,
+mandatory eligibility, citizenship or residence from that invitation.
+Its regionalBenefits retain the regional comprehensive benefits scope and each listed benefit
+in compensation coverage. Use kind other, null amount/maximum/currency and period not_stated.
+Cite the entire scope-and-list originalText. Do not turn corporate regional benefits into a
+guaranteed vacancy entitlement. Other benefit wording still needs semantic review.
+Every summary claim must be supported by summary's OWN contiguous evidence, not just another
+field's quote or facts elsewhere in the source. Include a wider complete span when needed,
+or keep the summary focused on its supporting passage while retaining other metadata fields.
 These hints do not fill fields, resolve conflicts or replace semantic validation.`;
 
 const normalise = text => text.toLowerCase().replace(/[-\s]+/g,' ').replace(/[.!]$/,'').trim();
@@ -33,7 +46,9 @@ const uncertain = /\b(?:if|unless|may|might|could|subject to|depending|minimum|a
 export function metadataCompletenessPolicy(candidate) {
   const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
   const excluded=practicalEvidencePolicy(candidate).publisherPreparationSpans;
-  const permitted=index=>!excluded.some(([first,last])=>index+1>=first&&index+1<=last)&&!isPromotionalLine(lines[index]);
+  const permitted=index=>index>=0&&index<lines.length&&
+    (!candidate.programmeScope||candidate.programmeScope.includedSpans?.some(([first,last])=>index+1>=first&&index+1<=last))&&
+    !excluded.some(([first,last])=>index+1>=first&&index+1<=last)&&!isPromotionalLine(lines[index]);
   const qualitativePay=[],maximumDurations=[];
   const hint=(first,last)=>({span:[first+1,last+1],originalText:lines.slice(first,last+1).join('\n')});
   for(let i=0;i<lines.length;i++) {
@@ -54,7 +69,7 @@ export function metadataCompletenessPolicy(candidate) {
     const limit=explicit?duration(value):null;
     if(limit)maximumDurations.push({...limit,bound:'maximum',...hint(i,last)});
   }
-  return {version:'source_metadata_completeness_v1',qualitativePay,maximumDurations};
+  return {version:'source_metadata_completeness_v2',qualitativePay,maximumDurations,...noticeMetadataPolicy(candidate)};
 }
 
 export function assertQualitativePayCompleteness(candidate,extracted,policy=metadataCompletenessPolicy(candidate)) {
@@ -87,4 +102,5 @@ export function assertMetadataCompleteness(candidate,extracted) {
   const policy=metadataCompletenessPolicy(candidate);
   assertQualitativePayCompleteness(candidate,extracted,policy);
   assertMaximumDurationCompleteness(candidate,extracted,policy);
+  assertNoticeMetadata(extracted,policy);
 }
