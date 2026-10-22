@@ -117,6 +117,123 @@ async function fixture({ mode = 'automatic', calls = 10, publisher = true, caden
 }
 const detailResult = result => result.results.find(r => r.recordId);
 
+const sourceHoldId = f => createHash('sha256').update(`${f.sourceId}:${detailUrl}`).digest('hex');
+const missingDeadline = () => detailHtml.replace('<p>Closing date: 30 October 2026</p>', '<p>Closing date: not stated</p>');
+const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs.map(value).filter(x => x.sourceId === f.sourceId);
+
+test('source holds survive restart and skip detail requests without changing the original exception, snapshot or quota', async () => {
+  const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
+  f.state.html = missingDeadline();
+  assert.ok((await f.worker.run(f.sourceId)).results.some(r => r.reason === 'NOTICE_PRECISION_UNSUPPORTED'));
+  const ref = f.worker.ref('worker_holds', sourceHoldId(f)), hold = value(await ref.get());
+  assert.equal(hold.reason, 'NOTICE_PRECISION_UNSUPPORTED');
+  assert.equal(Date.parse(hold.recheckAt) - Date.parse(hold.at), 24 * 3600000);
+  assert.ok(hold.snapshotId); assert.ok(hold.contentHash);
+  const exception = value(await f.worker.ref('worker_exceptions', hold.jobId).get());
+  const snapshot = value(await f.worker.ref('snapshots', hold.snapshotId).get());
+  const budget = await sourceRows(f, 'model_budgets');
+  const detailRequests = f.state.requests.filter(r => r.url === detailUrl).length;
+  f.advance(3600000);
+  const skipped = (await f.restart().run(f.sourceId)).results.find(r => r.sourceHeld);
+  assert.equal(skipped.originalExceptionJobId, hold.jobId); assert.equal(skipped.recheckAt, hold.recheckAt);
+  assert.equal(skipped.published, false); assert.equal(f.state.requests.filter(r => r.url === detailUrl).length, detailRequests);
+  assert.deepEqual(value(await ref.get()), hold);
+  assert.deepEqual(value(await f.worker.ref('worker_exceptions', hold.jobId).get()), exception);
+  assert.deepEqual(value(await f.worker.ref('snapshots', hold.snapshotId).get()), snapshot);
+  assert.equal(value(await f.worker.ref('worker_jobs', hold.jobId).get()).state, 'exception');
+  assert.deepEqual(await sourceRows(f, 'model_budgets'), budget); assert.equal((await sourceRows(f, 'model_calls')).length, 0);
+  assert.equal(f.state.modelCalls, 0); assert.equal(f.state.validations, 0);
+});
+
+test('a corrected source is re-fetched at exact hold expiry and can create a private draft without reopening its old job', async () => {
+  const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
+  f.state.html = missingDeadline(); await f.worker.run(f.sourceId);
+  const hold = value(await f.worker.ref('worker_holds', sourceHoldId(f)).get());
+  f.state.html = detailHtml; f.advance(23 * 3600000);
+  assert.ok((await f.restart().run(f.sourceId)).results.some(r => r.sourceHeld));
+  f.advance(3600000); assert.equal(f.now(), hold.recheckAt);
+  const result = detailResult(await f.restart().run(f.sourceId));
+  assert.ok(result); assert.equal(result.published, false); assert.equal(f.state.modelCalls, 1); assert.equal(f.state.validations, 1);
+  assert.equal(f.state.requests.filter(r => r.url === detailUrl).length, 2);
+  assert.equal(value(await f.worker.ref('worker_jobs', hold.jobId).get()).state, 'exception');
+  assert.equal((await f.worker.ref('worker_exceptions', hold.jobId).get()).exists, true);
+  assert.equal((await f.worker.ref('public', result.recordId).get()).exists, false);
+});
+
+test('source policy revision and programme-mode changes release held notices before the time limit', async () => {
+  for (const change of ['source_revision', 'programme_mode']) {
+    const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
+    f.state.html = missingDeadline(); await f.worker.run(f.sourceId);
+    const hold = value(await f.worker.ref('worker_holds', sourceHoldId(f)).get());
+    f.state.html = detailHtml; f.advance(3600000);
+    if (change === 'source_revision') { f.source.revision++; await f.worker.ref('sources', f.sourceId).set(payload(f.source)); }
+    const result = detailResult(await f.restart({programmeExtraction:change === 'programme_mode'}).run(f.sourceId));
+    assert.ok(result, change); assert.equal(result.published, false); assert.ok(f.now() < hold.recheckAt);
+    assert.deepEqual(value(await f.worker.ref('worker_holds', sourceHoldId(f)).get()), hold);
+    assert.equal(value(await f.worker.ref('worker_jobs', hold.jobId).get()).state, 'exception');
+  }
+});
+
+test('strict layout failures are remembered without inventing a parsed candidate or snapshot', async () => {
+  const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
+  f.state.html = '<main>Unrecognised notice structure</main>'; await f.worker.run(f.sourceId);
+  const hold = value(await f.worker.ref('worker_holds', sourceHoldId(f)).get());
+  assert.equal(hold.reason, 'RECENTJOBS_LAYOUT_CHANGED'); assert.equal(hold.snapshotId, null); assert.equal(hold.contentHash, null);
+  f.advance(3600000); assert.ok((await f.restart().run(f.sourceId)).results.some(r => r.sourceHeld));
+  assert.equal(f.state.requests.filter(r => r.url === detailUrl).length, 1);
+  assert.equal(f.state.modelCalls, 0); assert.equal((await sourceRows(f, 'snapshots')).length, 0);
+});
+
+test('model rejection and semantic failure do not create source holds or suppress later retrievals', async () => {
+  for (const failure of ['extraction', 'validation']) {
+    const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
+    if (failure === 'extraction') f.worker.extractor = async () => { f.state.modelCalls++; throw new DomainError('AI_INVALID_EXTRACTION'); };
+    else f.state.supported = false;
+    await f.worker.run(f.sourceId); assert.equal((await f.worker.ref('worker_holds', sourceHoldId(f)).get()).exists, false);
+    f.advance(3600000); await f.worker.run(f.sourceId);
+    assert.equal(f.state.requests.filter(r => r.url === detailUrl).length, 2);
+    assert.equal((await f.worker.ref('worker_holds', sourceHoldId(f)).get()).exists, false);
+    assert.ok((await sourceRows(f, 'model_calls')).length >= 2);
+  }
+});
+
+test('a saved hold cannot postpone a published freshness watch, and failed public rechecks do not create holds', async () => {
+  const f = await fixture({employerCrawl:false, cadenceHours:1}), first = detailResult(await f.worker.run(f.sourceId));
+  const ref = f.worker.ref('worker_holds', sourceHoldId(f));
+  await ref.set(payload({sourceId:f.sourceId, sourceRevision:f.source.revision, url:detailUrl, version:1, programmeExtraction:false,
+    reason:'NOTICE_PRECISION_UNSUPPORTED', jobId:'saved_exception', snapshotId:null, contentHash:null,
+    at:f.now(), recheckAt:new Date(Date.parse(f.now()) + 24 * 3600000).toISOString()}));
+  f.advance(3600000);
+  assert.equal(detailResult(await f.restart().run(f.sourceId)).recordId, first.recordId);
+  await ref.delete(); f.state.html = missingDeadline(); f.advance(3600000);
+  assert.ok((await f.restart().run(f.sourceId)).results.some(r => r.reason === 'NOTICE_PRECISION_UNSUPPORTED'));
+  assert.equal((await ref.get()).exists, false);
+  const status = await f.catalogue.detail(first.recordId); assert.equal(status.kind, 'status'); assert.equal(status.status.status, 'under_review');
+});
+
+test('mismatched, obsolete or overlong source holds cannot suppress a fresh detail check', async () => {
+  const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
+  f.state.html = missingDeadline(); await f.worker.run(f.sourceId);
+  const ref = f.worker.ref('worker_holds', sourceHoldId(f)), held = value(await ref.get()); f.state.html = detailHtml;
+  for (const change of [{sourceId:'another_source'}, {url:detailUrl+'other/'}, {version:0}, {reason:'AI_RATE_LIMITED'},
+    {at:'invalid'}, {recheckAt:new Date(Date.parse(held.at) + 25 * 3600000).toISOString()}]) {
+    await ref.set(payload({...held,...change})); f.advance(3600000);
+    const requests = f.state.requests.filter(r => r.url === detailUrl).length;
+    assert.ok(detailResult(await f.restart().run(f.sourceId)), JSON.stringify(change));
+    assert.equal(f.state.requests.filter(r => r.url === detailUrl).length, requests + 1);
+  }
+});
+
+test('source hold inspection remains private and requires the existing reviewer authority', async () => {
+  const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false});
+  f.state.html = missingDeadline(); await f.worker.run(f.sourceId);
+  const uid = `reviewer_${randomUUID()}`, operator = new Catalogue(db, {verifyIdToken:async () => ({uid})}, f.now);
+  await assert.rejects(operator.inspect('test-token', 'worker_holds', sourceHoldId(f)), /FORBIDDEN/);
+  await f.worker.ref('operators', uid).set({active:true, roles:['reviewer']});
+  assert.equal((await operator.inspect('test-token', 'worker_holds', sourceHoldId(f))).reason, 'NOTICE_PRECISION_UNSUPPORTED');
+  assert.ok((await operator.queue('test-token', 'worker_holds')).items.some(x => x.id === sourceHoldId(f)));
+});
+
 test('unsupported source categories stop before model spending even with an open deadline and original route',async()=>{
   for(const scenario of ['missing_evidence','conflicting_intake']){
     const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});

@@ -146,6 +146,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Live cached validation completion and private draft refresh](133_LIVE_CACHED_VALIDATION_COMPLETION_AND_PRIVATE_DRAFT_REFRESH_2026-10-21.md)
 - [Source-category preflight and current notice holds](134_SOURCE_CATEGORY_PREFLIGHT_AND_CURRENT_NOTICE_HOLDS_2026-10-21.md)
 - [Current cohort recheck and unchanged source holds](135_CURRENT_COHORT_RECHECK_AND_UNCHANGED_SOURCE_HOLDS_2026-10-22.md)
+- [Persistent source holds and bounded rechecks](136_PERSISTENT_SOURCE_HOLDS_AND_BOUNDED_RECHECKS_2026-10-22.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

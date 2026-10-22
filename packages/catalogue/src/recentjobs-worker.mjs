@@ -31,6 +31,12 @@ const fail = code => { throw new DomainError(code); };
 const LEASE_MS = 600_000;
 const GEMINI_UNAVAILABLE_MS = 120_000;
 const GEMINI_MAX_MODEL_WINDOWS = 6;
+// Bump when source preflight/parser changes should release saved source holds.
+const SOURCE_HOLD_VERSION = 1;
+const SOURCE_HOLD_MS = 24 * 3_600_000;
+const SOURCE_HOLD_REASONS = new Set(['NOTICE_CATEGORY_REVIEW_REQUIRED', 'NOTICE_CATEGORY_CONFLICT',
+  'NOTICE_PRECISION_UNSUPPORTED', 'NOTICE_NOT_OPEN', 'NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED',
+  'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED']);
 const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0);
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
@@ -316,6 +322,14 @@ export class RecentJobsWorker {
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
           programmePlanId:job.programmePlanId ?? null,
           attempts: job.attempts, modelWindowRetries:job.modelWindowRetries ?? 0, at: this.now() }));
+        const sourceHold = job.kind === 'detail' && !old?.publication.previouslyPublic && !old?.publication.approved &&
+          (job.stage === 'preflight' && SOURCE_HOLD_REASONS.has(code) || !job.stage && code === 'RECENTJOBS_LAYOUT_CHANGED');
+        if (sourceHold) tx.set(this.ref('worker_holds', hash(`${source.id}:${job.url}`)), payload({
+          sourceId: source.id, sourceRevision: source.revision, url: job.url, version: SOURCE_HOLD_VERSION,
+          programmeExtraction: this.programmeExtraction, reason: code, jobId: job.id,
+          snapshotId: job.snapshotId ?? null, contentHash: job.contentHash ?? null, at: this.now(),
+          recheckAt: new Date(Date.parse(this.now()) + SOURCE_HOLD_MS).toISOString(),
+        }));
       }
       return { state: retry ? 'pending' : 'exception', reason: code };
     });
@@ -350,7 +364,7 @@ export class RecentJobsWorker {
       if (['withdrawn', 'closed', 'archived'].includes(old?.lifecycle) || old?.publication.disposition === 'withheld') fail('RESTORE_REQUIRES_REVIEW');
       if (!existing) tx.create(snapRef, payload({ id: snapshotId, sourceId: source.id, sourceRevision: source.revision,
         url: candidate.sourceUrl, hash: hash(text), contentHash: candidate.contentHash, text, retrievedAt: this.now() }));
-      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, snapshotId, recordId, stage: 'preflight' }));
+      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, snapshotId, recordId, contentHash: candidate.contentHash, stage: 'preflight' }));
       if (old?.publication.approved && old.private.queueId !== snapshotId) {
         old.revision++; old.lifecycle = 'review'; old.publication.approved = false;
         old.publication.disposition = 'review_required'; old.publication.reviewedBy = null; old.updatedAt = this.now();
@@ -373,7 +387,23 @@ export class RecentJobsWorker {
     return result;
   }
   async detail(claim) {
-    assertSourceTarget(claim.url); await this.robots(claim, claim.url);
+    assertSourceTarget(claim.url);
+    const hold = await this.transaction(claim.sourceId, 'worker.source_hold.read', async (tx, source) => {
+      await this.assertClaim(tx, source, claim);
+      const saved = value(await tx.get(this.ref('worker_holds', hash(`${source.id}:${claim.url}`))));
+      if (!saved || saved.sourceId !== source.id || saved.url !== claim.url || saved.sourceRevision !== source.revision ||
+          saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction ||
+          ![...SOURCE_HOLD_REASONS, 'RECENTJOBS_LAYOUT_CHANGED'].includes(saved.reason) ||
+          !InstantSchema.safeParse(saved.at).success || !InstantSchema.safeParse(saved.recheckAt).success ||
+          saved.at > this.now() || saved.recheckAt <= this.now() || Date.parse(saved.recheckAt) - Date.parse(saved.at) > SOURCE_HOLD_MS)
+        return null;
+      // A source hold must never postpone a published record's freshness watch.
+      const watch = (await tx.get(this.ref('worker_watches', hash(`${source.id}:${hash(claim.url)}`)))).data();
+      return watch?.sourceId === source.id && watch.url === claim.url && watch.stopAt > this.now() ? null : saved;
+    });
+    if (hold) return this.finish(claim, { sourceHeld: true, reason: hold.reason, recheckAt: hold.recheckAt,
+      originalExceptionJobId: hold.jobId, published: false });
+    await this.robots(claim, claim.url);
     const response = await this.request(claim, claim.url, 'html');
     const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
     const captured = await this.capture(claim, candidate);
