@@ -98,6 +98,37 @@ test('programme emails stay separate while form-request addresses and unlabelled
   assert.notEqual(result.applicationCandidates[0].originalText,result.applicationCandidates[1].originalText);
 });
 
+test('next-line application recipients preserve the heading, document instruction and original address', () => {
+  for (const instruction of ['Email your CV, ID copy and qualifications to:', 'Send your CV to:', 'Submit applications to:']) {
+    const result=parseDetail(`<h2>HOW TO APPLY</h2><p>${instruction}<br><strong>Applications@employer.example</strong></p>`);
+    assert.deepEqual(result.applicationCandidates,[{method:'email',destination:'Applications@employer.example',
+      originalText:`HOW TO APPLY\n${instruction}\nApplications@employer.example`,check:'pending'}]);
+    assert.ok(result.sourceText.includes(result.applicationCandidates[0].originalText));
+  }
+});
+
+test('next-line email discovery rejects missing scope, enquiries, forms, reference contacts, physical routes and invalid addresses', () => {
+  for (const [heading,instruction,address] of [
+    ['', 'Email your CV to:', 'jobs@employer.example'], ['CONTACT US', 'Email your CV to:', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'For enquiries email your CV to:', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'Request an application form by email to:', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'Do not send your CV to:', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'Submit applications by courier to:', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'Send your CV with reference email addresses to:', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'Email your CV to: https://employer.example/', 'jobs@employer.example'],
+    ['HOW TO APPLY', 'Email your CV to:', 'bad..address@employer.example'],
+    ['HOW TO APPLY', 'Email your CV to:', 'jobs@employer.example and other@employer.example'],
+  ]) assert.deepEqual(parseDetail(`<h2>${heading}</h2><p>${instruction}<br>${address}</p>`).applicationCandidates,[],instruction);
+});
+
+test('consecutive explicit application emails remain separate candidates and respect the route limit', () => {
+  const result=parseDetail('<h2>How to apply</h2><p>Email your CV to:<br>first@employer.example<br>second@employer.example</p>');
+  assert.deepEqual(result.applicationCandidates.map(c=>c.destination),['first@employer.example','second@employer.example']);
+  assert.ok(result.issues.includes('multiple_application_routes'));
+  assert.ok(result.applicationCandidates.every(c=>c.originalText==='How to apply\nEmail your CV to:\nfirst@employer.example\nsecond@employer.example'));
+  assert.throws(()=>parseDetail('<h2>How to apply</h2><p>Email your CV to:<br>'+Array.from({length:21},(_,i)=>`trade${i}@employer.example`).join('<br>')+'</p>'),/CONTENT_LIMIT/);
+});
+
 test('an existing application anchor remains first and duplicate plain-text email is deduplicated', () => {
   const result=parseDetail('<a href="mailto:jobs@employer.example">Apply: jobs@employer.example</a><p>Send applications to jobs@employer.example.</p>');
   assert.equal(result.applicationCandidates.length,1);

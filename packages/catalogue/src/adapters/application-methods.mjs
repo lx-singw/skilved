@@ -11,14 +11,19 @@ export function applicationMethods(sourceText) {
   const candidates = [], instructions = [];
   const lines = sourceText.split('\n');
   for (const [index,line] of lines.entries()) {
-    // A bare next-line email is accepted only under an immediately preceding
-    // application heading and an exact send-email instruction, never by proximity.
-    if (/^(?:\d+\.\s*)?How to apply\s*:?$/i.test(lines[index-1]?.trim() ?? '') &&
-        /^Send an e-?mail to\s*:?$/i.test(line.trim()) && email.safeParse(lines[index+1]?.trim()).success) {
-      candidates.push({method:'email',destination:lines[index+1].trim(),
-        originalText:lines.slice(index-1,index+2).join('\n'),check:'pending'});
-    }
     if (line.length > 1000) continue;
+    // A next-line recipient needs an immediate application heading and explicit
+    // send instruction. Preserve the complete block, including multiple recipients.
+    const sendInstruction = /^Send an e-?mail to\s*:?$/i.test(line.trim()) ||
+      /^(?:e-?mail|send|submit)\b/i.test(line.trim()) && application.test(line) && recipient.test(line) &&
+      !excluded.test(line) && !/https?:\/\/|\b(?:hand[ -]deliver\w*|in[ -]person|courier\w*|post|postal|references?|referees?|contactable)\b/i.test(line);
+    if (/^(?:\d+\.\s*)?How to apply\s*:?$/i.test(lines[index-1]?.trim() ?? '') &&
+        sendInstruction && email.safeParse(lines[index+1]?.trim()).success) {
+      const recipients = [];
+      for (let at=index+1;recipients.length<21 && email.safeParse(lines[at]?.trim()).success;at++) recipients.push(lines[at].trim());
+      const originalText=lines.slice(index-1,index+1+recipients.length).join('\n');
+      for (const destination of recipients) candidates.push({method:'email',destination,originalText,check:'pending'});
+    }
     const hand = /\b(?:hand[ -]deliver(?:ed|y)?|in[ -]person)\b/i.test(line);
     const courier = /\bcourier(?:ed)?\b/i.test(line);
     const postal = /\b(?:posted|postal)\b|\bpost\s+(?:to|applications?)\b|\b(?:by|via)\s+post\b/i.test(line);

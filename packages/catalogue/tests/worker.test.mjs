@@ -184,6 +184,28 @@ test('strict layout failures are remembered without inventing a parsed candidate
   assert.equal(f.state.modelCalls, 0); assert.equal((await sourceRows(f, 'snapshots')).length, 0);
 });
 
+test('a prior hold-policy version releases the notice after application parser changes', async () => {
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,cadenceHours:1});
+  f.state.html=missingDeadline(); await f.worker.run(f.sourceId);
+  const ref=f.worker.ref('worker_holds',sourceHoldId(f)),hold=value(await ref.get()); assert.equal(hold.version,2);
+  await ref.set(payload({...hold,version:1})); f.state.html=detailHtml; f.advance(3600000);
+  const result=detailResult(await f.restart().run(f.sourceId)); assert.ok(result); assert.equal(result.published,false);
+  assert.ok(f.now()<hold.recheckAt); assert.equal(value(await f.worker.ref('worker_jobs',hold.jobId).get()).state,'exception');
+});
+
+test('a scoped next-line application email reaches a private draft through registered issuer checks', async () => {
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+  f.state.html=detailHtml.replace('<a href="https://employer.example/apply">Apply now</a>',
+    '<h2>HOW TO APPLY</h2><p>Submit applications to:<br>applications@employer.example</p>');
+  f.source.automation.issuers[0].emailAddresses=['applications@employer.example'];
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const result=detailResult(await f.worker.run(f.sourceId)); assert.ok(result); assert.equal(result.published,false);
+  const draft=value(await f.worker.ref('drafts',result.recordId).get());
+  assert.equal(draft.applicationRoute.value.method,'email'); assert.equal(draft.applicationRoute.value.destination,'applications@employer.example');
+  assert.equal(draft.publication.approved,false); assert.equal(f.state.modelCalls,1); assert.equal(f.state.validations,1);
+  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});
+
 test('model rejection and semantic failure do not create source holds or suppress later retrievals', async () => {
   for (const failure of ['extraction', 'validation']) {
     const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
@@ -200,7 +222,7 @@ test('model rejection and semantic failure do not create source holds or suppres
 test('a saved hold cannot postpone a published freshness watch, and failed public rechecks do not create holds', async () => {
   const f = await fixture({employerCrawl:false, cadenceHours:1}), first = detailResult(await f.worker.run(f.sourceId));
   const ref = f.worker.ref('worker_holds', sourceHoldId(f));
-  await ref.set(payload({sourceId:f.sourceId, sourceRevision:f.source.revision, url:detailUrl, version:1, programmeExtraction:false,
+  await ref.set(payload({sourceId:f.sourceId, sourceRevision:f.source.revision, url:detailUrl, version:2, programmeExtraction:false,
     reason:'NOTICE_PRECISION_UNSUPPORTED', jobId:'saved_exception', snapshotId:null, contentHash:null,
     at:f.now(), recheckAt:new Date(Date.parse(f.now()) + 24 * 3600000).toISOString()}));
   f.advance(3600000);
