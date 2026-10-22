@@ -1,4 +1,4 @@
-import { DateSchema } from '@skilved/types/opportunities';
+import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
 import { DomainError } from './config.mjs';
 
 export const RECENTJOBS_INDEX = 'https://recentjobs.co.za/category/apprenticeships/';
@@ -35,16 +35,39 @@ export function approvedRoute(source, route) {
 }
 
 /** Cheap source checks before model work; route scope alone does not establish the issuer. */
-export function preflightCandidate(source, candidate, now) {
+export function preflightCandidate(source, candidate, now, sourceRetrievedAt) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
   if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
   assertApprenticeshipSource(candidate);
   if (candidate.applicationCandidates.length !== 1) fail('NOTICE_PRECISION_UNSUPPORTED');
-  const deadline = candidateDeadline(candidate);
-  if (deadline <= dayInSA(now)) fail('NOTICE_NOT_OPEN');
+  if (!candidate.deadlineCandidates.length) undatedReviewWindow(source, candidate, now, sourceRetrievedAt);
+  else if (candidateDeadline(candidate) <= dayInSA(now)) fail('NOTICE_NOT_OPEN');
   const route = candidate.applicationCandidates[0];
   approvedRoute(source, route);
   return route;
+}
+
+/** Source recency permits private assessment, never a claim that applications are open. */
+function undatedReviewWindow(source, candidate, now, sourceRetrievedAt) {
+  const notice = `${candidate.title ?? ''}\n${candidate.sourceText ?? ''}`;
+  if (source.automation?.mode !== 'shadow' || source.automation.undatedNotices !== 'shadow_recent' ||
+      candidate.deadlineCandidates.length ||
+      /\b(?:closing\s*(?:date\b|:)|(?:application\s+)?deadline\b|apply\s+by\b|applications?\s+clos(?:e|es|ing)\b|until\s+filled\b|rolling\s+(?:basis|applications?)\b)/i.test(notice))
+    fail('NOTICE_PRECISION_UNSUPPORTED');
+  if (/\b(?:applications?\s+(?:are\s+)?closed|(?:position|vacancy)\s+(?:is\s+|has\s+been\s+)?filled|no\s+longer\s+accepting\s+applications)\b/i.test(notice))
+    fail('NOTICE_NOT_OPEN');
+  const published = candidate.sourcePublishedAtRaw;
+  if (!InstantSchema.safeParse(now).success || !InstantSchema.safeParse(sourceRetrievedAt).success ||
+      typeof published !== 'string' || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(published) ||
+      !DateSchema.safeParse(published.slice(0, 10)).success || !Number.isFinite(Date.parse(published)))
+    fail('UNDATED_NOTICE_FRESHNESS_REQUIRED');
+  const publishedAt = Date.parse(published), retrievedAt = Date.parse(sourceRetrievedAt), current = Date.parse(now);
+  const reviewExpiresAt = Math.min(publishedAt + 7 * 86_400_000, retrievedAt + source.automation.checkTtlHours * 3_600_000);
+  if (!Number.isFinite(reviewExpiresAt) || publishedAt > retrievedAt || retrievedAt > current || current >= reviewExpiresAt)
+    fail('UNDATED_NOTICE_FRESHNESS_REQUIRED');
+  return { deadlinePolicy: 'undated_shadow_v1', sourcePublishedAt: new Date(publishedAt).toISOString(),
+    sourceRetrievedAt, reviewExpiresAt: new Date(reviewExpiresAt).toISOString(),
+    nextCheckAt: new Date(reviewExpiresAt).toISOString(), availability: 'unverified' };
 }
 
 function assertApprenticeshipSource(candidate) {
@@ -105,6 +128,24 @@ export function publicationGate(source, candidate, record, primary, assessment, 
   if (!assessment.supported || assessment.issues.length) fail('SEMANTIC_VALIDATION_FAILED');
   const deadlineBoundary = Date.parse(`${deadline.localDate}T00:00:00.000+02:00`);
   return { nextCheckAt: new Date(Math.min(Date.parse(now) + source.automation.checkTtlHours * 3_600_000, deadlineBoundary)).toISOString() };
+}
+
+/** The undated exception is limited to a private, unapproved single-notice draft. */
+export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt) {
+  if (candidate.deadlineCandidates.length || source.automation?.undatedNotices !== 'shadow_recent')
+    return publicationGate(source, candidate, record, primary, assessment, now);
+  preflightCandidate(source, candidate, now, sourceRetrievedAt);
+  const window = undatedReviewWindow(source, candidate, now, sourceRetrievedAt);
+  const issuer = approvedIssuer(source, record);
+  assertMaterialFacts(record);
+  if (record.deadline.state !== 'not_stated' || record.deadline.value !== null) fail('NOTICE_PRECISION_UNSUPPORTED');
+  const originalRoute = candidate.applicationCandidates[0], route = record.applicationRoute.value;
+  if (originalRoute.method !== route.method || originalRoute.destination !== route.destination) fail('APPLICATION_UNRESOLVED');
+  if (primary && !issuerNames(issuer).includes(nameKey(primary.issuer))) fail('PRIMARY_ISSUER_MISMATCH');
+  if (source.automation.employerCrawl && route.method === 'portal' && !primary) fail('PRIMARY_NOTICE_REQUIRED');
+  if (primary?.validThrough) fail('PRIMARY_DEADLINE_UNRESOLVED');
+  if (!assessment.supported || assessment.issues.length) fail('SEMANTIC_VALIDATION_FAILED');
+  return window;
 }
 
 /** Read-time safety applies even when the scheduler is down. Legacy human records are unchanged. */

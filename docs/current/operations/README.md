@@ -148,6 +148,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Current cohort recheck and unchanged source holds](135_CURRENT_COHORT_RECHECK_AND_UNCHANGED_SOURCE_HOLDS_2026-10-22.md)
 - [Persistent source holds and bounded rechecks](136_PERSISTENT_SOURCE_HOLDS_AND_BOUNDED_RECHECKS_2026-10-22.md)
 - [Next-line application emails and new-notice pilot holds](137_NEXT_LINE_APPLICATION_EMAILS_AND_NEW_NOTICE_PILOT_HOLDS_2026-10-22.md)
+- [Undated notices: bounded private assessment](138_UNDATED_NOTICE_SHADOW_ASSESSMENT_2026-10-22.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 

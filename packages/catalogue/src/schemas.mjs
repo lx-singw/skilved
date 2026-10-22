@@ -9,6 +9,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   maxBytes: z.number().int().min(100).max(500000),
   automation: z.object({ mode: z.enum(['disabled', 'shadow', 'automatic']),
     employerCrawl: z.boolean().default(false),
+    undatedNotices: z.enum(['reject', 'shadow_recent']).default('reject'),
     qualificationRef: z.string().min(1).max(2000), maxArticles: z.number().int().min(1).max(10),
     maxModelCallsPerDay: z.number().int().min(1).max(100),
     minRequestIntervalMs: z.number().int().min(2000).max(60000), checkTtlHours: z.number().int().min(1).max(24),
@@ -22,7 +23,9 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   }).strict().optional(),
 }).strict().refine(source => source.automation?.mode !== 'automatic' ||
   (source.permission.method === 'recentjobs_html' && source.cadenceHours <= source.automation.checkTtlHours),
-  'Automatic source cadence must fit the freshness window');
+  'Automatic source cadence must fit the freshness window').refine(source =>
+  source.automation?.undatedNotices !== 'shadow_recent' || source.automation.mode === 'shadow',
+  'Undated notices require shadow mode');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();

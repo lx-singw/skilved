@@ -22,7 +22,7 @@ import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
 import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs';
 import { validateExtraction, validateAssessment, validationPayload, VALIDATION_VERSION } from './ai/validation.mjs';
 import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,recentGeminiUsage,mergeGeminiMinuteUsage,geminiUsageDelay } from './ai/gemini-quota.mjs';
-import { RECENTJOBS_INDEX, assertSourceTarget, approvedIssuer, preflightCandidate, publicationGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
+import { RECENTJOBS_INDEX, assertSourceTarget, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -32,11 +32,11 @@ const LEASE_MS = 600_000;
 const GEMINI_UNAVAILABLE_MS = 120_000;
 const GEMINI_MAX_MODEL_WINDOWS = 6;
 // Bump when source preflight/parser changes should release saved source holds.
-const SOURCE_HOLD_VERSION = 2;
+const SOURCE_HOLD_VERSION = 3;
 const SOURCE_HOLD_MS = 24 * 3_600_000;
 const SOURCE_HOLD_REASONS = new Set(['NOTICE_CATEGORY_REVIEW_REQUIRED', 'NOTICE_CATEGORY_CONFLICT',
   'NOTICE_PRECISION_UNSUPPORTED', 'NOTICE_NOT_OPEN', 'NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED',
-  'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED']);
+  'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED', 'UNDATED_NOTICE_FRESHNESS_REQUIRED']);
 const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0);
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
@@ -352,7 +352,7 @@ export class RecentJobsWorker {
       } });
     });
   }
-  async capture(claim, candidate) {
+  async capture(claim, candidate, retrievedAt = this.now()) {
     const recordId = hash(`${claim.sourceId}:${candidate.sourceRecordId}`);
     const snapshotId = hash(`${claim.sourceId}:${candidate.sourceUrl}:${candidate.contentHash}`);
     const text = `${candidate.title}\n${candidate.sourceText}`;
@@ -361,17 +361,21 @@ export class RecentJobsWorker {
       const old = value(await tx.get(this.ref('drafts', recordId)));
       const snapRef = this.ref('snapshots', snapshotId), existing = value(await tx.get(snapRef));
       const state = value(await tx.get(this.ref('state', 'current'))) ?? { revision: 1 };
+      // An unchanged retry retains the first acquisition for this job. A shared
+      // content snapshot's older timestamp is not a new retrieval, either.
+      const sourceRetrievedAt = job.contentHash === candidate.contentHash && job.sourceRetrievedAt != null
+        ? job.sourceRetrievedAt : retrievedAt;
       if (['withdrawn', 'closed', 'archived'].includes(old?.lifecycle) || old?.publication.disposition === 'withheld') fail('RESTORE_REQUIRES_REVIEW');
       if (!existing) tx.create(snapRef, payload({ id: snapshotId, sourceId: source.id, sourceRevision: source.revision,
         url: candidate.sourceUrl, hash: hash(text), contentHash: candidate.contentHash, text, retrievedAt: this.now() }));
-      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, snapshotId, recordId, contentHash: candidate.contentHash, stage: 'preflight' }));
+      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, snapshotId, recordId, contentHash: candidate.contentHash, sourceRetrievedAt, stage: 'preflight' }));
       if (old?.publication.approved && old.private.queueId !== snapshotId) {
         old.revision++; old.lifecycle = 'review'; old.publication.approved = false;
         old.publication.disposition = 'review_required'; old.publication.reviewedBy = null; old.updatedAt = this.now();
         this.catalogue.writePublication(tx, old, { kind: 'status', status: { schemaVersion: 1, id: old.id,
           revision: old.revision, status: 'under_review', application: 'unavailable' } }, state.revision + 1, 'worker.source_changed', this.actor);
       }
-      return { recordId, snapshotId, expectedRevision: old?.revision ?? null, createdAt: old?.createdAt ?? this.now(),
+      return { recordId, snapshotId, sourceRetrievedAt, expectedRevision: old?.revision ?? null, createdAt: old?.createdAt ?? this.now(),
         previouslyPublic: old?.publication.previouslyPublic ?? false };
     });
   }
@@ -405,8 +409,9 @@ export class RecentJobsWorker {
       originalExceptionJobId: hold.jobId, published: false });
     await this.robots(claim, claim.url);
     const response = await this.request(claim, claim.url, 'html');
+    const sourceRetrievedAt = this.now();
     const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
-    const captured = await this.capture(claim, candidate);
+    const captured = await this.capture(claim, candidate, sourceRetrievedAt);
     if (claim.source.automation.mode === 'shadow' && (candidate.applicationCandidates.length > 1 ||
         candidate.issues.includes('programme_subject_scope_review_required'))) {
       const plan = planRecentJobsProgrammes(candidate);
@@ -418,7 +423,7 @@ export class RecentJobsWorker {
       });
       if (this.programmeExtraction) return this.programmes(claim,candidate,captured,plan);
     }
-    const pendingRoute = preflightCandidate(claim.source, candidate, this.now());
+    const pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt);
     const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
@@ -463,7 +468,7 @@ export class RecentJobsWorker {
       () => this.modelStage(claim, 'validation', options => this.validator({ record, recentjobsText: mapped.snapshot.text, primary, applicationCandidates: candidate.applicationCandidates }, options)));
     // Validate even injected/internal validators; production does not expose this dependency to callers.
     const parsed = validateAssessment({ supported: assessment.supported, issues: assessment.issues, evidence: assessment.evidence }, mapped.snapshot.text, primary);
-    const gate = publicationGate(claim.source, candidate, record, primary, parsed, this.now());
+    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt);
     const published = claim.source.automation.mode === 'automatic';
     return this.finish(claim, { recordId: captured.recordId, published, snapshotId: captured.snapshotId }, async (tx, source) => {
       const old = value(await tx.get(this.ref('drafts', captured.recordId)));
@@ -474,7 +479,7 @@ export class RecentJobsWorker {
       if (['withdrawn', 'closed', 'archived'].includes(old?.lifecycle) || old?.publication.disposition === 'withheld') fail('RESTORE_REQUIRES_REVIEW');
       if (published && source.automation.mode !== 'automatic') fail('SOURCE_CHANGED');
       // Re-evaluate timing after slow model/network work, inside the commit boundary.
-      const currentGate = publicationGate(source, candidate, record, primary, parsed, this.now());
+      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt);
       record.revision = (old?.revision ?? 0) + 1; record.requirements.revision = record.revision;
       record.createdAt = captured.createdAt; record.updatedAt = this.now();
       if (primarySnapshotId) record.citations.push({ id: 'primary_notice', label: 'Employer application notice', url: destination, snapshotId: primarySnapshotId, approved: published });
@@ -499,8 +504,9 @@ export class RecentJobsWorker {
       tx.set(this.ref('worker_decisions', claim.id), payload({ sourceId: source.id, sourceRevision: source.revision, recordId: record.id,
         recordRevision: record.revision, extraction: extraction.provenance, validation: assessment.provenance,
         evidence: [...mapped.evidence, ...assessment.evidence], qualificationRef: source.automation.qualificationRef,
-        decision: published ? 'published' : 'shadow_pass', validationBasis: primary ? 'discovery_and_primary' : 'discovery_notice',
-        nextCheckAt: gate.nextCheckAt, at: this.now() }));
+        decision: published ? 'published' : currentGate.deadlinePolicy ? 'undated_shadow_pass' : 'shadow_pass',
+        validationBasis: primary ? 'discovery_and_primary' : 'discovery_notice',
+        ...currentGate, at: this.now() }));
       if (published) tx.set(this.ref('worker_watches', record.id), { sourceId: source.id, url: claim.url,
         nextCheckAt: currentGate.nextCheckAt, stopAt: new Date(Date.parse(`${record.deadline.value.localDate}T00:00:00.000+02:00`)).toISOString() });
       this.catalogue.writePublication(tx, record, projection, state.revision + 1, published ? 'worker.publish' : 'worker.shadow', this.actor);

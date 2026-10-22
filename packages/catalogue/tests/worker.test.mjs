@@ -121,6 +121,81 @@ const sourceHoldId = f => createHash('sha256').update(`${f.sourceId}:${detailUrl
 const missingDeadline = () => detailHtml.replace('<p>Closing date: 30 October 2026</p>', '<p>Closing date: not stated</p>');
 const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs.map(value).filter(x => x.sourceId === f.sourceId);
 
+async function undatedFixture({publishedAt='2026-09-26T09:00:00+00:00',ttl=24}={}) {
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,cadenceHours:1});
+  f.state.html=detailHtml.replace('<p>Closing date: 30 October 2026</p>','')
+    .replace('<h1 class="entry-title">',`<time class="published" datetime="${publishedAt}">Authored publication date</time><h1 class="entry-title">`);
+  f.source.automation.undatedNotices='shadow_recent';f.source.automation.checkTtlHours=ttl;
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  f.options={extractor:async()=>{f.state.modelCalls++;const extraction=syntheticExtraction();
+    extraction.deadline={state:'not_stated',value:null,quote:null};return {extraction,provenance:{model:'synthetic',usage:{totalTokens:20}}};}};
+  f.worker=f.restart(f.options);return f;
+}
+
+test('recent undated shadow notices create unapproved private drafts with honest unknown deadlines and expiry',async()=>{
+  const f=await undatedFixture(),result=detailResult(await f.worker.run(f.sourceId));assert.ok(result);assert.equal(result.published,false);
+  const draft=value(await f.worker.ref('drafts',result.recordId).get()),decision=(await sourceRows(f,'worker_decisions'))[0];
+  assert.equal(draft.deadline.state,'not_stated');assert.equal(draft.deadline.value,null);assert.equal(draft.deadline.originalText,null);
+  assert.equal(draft.lifecycle,'review');assert.equal(draft.publication.approved,false);assert.deepEqual(draft.checks,[]);
+  assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');
+  assert.equal(decision.decision,'undated_shadow_pass');assert.equal(decision.deadlinePolicy,'undated_shadow_v1');
+  assert.equal(decision.availability,'unverified');assert.equal(decision.reviewExpiresAt,'2026-09-27T10:00:00.000Z');
+  assert.equal(decision.sourceRetrievedAt,f.now());assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  assert.equal((await f.worker.ref('public',result.recordId).get()).exists,false);assert.equal((await sourceRows(f,'worker_watches')).length,0);
+  assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});
+
+test('opting into undated shadow assessment with a source revision releases the old negative hold',async()=>{
+  const f=await undatedFixture();delete f.source.automation.undatedNotices;
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  assert.ok((await f.worker.run(f.sourceId)).results.some(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'));assert.equal(f.state.modelCalls,0);
+  const hold=value(await f.worker.ref('worker_holds',sourceHoldId(f)).get());
+  f.source.revision++;f.source.automation.undatedNotices='shadow_recent';await f.worker.ref('sources',f.sourceId).set(payload(f.source));f.advance(3600000);
+  const result=detailResult(await f.restart(f.options).run(f.sourceId));assert.ok(result);assert.equal(result.published,false);
+  assert.equal(value(await f.worker.ref('worker_jobs',hold.jobId).get()).state,'exception');
+  assert.deepEqual(value(await f.worker.ref('worker_holds',sourceHoldId(f)).get()),hold);
+});
+
+test('stale undated articles stop before AI and their freshness holds survive worker restart',async()=>{
+  const f=await undatedFixture({publishedAt:'2026-09-19T10:00:00Z'});
+  assert.ok((await f.worker.run(f.sourceId)).results.some(r=>r.reason==='UNDATED_NOTICE_FRESHNESS_REQUIRED'));
+  const hold=value(await f.worker.ref('worker_holds',sourceHoldId(f)).get());assert.equal(hold.reason,'UNDATED_NOTICE_FRESHNESS_REQUIRED');
+  f.advance(3600000);assert.ok((await f.restart(f.options).run(f.sourceId)).results.some(r=>r.sourceHeld));
+  assert.equal(f.state.requests.filter(r=>r.url===detailUrl).length,1);assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+});
+
+test('undated expiry is rechecked inside the draft commit after a supported model assessment',async()=>{
+  const f=await undatedFixture({publishedAt:'2026-09-19T10:01:00Z'}),finish=f.worker.finish.bind(f.worker);
+  const cacheBefore=(await db.collection('m0_model_cache').get()).size;
+  f.worker.finish=async(claim,result,write)=>{if(result.recordId)f.advance(120000);return finish(claim,result,write);};
+  const result=await f.worker.run(f.sourceId);assert.ok(result.results.some(r=>r.reason==='UNDATED_NOTICE_FRESHNESS_REQUIRED'));
+  assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);assert.equal((await sourceRows(f,'worker_decisions')).length,0);
+  const job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
+  assert.equal((await db.collection('m0_model_cache').get()).size,cacheBefore+2);
+  assert.equal((await f.worker.ref('worker_candidates',job.id).get()).exists,true);
+  assert.equal((await f.worker.ref('public',job.recordId).get()).exists,false);
+});
+
+test('unchanged retries preserve their first acquisition and cannot renew an undated review window',async()=>{
+  const f=await undatedFixture({ttl:1});
+  f.worker.validator=async()=>{f.state.validations++;throw new DomainError('UNSUPPORTED_RESPONSE');};
+  const first=await f.worker.run(f.sourceId);assert.ok(first.results.some(r=>r.reason==='UNSUPPORTED_RESPONSE'));
+  const original=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');assert.equal(original.state,'pending');
+  assert.equal(original.sourceRetrievedAt,'2026-09-26T10:00:00.000Z');f.advance(3600000);
+  const result=await f.restart(f.options).runJob(f.sourceId,original.id);assert.equal(result.reason,'UNDATED_NOTICE_FRESHNESS_REQUIRED');
+  const retried=value(await f.worker.ref('worker_jobs',original.id).get());assert.equal(retried.sourceRetrievedAt,original.sourceRetrievedAt);
+  assert.equal(retried.snapshotId,original.snapshotId);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  assert.equal(f.state.requests.filter(r=>r.url===detailUrl).length,2);assert.equal((await f.worker.ref('drafts',original.recordId).get()).exists,false);
+});
+
+test('undated shadow assessment still rejects semantic failures without drafting or claiming a source hold',async()=>{
+  const f=await undatedFixture();f.state.supported=false;
+  assert.ok((await f.worker.run(f.sourceId)).results.some(r=>r.reason==='SEMANTIC_VALIDATION_FAILED'));
+  const job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');
+  assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);assert.equal((await f.worker.ref('worker_holds',sourceHoldId(f)).get()).exists,false);
+});
+
 test('source holds survive restart and skip detail requests without changing the original exception, snapshot or quota', async () => {
   const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
   f.state.html = missingDeadline();
@@ -184,11 +259,11 @@ test('strict layout failures are remembered without inventing a parsed candidate
   assert.equal(f.state.modelCalls, 0); assert.equal((await sourceRows(f, 'snapshots')).length, 0);
 });
 
-test('a prior hold-policy version releases the notice after application parser changes', async () => {
+test('a prior hold-policy version releases the notice after preflight policy changes', async () => {
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,cadenceHours:1});
   f.state.html=missingDeadline(); await f.worker.run(f.sourceId);
-  const ref=f.worker.ref('worker_holds',sourceHoldId(f)),hold=value(await ref.get()); assert.equal(hold.version,2);
-  await ref.set(payload({...hold,version:1})); f.state.html=detailHtml; f.advance(3600000);
+  const ref=f.worker.ref('worker_holds',sourceHoldId(f)),hold=value(await ref.get()); assert.equal(hold.version,3);
+  await ref.set(payload({...hold,version:2})); f.state.html=detailHtml; f.advance(3600000);
   const result=detailResult(await f.restart().run(f.sourceId)); assert.ok(result); assert.equal(result.published,false);
   assert.ok(f.now()<hold.recheckAt); assert.equal(value(await f.worker.ref('worker_jobs',hold.jobId).get()).state,'exception');
 });
