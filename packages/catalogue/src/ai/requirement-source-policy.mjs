@@ -3,7 +3,7 @@ import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
 import {assertNoPreparationEvidence,practicalEvidencePolicy} from './practical-evidence.mjs';
 import {qualificationLineKind,isSubjectExclusion,isEducationOnlyLine} from './qualification-evidence.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v10';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v11';
 export const SUBMISSION_BLOCK_INSTRUCTION=`
 submissionBlocks supplies complete bounded submission passages, including context and conditional documents.
 Prefer one complete block for practicalConditions: copy its entire originalText and span, not only the
@@ -45,7 +45,7 @@ with level unclear, or unknown(firstLine,lastLine) without a confident item for 
 Do not invent a predicate to build IF logic. Unknown logic stops publication rather than guessing.
 completeRequirementSpans are recognised COMPLETE conditions. Keep the entire span in ONE item.
 Assessment components belong to the assessment condition, never standalone eligibility items.
-Recognised Grade 12 subject spans likewise belong to ONE complete education item. Do not detach
+Recognised qualification subject spans likewise belong to ONE complete education item. Do not detach
 the listed subjects from their qualification, even when every split item would be under ALL.
 An unqualified Valid passport profile line is a held credential (kind other), not citizenship or a submission document.
 Document sections still use kind document for documents to submit.
@@ -73,12 +73,15 @@ const documentAcceptance=/^(?:[A-Za-z][A-Za-z '’.-]{0,100} says )?only applica
 const documentList=/^Applicants? must (?:submit|provide|attach)\s*:$/i;
 const blankForm=line=>/^(?:Request|Obtain|Download)\s+(?:(?:an?|the)\s+)?application\s+form\s+(?:from|via|at)\s+.{1,300}$/i.test(line)&&! /\b(?:submit|return|attach|completed|required|compulsory|must)\b/i.test(line);
 const grade12=/^Grade 12(?: with(?: the following subjects)?\s*:)?$/i;
+const labelledQualification=/^(?:N[1-6]|Matric|Grade 12)(?:\s*\/\s*(?:N[1-6]|Matric|Grade 12))?\s*:\s*Subjects\s*:$/i;
 const schoolSubject=text=>{
  if(/^Mathematics(?: \(Core\))?(?: [—–-] not Mathematical Literacy)?$/i.test(text))return 'mathematics';
  if(/^Physical Science$/i.test(text))return 'physical_science';
  if(/^Engineering Graphics & Design(?: \(EGD\))?$/i.test(text))return 'engineering_graphics';
  return null;
 };
+const labelledSubject=text=>schoolSubject(text)||(/^English$/i.test(text)?'english':
+ /^Mathematics \(Maths Literacy will not apply\)$/i.test(text)?'mathematics':null);
 const independentCondition=/^(?:Valid\b|Be able\b|Be prepared\b|Live within\b|Hold\b|Have\b|Applicants? must\b|Grade \d+\b|N\d+\b|NCV\b|Pass .{0,100}\b(?:technical|aptitude) assessment\b)/i;
 const alternativeIntro=/^(?:(?:you need )?one of the following|either|or)\s*:?$/i;
 const tableIntro=/^You must meet the age and citizenship requirements and have completed one of the following educational pathways[.]?$/i;
@@ -161,12 +164,15 @@ export function requirementSourcePolicy(candidate) {
  for(const section of sections){
   if(section.kind==='documents')continue;
   for(let index=section.start;index<section.until;index++){
-   if(!grade12.test(label(lines[index])))continue;
+   const explicitlyLabelled=labelledQualification.test(label(lines[index]));
+   if(!grade12.test(label(lines[index]))&&!explicitlyLabelled)continue;
    // Flat text has no nesting: do not infer a qualification branch inside an
    // alternative list, across blank lines, or through unfamiliar continuations.
    if(lines.slice(section.start,index).some(line=>alternativeIntro.test(label(line))))continue;
-   const subjects=[];let after=index+1;
-   while(after<section.until&&schoolSubject(label(lines[after]))){subjects.push(schoolSubject(label(lines[after])));after++;}
+   // An explicit Subjects label can bind this closed list without resolving
+   // slash-separated qualifications or detaching the attached exclusion.
+   const subject=explicitlyLabelled?labelledSubject:schoolSubject,subjects=[];let after=index+1;
+   while(after<section.until&&subject(label(lines[after]))){subjects.push(subject(label(lines[after])));after++;}
    if(subjects.length<2||new Set(subjects).size!==subjects.length)continue;
    if(after!==section.until&&!independentCondition.test(label(lines[after])))continue;
    const members=lines.slice(index,after);

@@ -122,12 +122,16 @@ const sourceHoldId = f => createHash('sha256').update(`${f.sourceId}:${detailUrl
 const missingDeadline = () => detailHtml.replace('<p>Closing date: 30 October 2026</p>', '<p>Closing date: not stated</p>');
 const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs.map(value).filter(x => x.sourceId === f.sourceId);
 
-test('source-label checks stop missing skills and incomplete attendance evidence before validation or private drafting',async()=>{
-  for(const scenario of ['missing_skill','incomplete_location','complete']) {
+test('source-label checks stop incomplete skills, qualification groups and location evidence before validation or private drafting',async()=>{
+  for(const scenario of ['missing_skill','incomplete_location','split_qualification','complete']) {
     const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=labelHtml;
     f.worker.extractor=async()=>{f.state.modelCalls++;const raw=labelWire();
       if(scenario==='missing_skill'){raw.requirements.items.shift();raw.requirements.expression='all(s2,q)';}
       if(scenario==='incomplete_location')raw.location.span=labelSpan(labelLines[1]);
+      if(scenario==='split_qualification'){
+        const q=raw.requirements.items.pop();raw.requirements.items.push(...labelLines.slice(9,12).map((text,index)=>({...q,id:'q'+index,kind:index?'subjects':'education',span:labelSpan(text)})));
+        raw.requirements.expression='all(s1,s2,q0,q1,q2)';
+      }
       return {extraction:decodeGroqExtraction(raw,labelCandidate),provenance:{model:'synthetic',usage:{totalTokens:15}}};};
     f.worker.validator=async()=>{f.state.validations++;return {supported:true,issues:[],evidence:[{source:'recentjobs',quote:labelCandidate.title}],provenance:{model:'synthetic',usage:{totalTokens:15}}};};
     const result=await f.worker.run(f.sourceId),job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');assert.equal(f.state.modelCalls,1);
@@ -136,7 +140,8 @@ test('source-label checks stop missing skills and incomplete attendance evidence
       const draft=value(await f.worker.ref('drafts',row.recordId).get());assert.equal(draft.requirements.requirements.length,3);assert.equal(draft.compensation.length,2);
       assert.equal(draft.location.value.attendance,'in_person');assert.equal(draft.publication.approved,false);
     }else{
-      assert.ok(result.results.some(r=>r.reason===(scenario==='missing_skill'?'AI_REQUIREMENT_COVERAGE':'AI_LOCATION_EVIDENCE_UNRESOLVED')));
+      const reason={missing_skill:'AI_REQUIREMENT_COVERAGE',incomplete_location:'AI_LOCATION_EVIDENCE_UNRESOLVED',split_qualification:'AI_REQUIREMENT_GROUP_UNRESOLVED'}[scenario];
+      assert.ok(result.results.some(r=>r.reason===reason));
       assert.equal(f.state.validations,0);assert.equal((await f.worker.ref('worker_candidates',job.id).get()).exists,false);
       assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
     }

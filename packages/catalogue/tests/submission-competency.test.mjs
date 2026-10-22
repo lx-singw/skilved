@@ -11,7 +11,7 @@ const env={SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_submission_key',SK
 const answer=data=>Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
 
 test('bounded submission prose and inherent/required-competency sections retain scope and exclude headings, duties and advice',()=>{
- const p=requirementSourcePolicy(candidate);assert.equal(REQUIREMENT_SOURCE_POLICY_VERSION,'bounded_extraction_requirements_v10');
+ const p=requirementSourcePolicy(candidate);assert.equal(REQUIREMENT_SOURCE_POLICY_VERSION,'bounded_extraction_requirements_v11');
  assert.deepEqual(p.submissionInstructions.map(i=>i.originalText),[acceptance,introduction,documents[0]]);
  assert.ok(p.submissionInstructions.every(i=>i.unconditional));
  assert.deepEqual(p.conditionalDocumentInstructions.map(i=>i.originalText),documents.slice(1));

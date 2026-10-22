@@ -59,5 +59,34 @@ test('provider payload carries scoped skill and attendance hints while keeping o
     assert.equal(input.requirementSourcePolicy.lineHints.filter(h=>h.level==='required').length,2);
     return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(raw)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
   }});
-  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v23_groq_v7');map(result.extraction);assert.deepEqual(c,before);
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v24_groq_v7');map(result.extraction);assert.deepEqual(c,before);
+});
+
+test('explicit qualification and subject labels retain the slash wording and attached exclusion in one preferred passage',()=>{
+  const p=requirementSourcePolicy(c);assert.deepEqual(p.completeRequirementSpans,[{span:labelSpan(preferredLabelEducation),kind:'education'}]);
+  const raw=labelWire(),before=structuredClone(raw),record=map(decodeGroqExtraction(raw,c)).record;
+  assert.equal(record.requirements.requirements[2].fact.originalText,preferredLabelEducation);assert.equal(record.requirements.requirements[2].level,'preferred');assert.deepEqual(raw,before);
+});
+
+test('split or overlapping labelled qualification subjects fail even under ALL without rewriting their evidence',()=>{
+  for(const overlap of [false,true]){
+    const raw=labelWire(),q=raw.requirements.items.pop();
+    raw.requirements.items.push(...(overlap?[q,{...q,id:'english',kind:'subjects',span:labelSpan('English')}]:preferredLabelEducation.split('\n').map((text,index)=>({...q,id:'split'+index,kind:index?'subjects':'education',span:labelSpan(text)}))));
+    raw.requirements.expression='all('+raw.requirements.items.map(i=>i.id).join(',')+')';const before=structuredClone(raw);
+    assert.throws(()=>map(decodeGroqExtraction(raw,c)),e=>e.code==='AI_REQUIREMENT_GROUP_UNRESOLVED');assert.deepEqual(raw,before);
+  }
+});
+
+test('labelled qualification grouping abstains on unbounded, conditional, repeated or unfamiliar lists',()=>{
+  for(const text of [
+    'Preferred Qualifications\n'+preferredLabelEducation,
+    'Preferred Qualifications\nN2/Matric: Subjects:\nMathematics\nWhat We Offer',
+    'Preferred Qualifications\nN2/Matric: Subjects:\nMathematics\n\nEnglish\nWhat We Offer',
+    'Preferred Qualifications\nN2/Matric: Subjects:\nMathematics\nMathematics (Maths Literacy will not apply)\nEnglish\nWhat We Offer',
+    'Preferred Qualifications\nN2/Matric: Subjects:\nMathematics\nTechnical drawing\nEnglish\nWhat We Offer',
+    'Preferred Qualifications\nN2/Matric if applicable: Subjects:\nMathematics\nEnglish\nWhat We Offer',
+    'Preferred Qualifications\nOne of the following:\n'+preferredLabelEducation+'\nWhat We Offer',
+    'Preferred Qualifications\n'+preferredLabelEducation+'\nWhat We Offer\nEnglish',
+    'Required documents\n'+preferredLabelEducation+'\nWhat We Offer',
+  ])assert.deepEqual(requirementSourcePolicy({title:'Authored',sourceText:text}).completeRequirementSpans,[],text);
 });
