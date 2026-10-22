@@ -25,6 +25,7 @@ import {submissionHtml,submissionWire,submissionCandidate} from './fixtures/subm
 import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
 import {boundDetail,boundBody} from './fixtures/recentjobs-bound-detail.mjs';
 import {GEMINI_MODEL_CHAIN} from '../src/ai/gemini-models.mjs';
+import {labelHtml,labelCandidate,labelWire,labelSpan,labelLines} from './fixtures/source-labels.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -120,6 +121,28 @@ const detailResult = result => result.results.find(r => r.recordId);
 const sourceHoldId = f => createHash('sha256').update(`${f.sourceId}:${detailUrl}`).digest('hex');
 const missingDeadline = () => detailHtml.replace('<p>Closing date: 30 October 2026</p>', '<p>Closing date: not stated</p>');
 const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs.map(value).filter(x => x.sourceId === f.sourceId);
+
+test('source-label checks stop missing skills and incomplete attendance evidence before validation or private drafting',async()=>{
+  for(const scenario of ['missing_skill','incomplete_location','complete']) {
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=labelHtml;
+    f.worker.extractor=async()=>{f.state.modelCalls++;const raw=labelWire();
+      if(scenario==='missing_skill'){raw.requirements.items.shift();raw.requirements.expression='all(s2,q)';}
+      if(scenario==='incomplete_location')raw.location.span=labelSpan(labelLines[1]);
+      return {extraction:decodeGroqExtraction(raw,labelCandidate),provenance:{model:'synthetic',usage:{totalTokens:15}}};};
+    f.worker.validator=async()=>{f.state.validations++;return {supported:true,issues:[],evidence:[{source:'recentjobs',quote:labelCandidate.title}],provenance:{model:'synthetic',usage:{totalTokens:15}}};};
+    const result=await f.worker.run(f.sourceId),job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');assert.equal(f.state.modelCalls,1);
+    if(scenario==='complete') {
+      const row=detailResult(result);assert.ok(row);assert.equal(row.published,false);assert.equal(f.state.validations,1);
+      const draft=value(await f.worker.ref('drafts',row.recordId).get());assert.equal(draft.requirements.requirements.length,3);assert.equal(draft.compensation.length,2);
+      assert.equal(draft.location.value.attendance,'in_person');assert.equal(draft.publication.approved,false);
+    }else{
+      assert.ok(result.results.some(r=>r.reason===(scenario==='missing_skill'?'AI_REQUIREMENT_COVERAGE':'AI_LOCATION_EVIDENCE_UNRESOLVED')));
+      assert.equal(f.state.validations,0);assert.equal((await f.worker.ref('worker_candidates',job.id).get()).exists,false);
+      assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
+    }
+    assert.equal((await f.worker.ref('public',job.recordId).get()).exists,false);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+  }
+});
 
 async function undatedFixture({publishedAt='2026-09-26T09:00:00+00:00',ttl=24}={}) {
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,cadenceHours:1});

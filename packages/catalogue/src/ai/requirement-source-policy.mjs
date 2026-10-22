@@ -3,7 +3,7 @@ import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
 import {assertNoPreparationEvidence,practicalEvidencePolicy} from './practical-evidence.mjs';
 import {qualificationLineKind,isSubjectExclusion,isEducationOnlyLine} from './qualification-evidence.mjs';
 
-export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v9';
+export const REQUIREMENT_SOURCE_POLICY_VERSION='bounded_extraction_requirements_v10';
 export const SUBMISSION_BLOCK_INSTRUCTION=`
 submissionBlocks supplies complete bounded submission passages, including context and conditional documents.
 Prefer one complete block for practicalConditions: copy its entire originalText and span, not only the
@@ -54,10 +54,10 @@ const label=text=>text.trim().replace(/^[\p{Extended_Pictographic}\uFE0F\u200D\s
 // Normalise recognised heading labels only; evidence and numbered conditions
 // retain their original characters and line positions.
 const headingLabel=text=>label(text).replace(/^\d{1,2}[.)]\s+(?=[A-Za-z])/,'');
-const required=/^(?:minimum requirements|requirements|qualifications and experience required|minimum qualifications|entry requirements|inherent job requirements|key competencies required)\s*:?$/i;
+const required=/^(?:minimum requirements|requirements|qualifications and experience required|minimum qualifications|entry requirements|inherent job requirements|key competencies required|skills required)\s*:?$/i;
 const preferred=/^(?:added advantages|preferred(?: qualifications| requirements)?|advantageous|recommendations)\s*:?$/i;
 const documents=/^(?:required (?:application )?documents|documents required|application documents|documents\s*[—–-]\s*very important)\s*:?$/i;
-const ending=/^(?:main responsibilities|responsibilities|duties|main training\/duties|closing date|how to apply|application process|benefits|work level|job type|salary|apply now)\s*:?(?:\s+.*)?$/i;
+const ending=/^(?:main responsibilities|responsibilities|duties|main training\/duties|closing date|how to apply|application process|benefits|what we offer|work level|job type|salary|apply now)\s*:?(?:\s+.*)?$/i;
 const profileEnding=/^(?:competencies|assumption of duties|stipend)\s*:?$/i;
 const editorial=/^(?:what makes (?:this|the) (?:opportunity|programme|apprenticeship) .+|why .+ (?:apprenticeship|opportunity|programme)(?: is .+)?|the \d+ km requirement is important)\s*:?$/i;
 const connective=/^(?:you need(?: one of the following)?|one of the following|either|or|and|prepare|applicants should have|important conditions)\s*:?$/i;
@@ -100,7 +100,7 @@ export function requirementSourcePolicy(candidate) {
  const close=until=>{if(active)sections.push({...active,until});active=null;};
  for(let index=0;index<lines.length;index++){
   const text=headingLabel(lines[index]);let kind=null;
-  const submissionBlock=standardDocumentation.test(text),inherent=/^inherent job requirements\s*:?$/i.test(text),competencies=/^key competencies required\s*:?$/i.test(text);
+  const submissionBlock=standardDocumentation.test(text),inherent=/^inherent job requirements\s*:?$/i.test(text),competencies=/^(?:key competencies required|skills required)\s*:?$/i.test(text);
   if(required.test(text))kind='required';else if(preferred.test(text))kind='preferred';else if(documents.test(text)||submissionBlock)kind='documents';
   if(kind){close(index);active={start:index+1,kind,level:kind==='documents'?(submissionBlock||/\brequired\b/i.test(text)?'required':'unclear'):kind,
     ...(submissionBlock?{submissionBlock:true,instructionLine:index+1,acceptanceLine:index>0&&incompleteApplications.test(label(lines[index-1]))?index:null}:{}),

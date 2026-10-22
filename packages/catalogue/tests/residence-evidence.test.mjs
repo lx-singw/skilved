@@ -79,7 +79,7 @@ test('ordinary and split provider paths hold after one simulated call with usage
 
 test('shared guidance reaches all extraction/validation contracts without rewriting a negative assessment',async()=>{
  for(const instruction of [EXTRACTION_INSTRUCTION,GROQ_EXTRACTION_INSTRUCTION,METADATA_INSTRUCTION,validationContract().instruction,requirementValidationContract().instruction])assert.ok(instruction.includes(RESIDENCE_EVIDENCE_INSTRUCTION));
- assert.equal(PROGRAMME_VALIDATION_VERSION,'recentjobs_programme_validation_v14');
+ assert.equal(PROGRAMME_VALIDATION_VERSION,'recentjobs_programme_validation_v15');
  const m=map(residenceExtraction()),negative={supported:false,issues:[{field:'residence',reason:'Citizenship does not state residence.'}],evidence:[{source:'recentjobs',quote:citizenship}]},before=structuredClone(negative);let calls=0;
  const result=await validateExtraction({record:m.record,recentjobsText:m.snapshot.text,applicationCandidates:candidate.applicationCandidates},{env,fetchImpl:async(_url,init)=>{
   calls++;const request=JSON.parse(init.body);assert.equal(request.generationConfig.maxOutputTokens,6144);

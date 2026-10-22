@@ -17,7 +17,7 @@ import {assertExperienceCompleteness, EXPERIENCE_COMPLETENESS_INSTRUCTION} from 
 import {assertResidenceEvidence, RESIDENCE_EVIDENCE_INSTRUCTION} from './residence-evidence.mjs';
 import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v22';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v23';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
