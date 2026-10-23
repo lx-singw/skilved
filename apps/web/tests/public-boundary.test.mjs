@@ -30,6 +30,16 @@ let child
 let base
 let logs = ""
 
+test("disabled suggestion page exposes availability and loading only, with no private configuration", async () => {
+  const response = await fetch(base + "/suggestions")
+  assert.equal(response.status, 200)
+  const html = await response.text()
+  assert.match(html, /Suggestions are currently unavailable/)
+  assert.match(html, /Loading private access/)
+  assert.match(html, /id="suggestion-url"[^>]*disabled/)
+  assert.doesNotMatch(html, /keyRing|recoveryEpoch|Idempotency-Key/)
+})
+
 before(async () => {
   await access(join(root, ".next/BUILD_ID")) // Run pnpm web:build first.
   const reservation = createServer()
@@ -84,7 +94,7 @@ test("every routed entry is included in the reviewed public boundary", async () 
   const appRoot = join(root, "src/app")
   const files = (await filesUnder(appRoot)).map((file) => relative(appRoot, file).split(sep).join("/"))
   assert.deepEqual(files.filter((file) => file.endsWith("/page.tsx") || file === "page.tsx").sort(),
-    ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx", "saved/page.tsx"])
+    ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx", "saved/page.tsx", "suggestions/page.tsx"])
   assert.deepEqual(files.filter((file) => file.endsWith("/route.ts")).sort(),
     [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports", "/opportunities/[id]/apply",
       "/api/v1/opportunity-suggestions", "/api/v1/opportunity-suggestions/tickets", "/api/v1/opportunity-suggestions/[id]", "/api/v1/opportunity-suggestions/[id]/status"].map((path) => `${path.slice(1)}/route.ts`).sort())

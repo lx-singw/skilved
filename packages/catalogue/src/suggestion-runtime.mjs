@@ -7,6 +7,12 @@ import { SuggestionReplayTickets } from './suggestion-replay-tickets.mjs';
 
 const defaultRuntime = async () => (await import('./runtime.mjs')).getRuntime();
 
+/** Boolean page props only. Never serialize settings or initialize a provider. */
+export function suggestionPageSettings(env = process.env) {
+  try { const settings = suggestionConfiguration(env); return { enabled: !!settings, intakeEnabled: settings?.policy.intakeEnabled === true }; }
+  catch { return { enabled: false, intakeEnabled: false }; }
+}
+
 /** Server-only route adapter. Disabled/invalid config and transport never initialize SDKs. */
 export async function handleSuggestionRequest(request, { env = process.env, runtimeProvider = defaultRuntime } = {}) {
   let settings;

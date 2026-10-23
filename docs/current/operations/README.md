@@ -173,3 +173,5 @@ Apply the relevant specifications within the [delivery work packages](../plannin
 - [Suggestion cleanup operator workflow — 23 October 2026](153_SUGGESTION_CLEANUP_OPERATOR_WORKFLOW_2026-10-23.md)
 
 - [Private suggestion access and client foundation — 23 October 2026](154_PRIVATE_SUGGESTION_ACCESS_AND_CLIENT_FOUNDATION_2026-10-23.md)
+
+- [Suggestion form, receipts and native browser checks — 23 October 2026](155_SUGGESTION_FORM_RECEIPTS_AND_NATIVE_BROWSER_CHECKS_2026-10-23.md)

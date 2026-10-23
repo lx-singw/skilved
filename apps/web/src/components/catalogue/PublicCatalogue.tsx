@@ -39,6 +39,7 @@ export async function PublicCatalogue({ query }: { query: URLSearchParams }) {
       <h1 className="mt-4 font-display text-4xl leading-tight sm:text-5xl">Find your next opportunity.</h1>
       <p className="mt-4 max-w-xl leading-relaxed text-muted-foreground">Explore opportunities, understand their requirements and apply at the original source. Free to browse.</p>
       <Link href="/saved" className="mt-4 inline-block min-h-11 py-3 font-medium text-primary underline">Saved in this browser →</Link>
+      <Link href="/suggestions" className="ml-4 mt-4 inline-block min-h-11 py-3 font-medium text-primary underline">Suggest a public link →</Link>
       <form action="/" method="get" className="mt-8 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
         <div><label htmlFor="catalogue-search" className="text-sm font-medium">Search opportunities</label>
           <input id="catalogue-search" name="q" maxLength={120} defaultValue={selected.get("q") ?? ""} placeholder="Trade, company or role"
