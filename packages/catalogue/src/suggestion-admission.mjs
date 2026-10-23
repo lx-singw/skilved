@@ -18,11 +18,12 @@ export const AdmissionPolicy = z.object({ intakeEnabled: z.boolean(),
   createAttemptsPerHour: z.number().int().min(1).max(50), statusReadsPerHour: z.number().int().min(1).max(600),
   receiptTtlMs: z.number().int().min(1).max(30 * 86400000),
 }).strict();
-const Counter = z.object({ schemaVersion: z.literal(1), kind: z.enum(['create', 'status']),
+export const Counter = z.object({ schemaVersion: z.literal(1), kind: z.enum(['create', 'status']),
   windowStart: InstantSchema, count: z.number().int().min(1).max(600),
 }).strict();
-const PublicReplay = z.object({ schemaVersion: z.literal(1), workId: SuggestionSecretSchema,
+export const PublicReplay = z.object({ schemaVersion: z.literal(1), workId: SuggestionSecretSchema,
   createdAt: InstantSchema, expiresAt: InstantSchema, retainUntil: InstantSchema.optional(),
+  recoveryEpoch: SuggestionSecretSchema.optional(),
 }).strict().refine(v => v.createdAt < v.expiresAt && (v.retainUntil === undefined ||
   (v.retainUntil >= v.expiresAt && Date.parse(v.retainUntil) - Date.parse(v.createdAt) <= 30 * 86400000)));
 const TicketOptions = z.object({ replayTickets: z.instanceof(SuggestionReplayTickets) }).strict();
@@ -149,6 +150,8 @@ export class SuggestionAdmission {
       const publicRef = this.publicReplayRef(key), publicSnap = await tx.get(publicRef);
       if (publicSnap.exists && (await tx.get(this.receipts.replayRef(key))).exists) fail('SUGGESTION_UNAVAILABLE');
       const publicReplay = publicSnap.exists ? decode(publicSnap, PublicReplay) : null;
+      if (publicReplay?.recoveryEpoch !== undefined && publicReplay.recoveryEpoch !== this.receipts.recoveryEpoch)
+        fail('SUGGESTION_NOT_FOUND');
       if (publicReplay && (publicReplay.expiresAt <= now || publicReplay.createdAt > now)) fail('SUGGESTION_NOT_FOUND');
       if (publicReplay && publicReplay.workId !== workId) fail('SUGGESTION_CONFLICT');
       if (publicReplay && !includeApproved) fail('SUGGESTION_UNAVAILABLE');
@@ -168,6 +171,7 @@ export class SuggestionAdmission {
         const next = { ...state, revision: state.revision + 1 };
         if (!AdmissionState.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
         tx.create(publicRef, payload({ schemaVersion: 1, workId, createdAt: now, expiresAt: command.expiresAt,
+          ...(this.receipts.recoveryEpoch === undefined ? {} : { recoveryEpoch: this.receipts.recoveryEpoch }),
           ...(proof ? { retainUntil: proof.expiresAt } : {}) }));
         tx.set(this.stateRef(), payload(next));
         return finish({ kind: 'approved', publicResultIds: approved });
@@ -189,7 +193,8 @@ export class SuggestionAdmission {
         lease: restarting ? null : old.lease,
         state: restarting ? 'pending' : old.state, publicResultIds: restarting ? [] : old.publicResultIds, updatedAt: now } :
         { schemaVersion: 1, id: workId, url, sourceId: source.id, sourceRevision: source.revision, permissionHash,
-          mode: 'review_only', state: 'pending', generation: 1, lease: null, referenceCount: 1, revision: 1, receiptCount: 1, createdAt: now, updatedAt: now };
+          mode: 'review_only', state: 'pending', generation: (state.generationFloor ?? 0) + 1,
+          lease: null, referenceCount: 1, revision: 1, receiptCount: 1, createdAt: now, updatedAt: now };
       const next = { ...state, revision: state.revision + 1, receiptCount: state.receiptCount + 1, workCount: state.workCount + (old ? 0 : 1) };
       if (!SuggestionWork.safeParse(work).success || !AdmissionState.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
       tx.set(this.workRef(workId), payload(work)); tx.set(this.stateRef(), payload(next));

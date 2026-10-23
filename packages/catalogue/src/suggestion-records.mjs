@@ -12,9 +12,14 @@ const Lease = z.object({ id: SuggestionSecretSchema, ownerId: IdSchema,
   recoveryEpoch: SuggestionSecretSchema.optional(),
   generation: Integer.refine(v => v > 0), startedAt: InstantSchema, expiresAt: InstantSchema,
 }).strict().refine(v => v.startedAt < v.expiresAt && Date.parse(v.expiresAt) - Date.parse(v.startedAt) <= 30000);
-export const AdmissionState = z.object({ schemaVersion: z.literal(1), revision: Integer.refine(v => v > 0),
+const StateCounts = { revision: Integer.refine(v => v > 0),
   workCount: Integer.refine(v => v <= 100), receiptCount: Integer.refine(v => v <= 500),
-}).strict();
+};
+export const AdmissionState = z.discriminatedUnion('schemaVersion',[
+  z.object({schemaVersion:z.literal(1),...StateCounts}).strict(),
+  // Work reclamation promotes legacy state atomically; missing fences cannot downgrade to legacy absence.
+  z.object({schemaVersion:z.literal(2),...StateCounts,generationFloor:Integer}).strict(),
+]);
 export const SuggestionWork = z.object({ schemaVersion: z.literal(1), id: SuggestionSecretSchema,
   url: SuggestionUrlSchema, sourceId: IdSchema, sourceRevision: Integer.refine(v => v > 0),
   permissionHash: SuggestionSecretSchema, mode: z.literal('review_only'),
