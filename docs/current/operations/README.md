@@ -153,6 +153,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [CNH V23 trial and labelled qualification groups](140_CNH_V23_TRIAL_AND_LABELLED_QUALIFICATION_GROUPS_2026-10-22.md)
 - [CNH metadata completeness and summary evidence](142_CNH_METADATA_COMPLETENESS_AND_SUMMARY_EVIDENCE_2026-10-22.md)
 - [CNH V25 trial and complete metadata passages](143_CNH_V25_TRIAL_AND_COMPLETE_METADATA_PASSAGES_2026-10-23.md)
+- [CNH V26 private shadow pass](144_CNH_V26_PRIVATE_SHADOW_PASS_2026-10-23.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
