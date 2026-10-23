@@ -171,3 +171,5 @@ Status: current planning specifications. Implemented controls, customer results 
 Apply the relevant specifications within the [delivery work packages](../planning/16_SPRINT_BACKLOG.md), record actual results and update the [decision register](../governance/14_DECISIONS_AND_ASSUMPTIONS.md) when material assumptions change. Return to the [complete index](../00_START_HERE.md).
 
 - [Suggestion cleanup operator workflow — 23 October 2026](153_SUGGESTION_CLEANUP_OPERATOR_WORKFLOW_2026-10-23.md)
+
+- [Private suggestion access and client foundation — 23 October 2026](154_PRIVATE_SUGGESTION_ACCESS_AND_CLIENT_FOUNDATION_2026-10-23.md)
