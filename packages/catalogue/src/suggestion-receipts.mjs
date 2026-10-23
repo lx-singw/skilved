@@ -30,11 +30,13 @@ export const ReceiptRecord = z.object({
   ((v.status === 'resolved_to_listing') === (v.publicResultIds.length > 0)) &&
   new Set(v.publicResultIds).size === v.publicResultIds.length, 'Invalid private receipt');
 const ReplayRecord = z.object({ schemaVersion: z.literal(1), receiptId: SuggestionReceiptIdSchema,
-  inputHash: SuggestionSecretSchema, expiresAt: InstantSchema,
-}).strict();
+  inputHash: SuggestionSecretSchema, expiresAt: InstantSchema, retainUntil: InstantSchema.optional(),
+}).strict().refine(v => v.retainUntil === undefined || (v.retainUntil >= v.expiresAt &&
+  Date.parse(v.retainUntil) - Date.parse(v.expiresAt) <= 30 * 86400000));
 export const ReceiptCreateCommand = z.object({ url: SuggestionUrlSchema,
   workId: SuggestionSecretSchema, idempotencyKey: SuggestionSecretSchema, expiresAt: InstantSchema,
-}).strict();
+  replayExpiresAt: InstantSchema.optional(),
+}).strict().refine(v => v.replayExpiresAt === undefined || v.replayExpiresAt >= v.expiresAt);
 const AccessCommand = z.object({ receiptId: SuggestionReceiptIdSchema, capability: SuggestionSecretSchema }).strict();
 const InitialState = z.object({ status: z.enum(['received', 'reviewing', 'unresolved', 'unsupported', 'paused']),
   publicResultIds: z.array(IdSchema).max(0) }).strict();
@@ -106,7 +108,9 @@ export class SuggestionReceipts {
       if (!mapping || mapping.expiresAt <= now) fail('SUGGESTION_NOT_FOUND');
       if (!equal(mapping.inputHash, inputHash)) fail('SUGGESTION_CONFLICT');
       const record = stored(await tx.get(this.receiptRef(mapping.receiptId)), ReceiptRecord);
-      if (!record || record.expiresAt !== mapping.expiresAt || record.workId !== command.workId) fail('SUGGESTION_NOT_FOUND');
+      if (!record || record.expiresAt !== mapping.expiresAt || record.workId !== command.workId ||
+          (mapping.retainUntil !== undefined && Date.parse(mapping.retainUntil) - Date.parse(record.createdAt) > 30 * 86400000))
+        fail('SUGGESTION_NOT_FOUND');
       return { access: this.access(record, now), created: false };
     }
     return null;
@@ -122,6 +126,8 @@ export class SuggestionReceipts {
     const inputHash = hash('skilved.suggestion.input.v1', [command.url, command.workId]);
     const ttl = Date.parse(command.expiresAt) - Date.parse(now);
     if (ttl <= 0 || ttl > this.maxTtlMs) fail('INVALID_COMMAND');
+    if (command.replayExpiresAt !== undefined && Date.parse(command.replayExpiresAt) - Date.parse(now) > 30 * 86400000)
+      fail('INVALID_COMMAND');
     const record = { schemaVersion: 1, id: randomBytes(32).toString('hex'), keyId: this.#activeKeyId,
       nonce: randomBytes(32).toString('hex'), workId: command.workId, status: selected.data.status, revision: 1,
       createdAt: now, updatedAt: now, expiresAt: command.expiresAt, revokedAt: null, publicResultIds: [],
@@ -129,7 +135,8 @@ export class SuggestionReceipts {
     record.capabilityHash = hash('skilved.suggestion.capability.v1', this.derive(record));
     ReceiptRecord.parse(record);
     tx.create(this.receiptRef(record.id), payload(record));
-    tx.create(mapRef, payload({ schemaVersion: 1, receiptId: record.id, inputHash, expiresAt: record.expiresAt }));
+    tx.create(mapRef, payload({ schemaVersion: 1, receiptId: record.id, inputHash, expiresAt: record.expiresAt,
+      ...(command.replayExpiresAt === undefined ? {} : { retainUntil: command.replayExpiresAt }) }));
     return { access: this.access(record, now), created: true };
   }
   async status(input) {

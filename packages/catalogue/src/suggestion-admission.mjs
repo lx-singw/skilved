@@ -6,6 +6,7 @@ import { Source } from './schemas.mjs';
 import { ReceiptRecord } from './suggestion-receipts.mjs';
 import { DomainError } from './config.mjs';
 import { Catalogue } from './store.mjs';
+import { SuggestionReplayTickets } from './suggestion-replay-tickets.mjs';
 import { approvedSuggestionResults } from './suggestion-approved.mjs';
 import { AdmissionState, SuggestionWork, suggestionHash as hash, suggestionPayload as payload,
   decodeSuggestion as decode } from './suggestion-records.mjs';
@@ -21,19 +22,58 @@ const Counter = z.object({ schemaVersion: z.literal(1), kind: z.enum(['create', 
   windowStart: InstantSchema, count: z.number().int().min(1).max(600),
 }).strict();
 const PublicReplay = z.object({ schemaVersion: z.literal(1), workId: SuggestionSecretSchema,
-  createdAt: InstantSchema, expiresAt: InstantSchema,
-}).strict().refine(v => v.createdAt < v.expiresAt);
+  createdAt: InstantSchema, expiresAt: InstantSchema, retainUntil: InstantSchema.optional(),
+}).strict().refine(v => v.createdAt < v.expiresAt && (v.retainUntil === undefined ||
+  (v.retainUntil >= v.expiresAt && Date.parse(v.retainUntil) - Date.parse(v.createdAt) <= 30 * 86400000)));
+const TicketOptions = z.object({ replayTickets: z.instanceof(SuggestionReplayTickets) }).strict();
 
 /** Backend-only create orchestration; no HTTP/runtime activation or worker authority. */
 export class SuggestionAdmission {
-  constructor(db, receipts, policy) {
+  #tickets;
+  constructor(db, receipts, policy, options) {
     const parsed = AdmissionPolicy.safeParse(policy);
     if (!parsed.success || parsed.data.receiptTtlMs > receipts.maxTtlMs) fail('SUGGESTION_UNAVAILABLE');
+    if (options !== undefined) {
+      const selected = TicketOptions.safeParse(options);
+      if (!selected.success) fail('SUGGESTION_UNAVAILABLE');
+      this.#tickets = selected.data.replayTickets;
+    }
     this.db = db; this.receipts = receipts; this.policy = parsed.data;
   }
   stateRef() { return this.db.doc('m0_suggestion_state/admission'); }
   workRef(id) { return this.db.collection('m0_suggestion_work').doc(id); }
   publicReplayRef(key) { return this.db.collection('m0_suggestion_public_replays').doc(this.receipts.replayRef(key).id); }
+  async #source(tx, url) {
+    const rows = await tx.get(this.db.collection('m0_sources').limit(101));
+    if (!rows.size || rows.size > 100) fail('SUGGESTION_UNAVAILABLE');
+    const sources = rows.docs.map(row => {
+      const source = decode(row, Source);
+      if (source.id !== row.id) fail('SUGGESTION_UNAVAILABLE');
+      return source;
+    });
+    const selected = classifySuggestion({ url }, sources);
+    if (selected.kind !== 'eligible') fail(selected.kind === 'unsupported' ? 'SUGGESTION_UNSUPPORTED' :
+      selected.kind === 'paused' ? 'SUGGESTION_PAUSED' : 'SUGGESTION_UNAVAILABLE');
+    return sources.find(source => source.id === selected.sourceId);
+  }
+  #proof(url, ticket) {
+    const proof = this.#tickets.verify({ url, ticket }), now = this.receipts.instant();
+    if (proof.issuedAt > now || proof.expiresAt <= now) fail('SUGGESTION_UNAVAILABLE');
+    return proof;
+  }
+  /** Backend-only until strict ticket transport/config migration; issuance shares the attempt budget. */
+  async issueTicket(input) {
+    if (!this.#tickets || !this.policy.intakeEnabled) fail('SUGGESTION_UNAVAILABLE');
+    await this.charge('create');
+    const parsed = SuggestionRequestSchema.safeParse(input);
+    if (!parsed.success) fail('INVALID_COMMAND');
+    return this.db.runTransaction(async tx => {
+      await this.#source(tx, parsed.data.url);
+      const issued = this.#tickets.issue(parsed.data);
+      this.#proof(parsed.data.url, issued.ticket);
+      return issued;
+    });
+  }
   /** Bounded physical accounting shared by intake and authenticated lifecycle mutations. */
   async inventory(tx) {
     const state = decode(await tx.get(this.stateRef()), AdmissionState);
@@ -93,36 +133,31 @@ export class SuggestionAdmission {
   async submit(input, idempotencyKey, includeApproved) {
     if (!this.policy.intakeEnabled) fail('SUGGESTION_UNAVAILABLE');
     await this.charge('create');
-    const parsed = SuggestionRequestSchema.safeParse(input), key = SuggestionSecretSchema.safeParse(idempotencyKey);
-    if (!parsed.success || !key.success) fail('INVALID_COMMAND');
+    const parsed = SuggestionRequestSchema.safeParse(input), legacyKey = this.#tickets ? null : SuggestionSecretSchema.safeParse(idempotencyKey);
+    if (!parsed.success || (legacyKey && !legacyKey.success)) fail('INVALID_COMMAND');
     const url = parsed.data.url, workId = hash('skilved.suggestion.work.v1', url);
     return this.db.runTransaction(async tx => {
       const now = this.receipts.instant();
-      const command = { url, workId, idempotencyKey: key.data,
-        expiresAt: new Date(Date.parse(now) + this.policy.receiptTtlMs).toISOString() };
-      const publicRef = this.publicReplayRef(key.data), publicSnap = await tx.get(publicRef);
-      if (publicSnap.exists && (await tx.get(this.receipts.replayRef(key.data))).exists) fail('SUGGESTION_UNAVAILABLE');
+      const proof = this.#tickets ? this.#proof(url, idempotencyKey) : null;
+      const key = proof ? proof.replayKey : legacyKey.data;
+      const finish = result => { if (this.#tickets) this.#proof(url, idempotencyKey); return result; };
+      const command = { url, workId, idempotencyKey: key,
+        expiresAt: new Date(Math.min(Date.parse(now) + this.policy.receiptTtlMs,
+          proof ? Date.parse(proof.expiresAt) : Infinity)).toISOString(),
+        ...(proof ? { replayExpiresAt: proof.expiresAt } : {}) };
+      const publicRef = this.publicReplayRef(key), publicSnap = await tx.get(publicRef);
+      if (publicSnap.exists && (await tx.get(this.receipts.replayRef(key))).exists) fail('SUGGESTION_UNAVAILABLE');
       const publicReplay = publicSnap.exists ? decode(publicSnap, PublicReplay) : null;
       if (publicReplay && (publicReplay.expiresAt <= now || publicReplay.createdAt > now)) fail('SUGGESTION_NOT_FOUND');
       if (publicReplay && publicReplay.workId !== workId) fail('SUGGESTION_CONFLICT');
       if (publicReplay && !includeApproved) fail('SUGGESTION_UNAVAILABLE');
       // Recover already-issued access without source work, even at capacity or after a source pause.
       const replay = await this.receipts.readReplay(tx, command);
-      if (replay) return { kind: 'received', access: replay.access };
-      const sourceRows = await tx.get(this.db.collection('m0_sources').limit(101));
-      if (!sourceRows.size || sourceRows.size > 100) fail('SUGGESTION_UNAVAILABLE');
-      const sources = sourceRows.docs.map(row => {
-        const source = decode(row, Source);
-        if (source.id !== row.id) fail('SUGGESTION_UNAVAILABLE');
-        return source;
-      });
-      const selected = classifySuggestion({ url }, sources);
-      if (selected.kind !== 'eligible') fail(selected.kind === 'unsupported' ? 'SUGGESTION_UNSUPPORTED' :
-        selected.kind === 'paused' ? 'SUGGESTION_PAUSED' : 'SUGGESTION_UNAVAILABLE');
-      const source = sources.find(s => s.id === selected.sourceId);
+      if (replay) return finish({ kind: 'received', access: replay.access });
+      const source = await this.#source(tx, url);
       const permissionHash = hash('skilved.suggestion.permission.v1', source.permission);
       const approved = includeApproved ? await approvedSuggestionResults(tx, this.db, url, source, now) : [];
-      if (publicReplay) return approved.length ? { kind: 'approved', publicResultIds: approved } : { kind: 'previous_result_unavailable' };
+      if (publicReplay) return finish(approved.length ? { kind: 'approved', publicResultIds: approved } : { kind: 'previous_result_unavailable' });
       if (approved.length) {
         const state = decode(await tx.get(this.stateRef()), AdmissionState);
         const bindings = await tx.get(this.db.collection('m0_suggestion_public_replays').limit(501));
@@ -131,9 +166,10 @@ export class SuggestionAdmission {
         if (bindings.size >= this.policy.maxReceipts) fail('SUGGESTION_CAPACITY');
         const next = { ...state, revision: state.revision + 1 };
         if (!AdmissionState.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
-        tx.create(publicRef, payload({ schemaVersion: 1, workId, createdAt: now, expiresAt: command.expiresAt }));
+        tx.create(publicRef, payload({ schemaVersion: 1, workId, createdAt: now, expiresAt: command.expiresAt,
+          ...(proof ? { retainUntil: proof.expiresAt } : {}) }));
         tx.set(this.stateRef(), payload(next));
-        return { kind: 'approved', publicResultIds: approved };
+        return finish({ kind: 'approved', publicResultIds: approved });
       }
       // Conservative physical slots include expired records until explicit B06-5 cleanup.
       const { state, works } = await this.inventory(tx);
@@ -146,7 +182,7 @@ export class SuggestionAdmission {
       const restarting = old?.state === 'cancelled';
       const issued = await this.receipts.createOrReplay(tx, command, { status: !old || restarting || old.state === 'pending' ? 'received' : old.state,
         publicResultIds: [] });
-      if (!issued.created) return { kind: 'received', access: issued.access };
+      if (!issued.created) return finish({ kind: 'received', access: issued.access });
       const work = old ? { ...old, revision: old.revision + 1, receiptCount: old.receiptCount + 1,
         referenceCount: old.referenceCount + 1, generation: old.generation + (restarting ? 1 : 0),
         lease: restarting ? null : old.lease,
@@ -156,7 +192,7 @@ export class SuggestionAdmission {
       const next = { ...state, revision: state.revision + 1, receiptCount: state.receiptCount + 1, workCount: state.workCount + (old ? 0 : 1) };
       if (!SuggestionWork.safeParse(work).success || !AdmissionState.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
       tx.set(this.workRef(workId), payload(work)); tx.set(this.stateRef(), payload(next));
-      return { kind: 'received', access: issued.access };
+      return finish({ kind: 'received', access: issued.access });
     });
   }
   async status(input) {

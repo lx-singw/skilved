@@ -157,6 +157,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [CNH repeat and unseen-notice screening](145_CNH_REPEAT_AND_UNSEEN_NOTICE_SCREENING_2026-10-23.md)
 - [Motus/Kia unseen-notice pilot](146_MOTUS_KIA_UNSEEN_NOTICE_PILOT_2026-10-23.md)
 - [Signed suggestion replay-ticket foundation](141_SIGNED_SUGGESTION_REPLAY_TICKET_FOUNDATION_2026-10-22.md)
+- [Signed-ticket transactional admission](147_SIGNED_TICKET_TRANSACTIONAL_ADMISSION_2026-10-23.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
