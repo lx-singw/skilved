@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getApps } from 'firebase-admin/app';
 import { handleSuggestionRequest } from '../src/suggestion-runtime.mjs';
 const key = 'a'.repeat(64), origin = 'https://app.example';
-const manifest = { origin, keyRing: { activeKeyId: 'test', keys: [{ id: 'test', secret: key }] },
+const manifest = { origin, recoveryEpoch: 'd1'.repeat(32), keyRing: { activeKeyId: 'test', keys: [{ id: 'test', secret: key }] },
   replayTickets: { epoch: 'c1'.repeat(32), secret: 'b1'.repeat(32), notBefore: '2026-10-16T12:00:00.000Z', ttlMs: 86400000 },
   policy: { intakeEnabled: true, maxWork: 100, maxReceipts: 500, createAttemptsPerHour: 50, statusReadsPerHour: 600, receiptTtlMs: 86400000 } };
 const env = { SKILVED_SUGGESTIONS_ENABLED:'true', SKILVED_CATALOGUE_MODE:'cloud', SKILVED_CATALOGUE_PROJECT:'test-runtime', SKILVED_CATALOGUE_READS:'true', SKILVED_SUGGESTIONS_CONFIG:JSON.stringify(manifest) };

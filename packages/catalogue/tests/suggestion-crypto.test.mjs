@@ -6,6 +6,7 @@ const options = { keyRing: { activeKeyId: 'key1', keys: [{ id: 'key1', secret }]
 
 test('receipt key configuration has no default, bounds rotation and fails with safe errors', () => {
   for (const input of [undefined, {}, { ...options, keyRing: undefined }, { ...options, maxTtlMs: 0 },
+    ...[null,'short',secret].map(recoveryEpoch=>({...options,recoveryEpoch})),
     { ...options, maxTtlMs: 31 * 86400000 }, { ...options, now: undefined },
     ...[{ activeKeyId: 'missing', keys: [{ id: 'key1', secret }] },
       { activeKeyId: 'key1', keys: [{ id: 'key1', secret: 'PRIVATE_BAD_KEY' }] },

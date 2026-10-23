@@ -4,6 +4,7 @@ import { suggestionConfiguration } from '../src/suggestion-config.mjs';
 import { SuggestionReceipts } from '../src/suggestion-receipts.mjs';
 import { SuggestionAdmission } from '../src/suggestion-admission.mjs';
 import { SuggestionReview } from '../src/suggestion-review.mjs';
+import { SuggestionReplayTickets } from '../src/suggestion-replay-tickets.mjs';
 // Tokens are read from a private file, never command arguments, output, or a public route.
 const help=`Usage: pnpm catalogue:operator <command.json>
 Set SKILVED_OPERATOR_TOKEN_FILE to a private file containing a current Firebase ID token.
@@ -35,8 +36,10 @@ else {
         const settings=suggestionConfiguration();
         if (!settings || settings.catalogue.mode!==runtime.config.mode || settings.catalogue.projectId!==runtime.config.projectId)
           throw new Error('INVALID_COMMAND');
-        const receipts=new SuggestionReceipts(runtime.db,{...settings.receipt,now:()=>new Date().toISOString()});
-        const review=new SuggestionReview(new SuggestionAdmission(runtime.db,receipts,settings.policy),catalogue);
+        const now=()=>new Date().toISOString();
+        const receipts=new SuggestionReceipts(runtime.db,{...settings.receipt,now});
+        const replayTickets=new SuggestionReplayTickets({...settings.replayTickets,now});
+        const review=new SuggestionReview(new SuggestionAdmission(runtime.db,receipts,settings.policy,{replayTickets}),catalogue);
         result=c.command==='suggestion-queue'?await review.queue(token):await review.decide(token,c.review);break;
       }
       default:throw new Error('INVALID_COMMAND');

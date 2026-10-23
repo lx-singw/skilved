@@ -4,7 +4,7 @@ import { suggestionConfiguration } from '../src/suggestion-config.mjs';
 import { handleSuggestion } from '../src/suggestion-http.mjs';
 const policy = { intakeEnabled: false, maxWork: 100, maxReceipts: 500, createAttemptsPerHour: 50, statusReadsPerHour: 600, receiptTtlMs: 86400000 };
 const replayTickets = { epoch: 'c1'.repeat(32), secret: 'b1'.repeat(32), notBefore: '2026-10-16T12:00:00.000Z', ttlMs: 86400000 };
-const manifest = { origin: 'https://app.example', keyRing: { activeKeyId: 'synthetic', keys: [{ id: 'synthetic', secret: 'a1'.repeat(32) }] }, policy, replayTickets };
+const manifest = { origin: 'https://app.example', recoveryEpoch: 'd1'.repeat(32), keyRing: { activeKeyId: 'synthetic', keys: [{ id: 'synthetic', secret: 'a1'.repeat(32) }] }, policy, replayTickets };
 const cloud = { SKILVED_SUGGESTIONS_ENABLED: 'true', SKILVED_CATALOGUE_MODE: 'cloud', SKILVED_CATALOGUE_PROJECT: 'skilved-fixture', SKILVED_CATALOGUE_READS: 'true' };
 const env = (overrides = {}, config = manifest) => ({ ...cloud, SKILVED_SUGGESTIONS_CONFIG: JSON.stringify(config), ...overrides });
 const denied = input => assert.throws(() => suggestionConfiguration(input), error => error.message === 'UNSAFE_CONFIGURATION' && error.code === 'UNSAFE_CONFIGURATION');
@@ -17,12 +17,15 @@ test('disabled flags return before reading other configuration and never write e
   const input = env(), before = JSON.stringify(input);const result = suggestionConfiguration(input);
   assert.equal(JSON.stringify(input),before);assert.equal(result.http.intakeEnabled,false);assert.equal(result.receipt.maxTtlMs,86400000);
   assert.equal(result.http.emulator,false);assert.equal(result.http.readDeadlineMs,5000);assert.equal(result.http.serviceDeadlineMs,10000);
+  assert.equal(result.receipt.recoveryEpoch,manifest.recoveryEpoch);assert.equal(result.replayTickets.recoveryEpoch,manifest.recoveryEpoch);
 });
 
 test('enabled malformed manifests, flags, keys, limits and disabled public reads fail with safe errors', () => {
   for (const override of [{ SKILVED_SUGGESTIONS_ENABLED:'yes' },{ SKILVED_SUGGESTIONS_CONFIG:undefined },{ SKILVED_SUGGESTIONS_CONFIG:'PRIVATE_BAD_JSON' },
     { SKILVED_SUGGESTIONS_CONFIG:'x'.repeat(8193) },{ SKILVED_CATALOGUE_MODE:'disabled' },{ SKILVED_CATALOGUE_READS:'false' }])denied(env(override));
   for (const value of [{ ...manifest, extra:'PRIVATE' },{ ...manifest, keyRing:undefined },
+    ...[undefined,null,'short',replayTickets.secret,manifest.keyRing.keys[0].secret].map(recoveryEpoch=>({...manifest,recoveryEpoch})),
+    { ...manifest,replayTickets:{...replayTickets,recoveryEpoch:manifest.recoveryEpoch} },
     { ...manifest, replayTickets: undefined }, { ...manifest, replayTickets: { ...replayTickets, epoch: replayTickets.secret } },
     { ...manifest, replayTickets: { ...replayTickets, epoch: manifest.keyRing.keys[0].secret } },
     { ...manifest, replayTickets: { ...replayTickets, secret: manifest.keyRing.keys[0].secret } },

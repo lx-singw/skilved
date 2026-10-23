@@ -8,7 +8,9 @@ const fail = code => { throw new DomainError(code); };
 const MAX_TTL = 30 * 86400000;
 const Configuration = z.object({ epoch: SuggestionSecretSchema, secret: SuggestionSecretSchema,
   notBefore: InstantSchema, ttlMs: z.number().int().min(1).max(MAX_TTL),
-}).strict().refine(value => value.epoch !== value.secret, 'Public epoch must not expose the signing key');
+  recoveryEpoch: SuggestionSecretSchema.optional(),
+}).strict().refine(value => value.epoch !== value.secret && value.recoveryEpoch !== value.secret,
+  'Public epochs must not expose the signing key');
 export { Configuration as ReplayTicketConfigurationSchema };
 const Issue = z.object({ url: SuggestionUrlSchema }).strict();
 const Verify = z.object({ url: SuggestionUrlSchema, ticket: SuggestionReplayTicketSchema }).strict();
@@ -19,14 +21,16 @@ const domain = 'skilved.suggestion.replay-ticket.v1';
  * This does not replace receipt revocation, admission budgets or worker generation fences.
  */
 export class SuggestionReplayTickets {
-  #epoch; #key; #notBefore; #ttlMs; #now;
+  #epoch; #key; #notBefore; #ttlMs; #now; #recoveryEpoch;
   constructor(options = {}) {
     const { now, ...configuration } = options ?? {};
     const parsed = Configuration.safeParse(configuration);
     if (!parsed.success || typeof now !== 'function') fail('SUGGESTION_UNAVAILABLE');
     this.#epoch = parsed.data.epoch; this.#key = Buffer.from(parsed.data.secret, 'hex');
     this.#notBefore = Date.parse(parsed.data.notBefore); this.#ttlMs = parsed.data.ttlMs; this.#now = now;
+    this.#recoveryEpoch = parsed.data.recoveryEpoch;
   }
+  get recoveryEpoch() { return this.#recoveryEpoch; }
   #instant() {
     let value;
     try { value = InstantSchema.safeParse(this.#now()); } catch { fail('SUGGESTION_UNAVAILABLE'); }
@@ -34,7 +38,11 @@ export class SuggestionReplayTickets {
     return Date.parse(value.data);
   }
   #mac(epoch, issued, expires, nonce, url) {
-    return createHmac('sha256', this.#key).update(JSON.stringify([domain, epoch, issued, expires, nonce, url])).digest('hex');
+    const fields = [domain, epoch, issued, expires, nonce, url];
+    if (this.#recoveryEpoch !== undefined) {
+      fields[0] = 'skilved.suggestion.replay-ticket.v2'; fields.push(this.#recoveryEpoch);
+    }
+    return createHmac('sha256', this.#key).update(JSON.stringify(fields)).digest('hex');
   }
   issue(input) {
     const parsed = Issue.safeParse(input);

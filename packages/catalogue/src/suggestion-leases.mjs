@@ -20,8 +20,9 @@ async function currentSource(tx, db, work) {
   if (selected.kind !== 'eligible' || selected.sourceId !== work.sourceId)
     fail(selected.kind === 'paused' ? 'SUGGESTION_PAUSED' : 'SUGGESTION_SOURCE_CHANGED');
 }
-function needed(work, receipts, now) {
-  const active = [...receipts.values()].filter(receipt => receipt.workId === work.id && receipt.revokedAt === null && receipt.expiresAt > now);
+function needed(work, receipts, now, service) {
+  const active = [...receipts.values()].filter(receipt => service.inRecoveryEpoch(receipt) &&
+    receipt.workId === work.id && receipt.revokedAt === null && receipt.expiresAt > now);
   if (active.some(receipt => receipt.createdAt > now || receipt.updatedAt > now)) fail('SUGGESTION_UNAVAILABLE');
   if (!active.length) fail('CONFLICT');
 }
@@ -41,11 +42,13 @@ export class SuggestionLeases {
       if (!old || old.revision !== command.expectedRevision || old.state !== 'pending') fail('CONFLICT');
       if (old.updatedAt > now) fail('SUGGESTION_UNAVAILABLE');
       for (const work of works.values()) if (work.lease) {
+        if (work.lease.recoveryEpoch !== this.admission.receipts.recoveryEpoch) continue;
         if (work.lease.startedAt > now) fail('SUGGESTION_UNAVAILABLE');
         if (work.lease.expiresAt > now) fail('CONFLICT');
       }
-      needed(old, receipts, now); await currentSource(tx, this.db, old);
+      needed(old, receipts, now, this.admission.receipts); await currentSource(tx, this.db, old);
       const generation = old.generation + 1, lease = { id: randomBytes(32).toString('hex'), ownerId: uid,
+        ...(this.admission.receipts.recoveryEpoch === undefined ? {} : { recoveryEpoch: this.admission.receipts.recoveryEpoch }),
         generation, startedAt: now, expiresAt: new Date(Date.parse(now) + this.leaseMs).toISOString() };
       const next = { ...old, generation, lease, revision: old.revision + 1, updatedAt: now };
       if (!SuggestionWork.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
@@ -59,10 +62,11 @@ export class SuggestionLeases {
     return this.catalogue.mutate(token, 'source', 'suggestions.lease.complete', command.workId, 'Suggestion lease returned to review', async (tx, uid) => {
       const now = this.admission.receipts.instant(), { works, receipts } = await this.admission.inventory(tx), old = works.get(command.workId);
       if (!old || old.state !== 'pending' || !old.lease || old.lease.id !== command.leaseId || old.generation !== command.generation ||
+          old.lease.recoveryEpoch !== this.admission.receipts.recoveryEpoch ||
           old.lease.startedAt > now || old.lease.expiresAt <= now) fail('CONFLICT');
       if (old.lease.ownerId !== uid) fail('FORBIDDEN');
       if (old.updatedAt > now) fail('SUGGESTION_UNAVAILABLE');
-      needed(old, receipts, now); await currentSource(tx, this.db, old);
+      needed(old, receipts, now, this.admission.receipts); await currentSource(tx, this.db, old);
       return writeSuggestionOutcome(tx, this.admission, old, receipts, command.outcome, [], now);
     });
   }

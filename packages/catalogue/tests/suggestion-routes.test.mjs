@@ -28,6 +28,7 @@ test('actual suggestion routes persist private access and current results across
     categories:['bursary','learnership','apprenticeship','internship','graduate_programme','job'],owner:'synthetic_operator',paused:false,cadenceHours:24,maxBytes:500000 };
   const policy={intakeEnabled:true,maxWork:100,maxReceipts:500,createAttemptsPerHour:50,statusReadsPerHour:600,receiptTtlMs:86400000};
   const ticketSettings={epoch:"c1".repeat(32),secret:"b1".repeat(32),notBefore:new Date(Date.now()-3600000).toISOString(),ttlMs:86400000};
+  const recoveryEpoch='f1'.repeat(32);
   const json = value => ({json:JSON.stringify(value)}), random=()=>randomBytes(32).toString('hex');
   const read=async path=>JSON.parse((await db.doc(path).get()).data().json);
   let child,base;
@@ -39,7 +40,7 @@ test('actual suggestion routes persist private access and current results across
     const reservation=createServer().listen(0,'127.0.0.1');await once(reservation,'listening');const port=reservation.address().port;
     await new Promise(resolve=>reservation.close(resolve));base=`http://127.0.0.1:${port}`;
     const webRoot=new URL('../../../apps/web/',import.meta.url),require=createRequire(new URL('package.json',webRoot));
-    const manifest={origin:base,replayTickets:{...ticketSettings,epoch},keyRing:{activeKeyId:'synthetic',keys:[{id:'synthetic',secret:'a1'.repeat(32)}]},policy:{...policy,intakeEnabled}};
+    const manifest={origin:base,recoveryEpoch,replayTickets:{...ticketSettings,epoch},keyRing:{activeKeyId:'synthetic',keys:[{id:'synthetic',secret:'a1'.repeat(32)}]},policy:{...policy,intakeEnabled}};
     child=spawn(process.execPath,[require.resolve('next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port',String(port)],{
       cwd:fileURLToPath(webRoot),env:{...process.env,NODE_ENV:'development',NEXT_TELEMETRY_DISABLED:'1',
         SKILVED_SUGGESTIONS_ENABLED:'true',SKILVED_SUGGESTIONS_CONFIG:JSON.stringify(manifest)},stdio:['ignore','pipe','pipe']});
@@ -69,7 +70,7 @@ test('actual suggestion routes persist private access and current results across
     await start(true);
     let response=await post(random());assert.equal(response.status,400);await safe(response);
     const key=await ticket();const tampered=key.slice(0,-1)+(key.endsWith("0")?"1":"0");response=await post(tampered);assert.equal(response.status,404);await safe(response);
-    const expired=new SuggestionReplayTickets({...ticketSettings,ttlMs:1,now:()=>new Date(Date.now()-1000).toISOString()}).issue({url:sourceUrl}).ticket;
+    const expired=new SuggestionReplayTickets({...ticketSettings,recoveryEpoch,ttlMs:1,now:()=>new Date(Date.now()-1000).toISOString()}).issue({url:sourceUrl}).ticket;
     response=await post(expired);assert.equal(response.status,404);await safe(response);
     response=await post(key);assert.equal(response.status,202);const first=await safe(response);
     assert.equal(first.kind,'received');assert.match(first.access.capability,/^[a-f0-9]{64}$/);
@@ -95,8 +96,9 @@ test('actual suggestion routes persist private access and current results across
     const publicKey=await ticket();response=await post(publicKey);assert.equal(response.status,200);assert.deepEqual(await safe(response),{kind:'approved',publicResultIds:ids.sort()});
     // Authenticated operator class writes decisions; the app exposes only capability-authorized status.
     await db.doc('m0_operators/synthetic_operator').set({active:true,roles:['source']});
-    const receiptStore=new SuggestionReceipts(db,{keyRing:{activeKeyId:'synthetic',keys:[{id:'synthetic',secret:'a1'.repeat(32)}]},maxTtlMs:86400000,now:()=>new Date().toISOString()});
-    const review=new SuggestionReview(new SuggestionAdmission(db,receiptStore,policy),new Catalogue(db,{verifyIdToken:async()=>({uid:'synthetic_operator'})}));
+    const receiptStore=new SuggestionReceipts(db,{keyRing:{activeKeyId:'synthetic',keys:[{id:'synthetic',secret:'a1'.repeat(32)}]},recoveryEpoch,maxTtlMs:86400000,now:()=>new Date().toISOString()});
+    const reviewTickets=new SuggestionReplayTickets({...ticketSettings,recoveryEpoch,now:()=>new Date().toISOString()});
+    const review=new SuggestionReview(new SuggestionAdmission(db,receiptStore,policy,{replayTickets:reviewTickets}),new Catalogue(db,{verifyIdToken:async()=>({uid:'synthetic_operator'})}));
     const currentWork=JSON.parse((await work[0].ref.get()).data().json);
     await review.decide('synthetic-token',{workId:currentWork.id,expectedRevision:currentWork.revision,outcome:'resolved_to_listing',publicResultIds:ids});
     response=await status(first.access);assert.equal(response.status,200);assert.deepEqual((await safe(response)).publicResultIds,ids);

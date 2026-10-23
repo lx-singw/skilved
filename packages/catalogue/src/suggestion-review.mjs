@@ -23,7 +23,8 @@ export function writeSuggestionOutcome(tx, admission, old, receipts, outcome, pu
   const next = { ...old, state: outcome, publicResultIds: [...publicResultIds].sort(), revision: old.revision + 1,
     generation: old.generation + 1, lease: null, updatedAt: now };
   if (old.updatedAt > now || !SuggestionWork.safeParse(next).success) fail('SUGGESTION_UNAVAILABLE');
-  const active = [...receipts.values()].filter(receipt => receipt.workId === old.id && receipt.revokedAt === null && receipt.expiresAt > now);
+  const active = [...receipts.values()].filter(receipt => admission.receipts.inRecoveryEpoch(receipt) &&
+    receipt.workId === old.id && receipt.revokedAt === null && receipt.expiresAt > now);
   if (active.some(receipt => receipt.updatedAt > now)) fail('SUGGESTION_UNAVAILABLE');
   const updates = active.map(receipt => ({ ...receipt, status: outcome, publicResultIds: next.publicResultIds,
     revision: receipt.revision + 1, updatedAt: now }));

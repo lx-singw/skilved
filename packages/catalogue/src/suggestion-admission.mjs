@@ -38,6 +38,7 @@ export class SuggestionAdmission {
       if (!selected.success) fail('SUGGESTION_UNAVAILABLE');
       this.#tickets = selected.data.replayTickets;
     }
+    if (this.#tickets?.recoveryEpoch !== receipts.recoveryEpoch) fail('SUGGESTION_UNAVAILABLE');
     this.db = db; this.receipts = receipts; this.policy = parsed.data;
   }
   stateRef() { return this.db.doc('m0_suggestion_state/admission'); }
@@ -208,7 +209,7 @@ export class SuggestionAdmission {
       const { works, receipts } = await this.inventory(tx), old = works.get(receipt.workId);
       if (!old || old.updatedAt > now || receipt.updatedAt > now || old.referenceCount < 1) fail('SUGGESTION_UNAVAILABLE');
       const needed = [...receipts.values()].some(other => other.workId === old.id && other.id !== receipt.id &&
-        other.revokedAt === null && other.createdAt <= now && other.expiresAt > now);
+        this.receipts.inRecoveryEpoch(other) && other.revokedAt === null && other.createdAt <= now && other.expiresAt > now);
       const revoked = { ...receipt, status: 'withdrawn', revokedAt: now, updatedAt: now,
         revision: receipt.revision + 1, publicResultIds: [] };
       const work = { ...old, referenceCount: old.referenceCount - 1, revision: old.revision + 1, updatedAt: now,

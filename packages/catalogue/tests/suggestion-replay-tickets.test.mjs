@@ -42,6 +42,19 @@ test('issuance is bounded, private and distinct for separate submitters', () => 
   assert.equal(a.ticket.split('.')[4].length, 64);
 });
 
+test('independent recovery MAC binds a distinct trusted epoch without changing wire syntax', () => {
+  const recoveryEpoch='44'.repeat(32), store=make({recoveryEpoch});
+  // Python stdlib hmac/hashlib over the v2 domain and recovery epoch, not this signer.
+  const ticket=['s1',epoch,issued,expires,nonce,'bdc6b16e9dffa6d47f21f3acd5a5a0651a723c3dddefaa90053cc158f37de1cb'].join('.');
+  assert.equal(store.verify({url,ticket}).issuedAt,start);
+  assert.equal(store.recoveryEpoch,recoveryEpoch);
+  rejected(()=>make().verify({url,ticket}));
+  rejected(()=>make({recoveryEpoch:'55'.repeat(32)}).verify({url,ticket}));
+  rejected(()=>store.verify({url,ticket:fixture}));
+  const current=store.issue({url});assert.equal(make({recoveryEpoch}).verify({url,ticket:current.ticket}).issuedAt,start);
+  for(const recoveryEpoch of [null,'short',secret]) rejected(()=>make({recoveryEpoch}),'SUGGESTION_UNAVAILABLE');
+});
+
 test('configuration is explicit and strict with no retained old epoch or secret defaults', () => {
   for (const options of [undefined, null, {}, { ...defaults, epoch: undefined }, { ...defaults, secret: 'PRIVATE' },
     { ...defaults, epoch: epoch.toUpperCase().replaceAll('1', 'A') }, { ...defaults, now: undefined },

@@ -9,6 +9,7 @@ import { classifySuggestion } from './suggestion-policy.mjs';
 export const suggestionHash = (domain, input) => createHash('sha256').update(JSON.stringify([domain, input])).digest('hex');
 const Integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const Lease = z.object({ id: SuggestionSecretSchema, ownerId: IdSchema,
+  recoveryEpoch: SuggestionSecretSchema.optional(),
   generation: Integer.refine(v => v > 0), startedAt: InstantSchema, expiresAt: InstantSchema,
 }).strict().refine(v => v.startedAt < v.expiresAt && Date.parse(v.expiresAt) - Date.parse(v.startedAt) <= 30000);
 export const AdmissionState = z.object({ schemaVersion: z.literal(1), revision: Integer.refine(v => v > 0),

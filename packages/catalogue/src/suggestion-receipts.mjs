@@ -20,6 +20,7 @@ export { KeyRing as ReceiptKeyRingSchema };
 export const ReceiptRecord = z.object({
   schemaVersion: z.literal(1), id: SuggestionReceiptIdSchema,
   keyId: KeyId, nonce: SuggestionSecretSchema, capabilityHash: SuggestionSecretSchema,
+  recoveryEpoch: SuggestionSecretSchema.optional(),
   workId: SuggestionSecretSchema, status: SuggestionStatusSchema,
   revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   createdAt: InstantSchema, updatedAt: InstantSchema, expiresAt: InstantSchema,
@@ -53,15 +54,20 @@ function stored(snapshot, schema) {
 
 /** Backend-only receipt persistence/status. No transport, source fetching or worker authority. */
 export class SuggestionReceipts {
-  #keys; #activeKeyId;
-  constructor(db, { keyRing, maxTtlMs, now } = {}) {
+  #keys; #activeKeyId; #recoveryEpoch;
+  constructor(db, { keyRing, maxTtlMs, now, recoveryEpoch } = {}) {
     const parsed = KeyRing.safeParse(keyRing);
     if (!parsed.success || !Number.isSafeInteger(maxTtlMs) || maxTtlMs < 1 ||
-        maxTtlMs > 30 * 86400000 || typeof now !== 'function') fail('SUGGESTION_UNAVAILABLE');
+        maxTtlMs > 30 * 86400000 || typeof now !== 'function' ||
+        (recoveryEpoch !== undefined && (!SuggestionSecretSchema.safeParse(recoveryEpoch).success ||
+          parsed.data.keys.some(key => key.secret === recoveryEpoch)))) fail('SUGGESTION_UNAVAILABLE');
     this.db = db; this.now = now; this.maxTtlMs = maxTtlMs;
     this.#keys = new Map(parsed.data.keys.map(k => [k.id, Buffer.from(k.secret, 'hex')]));
     this.#activeKeyId = parsed.data.activeKeyId;
+    this.#recoveryEpoch = recoveryEpoch;
   }
+  get recoveryEpoch() { return this.#recoveryEpoch; }
+  inRecoveryEpoch(record) { return record?.recoveryEpoch === this.#recoveryEpoch; }
   instant() {
     const result = InstantSchema.safeParse(this.now());
     if (!result.success) fail('SUGGESTION_UNAVAILABLE');
@@ -70,11 +76,14 @@ export class SuggestionReceipts {
   receiptRef(id) { return this.db.collection('m0_suggestion_receipts').doc(id); }
   replayRef(key) { return this.db.collection('m0_suggestion_replays').doc(hash('skilved.suggestion.replay.v1', key)); }
   derive(record) {
+    if (!record || !this.inRecoveryEpoch(record)) return null;
     const key = this.#keys.get(record.keyId);
     if (!key) return null;
-    return createHmac('sha256', key).update(JSON.stringify([
-      'skilved.suggestion.receipt.status-withdraw.v1', record.keyId, record.id, record.nonce,
-    ])).digest('hex');
+    const fields = ['skilved.suggestion.receipt.status-withdraw.v1', record.keyId, record.id, record.nonce];
+    if (this.#recoveryEpoch !== undefined) {
+      fields[0] = 'skilved.suggestion.receipt.status-withdraw.v2'; fields.push(this.#recoveryEpoch);
+    }
+    return createHmac('sha256', key).update(JSON.stringify(fields)).digest('hex');
   }
   authorized(record, id, capability, now) {
     if (!record || record.id !== id || record.revokedAt !== null || record.expiresAt <= now || record.createdAt > now) return false;
@@ -129,6 +138,7 @@ export class SuggestionReceipts {
     if (command.replayExpiresAt !== undefined && Date.parse(command.replayExpiresAt) - Date.parse(now) > 30 * 86400000)
       fail('INVALID_COMMAND');
     const record = { schemaVersion: 1, id: randomBytes(32).toString('hex'), keyId: this.#activeKeyId,
+      ...(this.#recoveryEpoch === undefined ? {} : { recoveryEpoch: this.#recoveryEpoch }),
       nonce: randomBytes(32).toString('hex'), workId: command.workId, status: selected.data.status, revision: 1,
       createdAt: now, updatedAt: now, expiresAt: command.expiresAt, revokedAt: null, publicResultIds: [],
     };
