@@ -15,22 +15,30 @@ const WorkCommand=z.object({workId:SuggestionSecretSchema,expectedWorkRevision:R
 const PublicCommand=z.object({bindingId:SuggestionSecretSchema,expectedCreatedAt:InstantSchema,expectedAdmissionRevision:Revision}).strict();
 const CounterCommand=z.object({counterId:z.string().regex(/^(create|status)_[0-9]{10}$/),
   expectedWindowStart:InstantSchema,expectedCount:z.number().int().positive().max(600)}).strict();
-const Retirement=z.object({retiredRecoveryEpochs:z.array(SuggestionSecretSchema).max(8),retireLegacy:z.boolean()})
+export const SuggestionRetirement=z.object({retiredRecoveryEpochs:z.array(SuggestionSecretSchema).max(8),retireLegacy:z.boolean()})
   .strict().refine(v=>new Set(v.retiredRecoveryEpochs).size===v.retiredRecoveryEpochs.length);
+const Preview=z.object({target:z.enum(['receipt','work','public-replay','counter']),limit:z.number().int().min(1).max(50).default(25),
+  after:z.string().max(64).optional()}).strict().refine(v=>v.after===undefined||
+    (v.target==='counter'?/^(create|status)_[0-9]{10}$/.test(v.after):SuggestionSecretSchema.safeParse(v.after).success));
 
 function boundedRecord(row,schema) {
   const data=row.data();
   if(typeof data?.json!=='string'||Buffer.byteLength(data.json)>8192)fail('SUGGESTION_UNAVAILABLE');
   return decodeSuggestion(row,schema);
 }
-/** Backend-only bounded retention primitives; no route, CLI, timer or live operation.
+function counterRecord(row) {
+  const record=boundedRecord(row,Counter),id=record.kind+'_'+record.windowStart.slice(0,13).replace(/[^0-9]/g,'');
+  if(id!==row.id||!record.windowStart.endsWith(':00:00.000Z')||(record.kind==='create'&&record.count>50))fail('SUGGESTION_UNAVAILABLE');
+  return record;
+}
+/** Bounded retention primitives; no public route, timer or automatic operation.
  * Retirement policy must come from trusted recovery decisions, never a public command.
  * Old processes/configurations must be retired before that policy is used.
  */
 export class SuggestionCleanup {
   #retirement;
   constructor(admission,catalogue,retirement) {
-    const parsed=Retirement.safeParse(retirement),epoch=admission?.receipts?.recoveryEpoch;
+    const parsed=SuggestionRetirement.safeParse(retirement),epoch=admission?.receipts?.recoveryEpoch;
     if(!(admission instanceof SuggestionAdmission)||!(catalogue instanceof Catalogue)||admission.db!==catalogue.db||
       !SuggestionSecretSchema.safeParse(epoch).success||!parsed.success||parsed.data.retiredRecoveryEpochs.includes(epoch))
       fail('SUGGESTION_UNAVAILABLE');
@@ -60,6 +68,34 @@ export class SuggestionCleanup {
       result.set(row.id,{ref:row.ref,record});
     }
     return result;
+  }
+  /** Read-only candidate preconditions, not eligibility or permission to remove.
+   * Every mutation rechecks its own current transactional guards.
+   */
+  async preview(token,input) {
+    const parsed=Preview.safeParse(input);if(!parsed.success)fail('INVALID_COMMAND');
+    const {target,limit,after}=parsed.data,uid=await this.catalogue.identity(token);
+    return this.db.runTransaction(async tx=>{
+      await this.catalogue.operator(tx,uid,'source');
+      let candidates;
+      if(target==='counter') {
+        let query=this.db.collection('m0_suggestion_limits').orderBy('__name__');
+        if(after!==undefined)query=query.startAfter(after);
+        const rows=await tx.get(query.limit(limit+1));
+        candidates=rows.docs.map(row=>{const r=counterRecord(row);return {counterId:row.id,expectedWindowStart:r.windowStart,expectedCount:r.count};});
+      } else {
+        const {state,works,receipts,bindings}=await this.#inventory(tx),publics=await this.#publicInventory(tx,bindings);
+        const records=target==='receipt'?receipts:target==='work'?works:publics;
+        candidates=[...records].sort(([a],[b])=>a<b?-1:a>b?1:0).filter(([id])=>after===undefined||id>after).slice(0,limit+1).map(([id,r])=>{
+          const expectedAdmissionRevision=state.revision;
+          if(target==='receipt')return {receiptId:id,expectedRevision:r.revision,expectedWorkRevision:works.get(r.workId).revision,expectedAdmissionRevision};
+          if(target==='work')return {workId:id,expectedWorkRevision:r.revision,expectedAdmissionRevision};
+          return {bindingId:id,expectedCreatedAt:r.record.createdAt,expectedAdmissionRevision};
+        });
+      }
+      const items=candidates.slice(0,limit),last=items.at(-1);
+      return {items,next:candidates.length>limit?(last.receiptId??last.workId??last.bindingId??last.counterId):null};
+    });
   }
   async removeReceipt(token,input) {
     const parsed=Command.safeParse(input);if(!parsed.success)fail('INVALID_COMMAND');
@@ -142,8 +178,7 @@ export class SuggestionCleanup {
     return this.catalogue.mutate(token,'source','suggestions.cleanup.counter',command.counterId,'Elapsed suggestion attempt counter removed',async tx=>{
       const now=this.admission.receipts.instant(),ref=this.db.doc('m0_suggestion_limits/'+command.counterId),snapshot=await tx.get(ref);
       if(!snapshot.exists)fail('CONFLICT');
-      const record=boundedRecord(snapshot,Counter),id=record.kind+'_'+record.windowStart.slice(0,13).replace(/[^0-9]/g,'');
-      if(id!==command.counterId||!record.windowStart.endsWith(':00:00.000Z')||(record.kind==='create'&&record.count>50))fail('SUGGESTION_UNAVAILABLE');
+      const record=counterRecord(snapshot);
       if(record.windowStart!==command.expectedWindowStart||record.count!==command.expectedCount)fail('CONFLICT');
       if(Date.parse(record.windowStart)+3600000>Date.parse(now))fail('CONFLICT');
       tx.delete(ref);

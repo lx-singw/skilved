@@ -5,11 +5,17 @@ import { SuggestionReceipts } from '../src/suggestion-receipts.mjs';
 import { SuggestionAdmission } from '../src/suggestion-admission.mjs';
 import { SuggestionReview } from '../src/suggestion-review.mjs';
 import { SuggestionReplayTickets } from '../src/suggestion-replay-tickets.mjs';
+import { executeSuggestionCleanup, suggestionCleanupConfiguration } from '../src/suggestion-cleanup-operator.mjs';
 // Tokens are read from a private file, never command arguments, output, or a public route.
 const help=`Usage: pnpm catalogue:operator <command.json>
 Set SKILVED_OPERATOR_TOKEN_FILE to a private file containing a current Firebase ID token.
 Commands: source, inspect, queue, save, publish, alias, report-triage, enqueue, run-job, schedule.
 Suggestion commands: suggestion-queue; suggestion-review with a strict review object.
+Cleanup commands: suggestion-cleanup-preview with preview {target,limit?,after?};
+suggestion-cleanup-receipt, suggestion-cleanup-work, suggestion-cleanup-public-replay,
+suggestion-cleanup-counter with cleanup containing exact preview preconditions.
+Set trusted SKILVED_SUGGESTION_CLEANUP_CONFIG with retirement policy; mutations default off.
+Preview lists candidates, not deletion eligibility. Commands recheck current guards.
 Suggestions require explicit enabled configuration; intake may remain off. Review uses fixed audit reasons.
 Mutations use supplied or fixed audit reasons; expected revisions are explicit. No role bootstrap command exists.
 See docs/current/engineering/15_SOURCE_PUBLICATION_RUNTIME.md for examples.`;
@@ -31,6 +37,12 @@ else {
       case 'enqueue':result=await catalogue.enqueue(token,c.job,c.reason);break;
       case 'run-job':result=await catalogue.runJob(token,c.id);break;
       case 'schedule':result=await catalogue.schedule(token,c.after);break;
+      case 'suggestion-cleanup-preview':
+      case 'suggestion-cleanup-receipt':
+      case 'suggestion-cleanup-work':
+      case 'suggestion-cleanup-public-replay':
+      case 'suggestion-cleanup-counter':
+        result=await executeSuggestionCleanup(runtime,token,c,suggestionConfiguration(),suggestionCleanupConfiguration());break;
       case 'suggestion-queue':
       case 'suggestion-review': {
         const settings=suggestionConfiguration();
