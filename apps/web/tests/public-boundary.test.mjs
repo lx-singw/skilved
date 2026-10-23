@@ -87,7 +87,7 @@ test("every routed entry is included in the reviewed public boundary", async () 
     ["about/page.tsx", "opportunities/[id]/page.tsx", "opportunity/[slug]/page.tsx", "page.tsx", "saved/page.tsx"])
   assert.deepEqual(files.filter((file) => file.endsWith("/route.ts")).sort(),
     [...unavailableRoutes.keys(), "/api/health", "/api/opportunities", "/api/v1/opportunities", "/api/v1/opportunities/[id]", "/api/v1/reports", "/opportunities/[id]/apply",
-      "/api/v1/opportunity-suggestions", "/api/v1/opportunity-suggestions/[id]", "/api/v1/opportunity-suggestions/[id]/status"].map((path) => `${path.slice(1)}/route.ts`).sort())
+      "/api/v1/opportunity-suggestions", "/api/v1/opportunity-suggestions/tickets", "/api/v1/opportunity-suggestions/[id]", "/api/v1/opportunity-suggestions/[id]/status"].map((path) => `${path.slice(1)}/route.ts`).sort())
   assert.deepEqual(files.filter((file) => /(^|\/)(opengraph-image|twitter-image|sitemap|robots|icon|apple-icon|favicon)(\.|\/)/.test(file)), [])
 })
 
@@ -190,7 +190,7 @@ test("unconfigured catalogue detail and application handoff never expose a desti
 
 test("suggestion routes default unavailable with private headers and no withdrawal acknowledgement", async () => {
   const id = "a".repeat(64), root = "/api/v1/opportunity-suggestions"
-  for (const [path, method] of [[root, "POST"], [`${root}/${id}/status`, "GET"], [`${root}/${id}`, "DELETE"], [root, "OPTIONS"], [root, "PUT"], [`${root}/${id}/status`, "HEAD"]]) {
+  for (const [path, method] of [[root, "POST"], [`${root}/tickets`, "POST"], [`${root}/tickets`, "HEAD"], [`${root}/tickets`, "OPTIONS"], [`${root}/${id}/status`, "GET"], [`${root}/${id}`, "DELETE"], [root, "OPTIONS"], [root, "PUT"], [`${root}/${id}/status`, "HEAD"]]) {
     const response = await fetch(base + path, { method, headers: { "Content-Type": "application/json", "Authorization": `Bearer ${"b".repeat(64)}` }, ...(method === "POST" ? { body: "{PRIVATE_INVALID" } : {}) })
     assert.equal(response.status, 503)
     assert.equal(response.headers.get("cache-control"), "private, no-store")

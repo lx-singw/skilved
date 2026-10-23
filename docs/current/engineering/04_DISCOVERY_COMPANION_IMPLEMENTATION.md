@@ -47,7 +47,8 @@ The existing signed-in `POST /opportunity-links` remains a later private prepara
 
 | Proposed endpoint | Contract and boundary |
 |---|---|
-| `POST /api/v1/opportunity-suggestions` | Validated public URL only; explicit supported-source policy; bounded, idempotent intake; returns existing approved listing or a private receipt capability with `202` |
+| `POST /api/v1/opportunity-suggestions/tickets` | Validated public URL only; source-gated signed replay ticket with fixed expiry; consumes shared attempt budget without allocating receipt/work capacity; default disabled |
+| `POST /api/v1/opportunity-suggestions` | Validated public URL only plus full signed ticket in Idempotency-Key; explicit supported-source policy; bounded, idempotent intake; returns existing approved listing or a private receipt capability with `202` |
 | `GET /api/v1/opportunity-suggestions/{id}/status` | Receipt capability in Authorization header, not URL; returns minimal status and approved public result if available; no raw submitted link or reviewer notes |
 | `DELETE /api/v1/opportunity-suggestions/{id}` | Capability-authorised withdrawal/deletion request; apply declared retention exceptions; cannot remove independently sourced public opportunity |
 | `POST /api/v1/opportunities/{id}/reports` | Public bounded report reasons; review receipt; cannot edit or remove a listing directly |

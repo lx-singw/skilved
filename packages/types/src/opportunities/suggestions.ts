@@ -18,10 +18,21 @@ export const SuggestionUrlSchema = z.string().min(1).max(2048).refine(suggestion
 export const SuggestionRequestSchema = z.object({ url: SuggestionUrlSchema }).strict();
 export type SuggestionRequest = z.infer<typeof SuggestionRequestSchema>;
 
-// Receipt access and replay credentials use 32 random bytes encoded as lowercase hex.
+// Receipt access uses 32 random bytes encoded as lowercase hex. Signed replay is separate.
 // This entry point is deliberately separate from general public opportunity contracts.
 export const SuggestionSecretSchema = z.string().length(64).regex(/^[a-f0-9]{64}$/);
 export const SuggestionReceiptIdSchema = z.string().length(64).regex(/^[a-f0-9]{64}$/);
+const TicketMillis = '(?:0|[1-9][0-9]{0,14})';
+const TicketFormat = new RegExp(`^s1\\.[a-f0-9]{64}\\.${TicketMillis}\\.${TicketMillis}\\.[a-f0-9]{64}\\.[a-f0-9]{64}(?![\\s\\S])`);
+/** Syntax/coherence only; signature, epoch and current validity require the server verifier. */
+export const SuggestionReplayTicketSchema = z.string().max(230).regex(TicketFormat).refine(ticket => {
+  const parts = ticket.split('.'), issued = Number(parts[2]), expires = Number(parts[3]);
+  return parts.length === 6 && Number.isSafeInteger(issued) && issued >= 0 && Number.isSafeInteger(expires) &&
+    expires > issued && expires <= 253402300799999 && expires - issued <= 30 * 86400000;
+}, 'Invalid replay window');
+export const SuggestionTicketResponseSchema = z.object({ ticket: SuggestionReplayTicketSchema, expiresAt: InstantSchema })
+  .strict().refine(value => Number(value.ticket.split('.')[3]) === Date.parse(value.expiresAt), 'Inconsistent ticket expiry');
+export type SuggestionTicketResponse = z.infer<typeof SuggestionTicketResponseSchema>;
 export const SuggestionStatusSchema = z.enum(['received', 'reviewing', 'resolved_to_listing',
   'unresolved', 'unsupported', 'paused', 'withdrawn']);
 export const SuggestionAccessSchema = z.object({

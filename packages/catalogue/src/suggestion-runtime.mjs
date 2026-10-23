@@ -3,6 +3,7 @@ import { handleSuggestion } from './suggestion-http.mjs';
 import { SuggestionReceipts } from './suggestion-receipts.mjs';
 import { SuggestionAdmission } from './suggestion-admission.mjs';
 import { DomainError } from './config.mjs';
+import { SuggestionReplayTickets } from './suggestion-replay-tickets.mjs';
 
 const defaultRuntime = async () => (await import('./runtime.mjs')).getRuntime();
 
@@ -16,7 +17,9 @@ export async function handleSuggestionRequest(request, { env = process.env, runt
     // The shared base runtime caches one project. Never reuse it across a changed binding.
     if (runtime?.config?.mode !== settings.catalogue.mode || runtime?.config?.projectId !== settings.catalogue.projectId)
       throw new DomainError('SUGGESTION_UNAVAILABLE');
-    const receipts = new SuggestionReceipts(runtime.db, { ...settings.receipt, now: () => new Date().toISOString() });
-    return new SuggestionAdmission(runtime.db, receipts, settings.policy);
+    const now = () => new Date().toISOString();
+    const receipts = new SuggestionReceipts(runtime.db, { ...settings.receipt, now });
+    const replayTickets = new SuggestionReplayTickets({ ...settings.replayTickets, now });
+    return new SuggestionAdmission(runtime.db, receipts, settings.policy, { replayTickets });
   } });
 }

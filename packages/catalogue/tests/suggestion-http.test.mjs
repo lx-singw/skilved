@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleSuggestion } from '../src/suggestion-http.mjs';
 const origin = 'https://app.example', base = '/api/v1/opportunity-suggestions';
-const id = 'a'.repeat(64), capability = 'b'.repeat(64), key = 'c'.repeat(64);
+const id = 'a'.repeat(64), capability = 'b'.repeat(64);
 const at = '2026-10-16T12:00:00.000Z', expiresAt = '2026-10-17T12:00:00.000Z';
+const key = ['s1','e'.repeat(64),Date.parse(at),Date.parse(expiresAt),'c'.repeat(64),'d'.repeat(64)].join('.');
 const config = { enabled: true, intakeEnabled: true, origin, readDeadlineMs: 100, serviceDeadlineMs: 100 };
 const received = { kind: 'received', access: { receiptId: id, capability, expiresAt } };
 const state = { schemaVersion: 1, receiptId: id, status: 'received', revision: 1, createdAt: at, updatedAt: at, expiresAt, publicResultIds: [] };
@@ -16,6 +17,7 @@ function fixture(overrides = {}, ...settingsArgs) {
   const settings = settingsArgs.length ? settingsArgs[0] : config;
   const calls = [];let providers = 0;
   const service = { create: async (...args) => { calls.push(['create',...args]);return received; }, status: async input => { calls.push(['status',input]);return state; },
+    issueTicket: async input => { calls.push(['issue',input]); return { ticket: key, expiresAt }; },
     withdraw: async input => { calls.push(['withdraw',input]);return withdrawn; }, ...overrides };
   return { calls, get providers() { return providers; }, run: req => handleSuggestion(req,{ config: settings, provider: async () => { providers++;return service; } }) };
 }
@@ -25,6 +27,41 @@ async function safe(response) {
   for (const name of ['Set-Cookie','Location','Access-Control-Allow-Origin','Access-Control-Allow-Credentials'])assert.equal(response.headers.has(name),false);
   return response.json();
 }
+const issueRequest = (headers = {}, payload = JSON.stringify({ url: 'https://source.example/notice' }), path = base+'/tickets') =>
+  new Request(origin+path,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:payload,
+    ...(payload instanceof ReadableStream ? {duplex:'half'} : {})});
+
+test('ticket issuance is URL-only, private and unavailable with intake off', async () => {
+  const f = fixture(), response = await f.run(issueRequest()); assert.equal(response.status,200);
+  assert.deepEqual(await safe(response),{ticket:key,expiresAt}); assert.deepEqual(f.calls,[['issue',{url:'https://source.example/notice'}]]);
+  const off = fixture({}, {...config,intakeEnabled:false});
+  assert.equal((await off.run(issueRequest())).status,503); assert.equal(off.providers,0);
+});
+
+test('ticket issuance rejects credentials, unsafe placement, origins and personal fields before provider', async () => {
+  const f=fixture();
+  for(const [headers,payload,path,status] of [[{'Idempotency-Key':key},undefined,undefined,400],
+    [{Authorization:`Bearer ${capability}`},undefined,undefined,400],[{Cookie:'PRIVATE'},undefined,undefined,400],
+    [{Origin:'https://evil.example'},undefined,undefined,403],[{},undefined,base+'/tickets?ticket=PRIVATE',400],
+    [{},JSON.stringify({url:'https://source.example/notice',ticket:key}),undefined,400],
+    [{},JSON.stringify({url:'https://source.example/notice',email:'PRIVATE'}),undefined,400]]) {
+    const r=await f.run(issueRequest(headers,payload,path));assert.equal(r.status,status);assert.doesNotMatch(JSON.stringify(await safe(r)),/PRIVATE|evil/);
+  }
+  assert.equal(f.providers,0);
+  assert.equal((await f.run(request('POST',base,{'Idempotency-Key':'c'.repeat(64)}))).status,400);
+});
+
+test('issuance validates coherent output and retains bounded body/backend deadlines', async () => {
+  for(const output of [{ticket:key,expiresAt,url:'PRIVATE'},{ticket:key,expiresAt:at},received,null])
+    assert.equal((await fixture({issueTicket:async()=>output}).run(issueRequest())).status,503);
+  const f=fixture({}, {...config,readDeadlineMs:15});
+  const stalled=new ReadableStream({cancel(){return new Promise(()=>{});}});
+  assert.equal((await f.run(issueRequest({},stalled))).status,408);assert.equal(f.providers,0);
+  const late=fixture({issueTicket:async()=>new Promise(()=>{})},{...config,serviceDeadlineMs:15});
+  assert.equal((await late.run(issueRequest())).status,503);
+  const denied=fixture({issueTicket:async()=>{throw Object.assign(new Error('PRIVATE'),{code:'SUGGESTION_RATE_LIMITED'});}});
+  const response=await denied.run(issueRequest());assert.equal(response.status,429);assert.doesNotMatch(JSON.stringify(await safe(response)),/PRIVATE/);
+});
 
 test('disabled, malformed and missing configuration never initialize runtime', async () => {
   for (const settings of [undefined, {}, { ...config, enabled: false }, { ...config, enabled: 'true' }, { ...config, origin: 'http://app.example' }, { ...config, readDeadlineMs: 6000 }, { ...config, extra: 'PRIVATE' }]) {

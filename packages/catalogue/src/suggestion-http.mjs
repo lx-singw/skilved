@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { SuggestionRequestSchema, SuggestionCreateResponseSchema, SuggestionStatusResponseSchema, SuggestionWithdrawResponseSchema } from '@skilved/types/opportunities/suggestions';
+import { SuggestionRequestSchema, SuggestionCreateResponseSchema, SuggestionStatusResponseSchema, SuggestionWithdrawResponseSchema,
+  SuggestionReplayTicketSchema, SuggestionTicketResponseSchema } from '@skilved/types/opportunities/suggestions';
 
 export const SuggestionHttpConfig = z.object({ enabled: z.boolean(), intakeEnabled: z.boolean(), origin: z.string().max(200),
   emulator: z.boolean().default(false), readDeadlineMs: z.number().int().min(1).max(5000).default(5000),
@@ -66,10 +67,11 @@ export async function handleSuggestion(request, { config, provider } = {}) {
     if (!parsed.success || !parsed.data.enabled) return errorReply('SERVICE_UNAVAILABLE', 503);
     const settings = parsed.data, url = new URL(request.url), path = url.pathname;
     const create = request.method === 'POST' && path === '/api/v1/opportunity-suggestions';
+    const issue = request.method === 'POST' && path === '/api/v1/opportunity-suggestions/tickets';
     const status = request.method === 'GET' && /^\/api\/v1\/opportunity-suggestions\/([a-f0-9]{64})\/status$/.exec(path);
     const withdraw = request.method === 'DELETE' && /^\/api\/v1\/opportunity-suggestions\/([a-f0-9]{64})$/.exec(path);
-    if (!create && !status && !withdraw) return errorReply('NOT_FOUND', 404);
-    if (create && !settings.intakeEnabled) return errorReply('SERVICE_UNAVAILABLE', 503);
+    if (!create && !issue && !status && !withdraw) return errorReply('NOT_FOUND', 404);
+    if ((create || issue) && !settings.intakeEnabled) return errorReply('SERVICE_UNAVAILABLE', 503);
     const configured = new URL(settings.origin);
     // Next normalizes 127.0.0.1 request URLs to localhost. Preserve exact browser Origin checks.
     const normalizedLoopback = settings.emulator && url.protocol === 'http:' && configured.protocol === 'http:' &&
@@ -84,9 +86,15 @@ export async function handleSuggestion(request, { config, provider } = {}) {
     if (length !== null && !/^\d{1,8}$/.test(length)) reject();
     if (length !== null && Number(length) > 4096) reject('BODY_TOO_LARGE', 413);
     let input, credential;
-    if (create) {
-      credential = request.headers.get('idempotency-key');
-      if (!credential || credential.length !== 64 || !/^[a-f0-9]{64}$/.test(credential) || request.headers.has('authorization')) reject();
+    if (create || issue) {
+      if (request.headers.has('authorization')) reject();
+      if (issue) {
+        if (request.headers.has('idempotency-key')) reject();
+      } else {
+        const ticket = SuggestionReplayTicketSchema.safeParse(request.headers.get('idempotency-key'));
+        if (!ticket.success) reject();
+        credential = ticket.data;
+      }
       if (!/^application\/json(?:;\s*charset=utf-8)?$/i.test(request.headers.get('content-type') ?? '')) reject('UNSUPPORTED_MEDIA_TYPE', 415);
       input = await body(request, settings.readDeadlineMs);
     } else {
@@ -103,11 +111,11 @@ export async function handleSuggestion(request, { config, provider } = {}) {
     if (typeof provider !== 'function') return errorReply('SERVICE_UNAVAILABLE', 503);
     const work = async () => {
       const service = await provider();
-      return create ? service.create(input, credential) : withdraw ? service.withdraw(input) : service.status(input);
+      return issue ? service.issueTicket(input) : create ? service.create(input, credential) : withdraw ? service.withdraw(input) : service.status(input);
     };
     const result = await deadline(work(), settings.serviceDeadlineMs, 'SERVICE_UNAVAILABLE', 503);
-    const output = (create ? SuggestionCreateResponseSchema : withdraw ? SuggestionWithdrawResponseSchema : SuggestionStatusResponseSchema).safeParse(result);
-    if (!output.success || (!create && output.data.receiptId !== input.receiptId)) return errorReply('SERVICE_UNAVAILABLE', 503);
+    const output = (issue ? SuggestionTicketResponseSchema : create ? SuggestionCreateResponseSchema : withdraw ? SuggestionWithdrawResponseSchema : SuggestionStatusResponseSchema).safeParse(result);
+    if (!output.success || ((!create && !issue) && output.data.receiptId !== input.receiptId)) return errorReply('SERVICE_UNAVAILABLE', 503);
     return reply(output.data, create && output.data.kind === 'received' ? 202 : 200);
   } catch (error) {
     if (error instanceof Rejection) return errorReply(error.code, error.status);

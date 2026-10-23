@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { suggestionConfiguration } from '../src/suggestion-config.mjs';
 import { handleSuggestion } from '../src/suggestion-http.mjs';
 const policy = { intakeEnabled: false, maxWork: 100, maxReceipts: 500, createAttemptsPerHour: 50, statusReadsPerHour: 600, receiptTtlMs: 86400000 };
-const manifest = { origin: 'https://app.example', keyRing: { activeKeyId: 'synthetic', keys: [{ id: 'synthetic', secret: 'a1'.repeat(32) }] }, policy };
+const replayTickets = { epoch: 'c1'.repeat(32), secret: 'b1'.repeat(32), notBefore: '2026-10-16T12:00:00.000Z', ttlMs: 86400000 };
+const manifest = { origin: 'https://app.example', keyRing: { activeKeyId: 'synthetic', keys: [{ id: 'synthetic', secret: 'a1'.repeat(32) }] }, policy, replayTickets };
 const cloud = { SKILVED_SUGGESTIONS_ENABLED: 'true', SKILVED_CATALOGUE_MODE: 'cloud', SKILVED_CATALOGUE_PROJECT: 'skilved-fixture', SKILVED_CATALOGUE_READS: 'true' };
 const env = (overrides = {}, config = manifest) => ({ ...cloud, SKILVED_SUGGESTIONS_CONFIG: JSON.stringify(config), ...overrides });
 const denied = input => assert.throws(() => suggestionConfiguration(input), error => error.message === 'UNSAFE_CONFIGURATION' && error.code === 'UNSAFE_CONFIGURATION');
@@ -22,6 +23,10 @@ test('enabled malformed manifests, flags, keys, limits and disabled public reads
   for (const override of [{ SKILVED_SUGGESTIONS_ENABLED:'yes' },{ SKILVED_SUGGESTIONS_CONFIG:undefined },{ SKILVED_SUGGESTIONS_CONFIG:'PRIVATE_BAD_JSON' },
     { SKILVED_SUGGESTIONS_CONFIG:'x'.repeat(8193) },{ SKILVED_CATALOGUE_MODE:'disabled' },{ SKILVED_CATALOGUE_READS:'false' }])denied(env(override));
   for (const value of [{ ...manifest, extra:'PRIVATE' },{ ...manifest, keyRing:undefined },
+    { ...manifest, replayTickets: undefined }, { ...manifest, replayTickets: { ...replayTickets, epoch: replayTickets.secret } },
+    { ...manifest, replayTickets: { ...replayTickets, epoch: manifest.keyRing.keys[0].secret } },
+    { ...manifest, replayTickets: { ...replayTickets, secret: manifest.keyRing.keys[0].secret } },
+    { ...manifest, replayTickets: { ...replayTickets, ttlMs: 30 * 86400000 + 1 } },
     { ...manifest, keyRing:{ activeKeyId:'synthetic', keys:[{ id:'synthetic', secret:'PRIVATE_INVALID' }] } },
     { ...manifest, policy:{ ...policy, maxReceipts:501 } },{ ...manifest, policy:{ ...policy, intakeEnabled:'true' } }])denied(env({},value));
 });

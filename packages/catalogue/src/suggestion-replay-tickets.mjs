@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { InstantSchema } from '@skilved/types/opportunities';
-import { SuggestionSecretSchema, SuggestionUrlSchema } from '@skilved/types/opportunities/suggestions';
+import { SuggestionSecretSchema, SuggestionUrlSchema, SuggestionReplayTicketSchema } from '@skilved/types/opportunities/suggestions';
 import { DomainError } from './config.mjs';
 
 const fail = code => { throw new DomainError(code); };
@@ -9,12 +9,9 @@ const MAX_TTL = 30 * 86400000;
 const Configuration = z.object({ epoch: SuggestionSecretSchema, secret: SuggestionSecretSchema,
   notBefore: InstantSchema, ttlMs: z.number().int().min(1).max(MAX_TTL),
 }).strict().refine(value => value.epoch !== value.secret, 'Public epoch must not expose the signing key');
+export { Configuration as ReplayTicketConfigurationSchema };
 const Issue = z.object({ url: SuggestionUrlSchema }).strict();
-// Canonical decimal milliseconds, without signs, exponents or leading zeros.
-const Millis = '(0|[1-9][0-9]{0,14})';
-// An absolute end assertion also rejects the final newline accepted by JavaScript's $.
-const Token = new RegExp(`^s1\\.([a-f0-9]{64})\\.${Millis}\\.${Millis}\\.([a-f0-9]{64})\\.([a-f0-9]{64})(?![\\s\\S])`);
-const Verify = z.object({ url: SuggestionUrlSchema, ticket: z.string().max(230).regex(Token) }).strict();
+const Verify = z.object({ url: SuggestionUrlSchema, ticket: SuggestionReplayTicketSchema }).strict();
 const domain = 'skilved.suggestion.replay-ticket.v1';
 
 /** Stateless foundation only. Intake must retain replay history until the verified expiry.
@@ -53,7 +50,7 @@ export class SuggestionReplayTickets {
   verify(input) {
     const parsed = Verify.safeParse(input);
     if (!parsed.success) fail('SUGGESTION_NOT_FOUND');
-    const [, epoch, issuedText, expiresText, nonce, mac] = Token.exec(parsed.data.ticket);
+    const [, epoch, issuedText, expiresText, nonce, mac] = parsed.data.ticket.split('.');
     const issued = Number(issuedText), expires = Number(expiresText), now = this.#instant();
     if (epoch !== this.#epoch || !Number.isSafeInteger(issued) || !Number.isSafeInteger(expires) ||
         issued < this.#notBefore || issued > now || expires <= now || expires <= issued ||
