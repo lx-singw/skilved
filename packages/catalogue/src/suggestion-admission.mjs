@@ -91,7 +91,7 @@ export class SuggestionAdmission {
     }
     for (const row of workRows.docs) {
       const work = decode(row, SuggestionWork);
-      if (work.id !== row.id || work.id !== hash('skilved.suggestion.work.v1', work.url) || work.receiptCount !== counts.get(work.id))
+      if (work.id !== row.id || work.id !== hash('skilved.suggestion.work.v1', work.url) || work.receiptCount !== (counts.get(work.id) ?? 0))
         fail('SUGGESTION_UNAVAILABLE');
       const referenceCount = references.get(work.id) ?? 0;
       if (work.referenceCount !== undefined && work.referenceCount !== referenceCount) fail('SUGGESTION_UNAVAILABLE');

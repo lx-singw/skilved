@@ -136,7 +136,8 @@ test('approved-decision capacity is atomic and an existing retry consumes no add
   await publish();const bounded = new SuggestionAdmission(db,receipts,{ ...policy, maxReceipts: 1 });
   const keys = [random(),random()];const results = await Promise.allSettled(keys.map(key => create(key,bounded)));
   const winner = results.findIndex(r => r.status === 'fulfilled');assert.ok(winner >= 0);
-  assert.equal(results.filter(r => r.status === 'rejected' && r.reason.code === 'SUGGESTION_CAPACITY').length,1);
+  assert.equal(results.filter(r => r.status === 'rejected' && r.reason.code === 'SUGGESTION_CAPACITY').length,1,
+    JSON.stringify(results.map(r=>({status:r.status,...(r.status==='rejected'?{code:r.reason?.code??'unavailable'}:{})}))));
   assert.deepEqual(await create(keys[winner],bounded),results[winner].value);
   assert.equal((await rows('m0_suggestion_public_replays')).length,1);assert.equal((await data(service.stateRef())).workCount,0);
 });

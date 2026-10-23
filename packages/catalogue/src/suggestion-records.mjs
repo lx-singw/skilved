@@ -24,9 +24,10 @@ export const SuggestionWork = z.object({ schemaVersion: z.literal(1), id: Sugges
   lease: Lease.nullable().default(null),
   // Legacy absence is reconciled against actual receipts by inventory, never guessed as zero.
   referenceCount: z.number().int().min(0).max(500).optional(),
-  revision: Integer.refine(v => v > 0), receiptCount: z.number().int().min(1).max(500),
+  revision: Integer.refine(v => v > 0), receiptCount: z.number().int().min(0).max(500),
   createdAt: InstantSchema, updatedAt: InstantSchema,
 }).strict().refine(v => v.createdAt <= v.updatedAt &&
+  (v.receiptCount !== 0 || (v.referenceCount === 0 && v.state === 'cancelled' && v.lease === null)) &&
   (v.referenceCount === undefined || v.referenceCount <= v.receiptCount) &&
   (v.lease === null || (v.state === 'pending' && v.lease.generation === v.generation &&
     v.createdAt <= v.lease.startedAt && v.lease.startedAt <= v.updatedAt)) &&

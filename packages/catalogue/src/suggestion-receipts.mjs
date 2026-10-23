@@ -30,7 +30,7 @@ export const ReceiptRecord = z.object({
   (v.status !== 'withdrawn' || v.revokedAt !== null) &&
   ((v.status === 'resolved_to_listing') === (v.publicResultIds.length > 0)) &&
   new Set(v.publicResultIds).size === v.publicResultIds.length, 'Invalid private receipt');
-const ReplayRecord = z.object({ schemaVersion: z.literal(1), receiptId: SuggestionReceiptIdSchema,
+export const ReplayRecord = z.object({ schemaVersion: z.literal(1), receiptId: SuggestionReceiptIdSchema,
   inputHash: SuggestionSecretSchema, expiresAt: InstantSchema, retainUntil: InstantSchema.optional(),
 }).strict().refine(v => v.retainUntil === undefined || (v.retainUntil >= v.expiresAt &&
   Date.parse(v.retainUntil) - Date.parse(v.expiresAt) <= 30 * 86400000));
