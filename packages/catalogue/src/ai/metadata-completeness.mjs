@@ -23,7 +23,9 @@ mandatory eligibility, citizenship or residence from that invitation.
 Its regionalBenefits retain the regional comprehensive benefits scope and each listed benefit
 in compensation coverage. Use kind other, null amount/maximum/currency and period not_stated.
 Cite the entire scope-and-list originalText. Do not turn corporate regional benefits into a
-guaranteed vacancy entitlement. Other benefit wording still needs semantic review.
+guaranteed vacancy entitlement. Coverage may copy that complete originalText verbatim, preserving
+its corporate introduction and regional qualifier; a shortened value must keep the scope and benefits.
+Other benefit wording still needs semantic review.
 Every summary claim must be supported by summary's OWN contiguous evidence, not just another
 field's quote or facts elsewhere in the source. Include a wider complete span when needed,
 or keep the summary focused on its supporting passage while retaining other metadata fields.

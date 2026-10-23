@@ -3,7 +3,7 @@ import {parseRecentJobsDetail} from '../../src/adapters/recentjobs.mjs';
 import {labelCandidate,labelLines,labelWire} from './source-labels.mjs';
 export const invitation='Fictional Workshop invites unemployed youth to apply for its apprenticeship.';
 export const reference='Requisition ID: APP/TEST-042';
-export const regionalBenefits='We offer regional comprehensive benefits, including:\nRetirement benefits\nMedical aid';
+export const regionalBenefits='At Fictional Workshop, we value practical learning. To support our employees, we offer regional comprehensive benefits, including:\nRetirement benefits\nMedical aid';
 export const noticeLines=labelLines.flatMap((text,i)=>i===0?[invitation,reference]:text==='What We Offer'?[text,regionalBenefits.split('\n')[0]]:[text]);
 export const noticeHtml=`<article class="type-post"><h1 class="entry-title">${labelCandidate.title}</h1><div class="entry-content">${noticeLines.map(s=>`<p>${s}</p>`).join('')}<a href="https://employer.example/apply">Apply now online</a></div></article>`;
 export const noticeCandidate=parseRecentJobsDetail({html:noticeHtml,url:labelCandidate.sourceUrl,observedOn:'2026-09-26'});

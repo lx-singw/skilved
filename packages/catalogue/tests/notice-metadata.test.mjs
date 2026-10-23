@@ -55,6 +55,18 @@ test('regional benefits cannot disappear, lose their scope, use only the list as
   assert.doesNotThrow(()=>assertMetadataCompleteness(c,x));
 });
 
+test('complete verbatim corporate benefit coverage preserves regional context without allowing added promises or repaired wording',()=>{
+  const wire=noticeWire();wire.compensation=[{...wire.compensation[0],value:{...wire.compensation[0].value,coverage:regionalBenefits}}];
+  const before=structuredClone(wire),x=decodeGroqExtraction(wire,c),mapped=map(x);
+  assert.equal(mapped.record.compensation[0].value.coverage,regionalBenefits);assert.equal(mapped.record.compensation[0].originalText,regionalBenefits);assert.deepEqual(wire,before);
+  for(const coverage of [regionalBenefits+'\nGuaranteed for this vacancy.',regionalBenefits.replace('regional comprehensive benefits','guaranteed comprehensive benefits'),
+    regionalBenefits.replace('regional comprehensive benefits','comprehensive benefits'),regionalBenefits.replace('practical learning','guaranteed placement')]) {
+    const bad=structuredClone(x);bad.compensation[0].value.coverage=coverage;const original=structuredClone(bad);
+    assert.throws(()=>map(bad),/AI_REGIONAL_BENEFITS_UNRESOLVED/);assert.deepEqual(bad,original);
+  }
+  const numeric=structuredClone(x);numeric.compensation[0].value.amount=1000;assert.throws(()=>map(numeric),/AI_REGIONAL_BENEFITS_UNRESOLVED/);
+});
+
 test('places and references repeated in summaries need their own supporting evidence; unrelated metadata need not be repeated',()=>{
   const p=metadataCompletenessPolicy(c),x=decodeGroqExtraction(noticeWire(),c);
   for(const term of ['Fictional City','Gauteng','APP/TEST-042']) {

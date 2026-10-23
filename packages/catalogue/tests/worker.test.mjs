@@ -156,12 +156,15 @@ test('notice metadata omissions stop before cache or validation and complete sco
     ['AI_AUDIENCE_UNRESOLVED',x=>{x.summary.value='An apprenticeship programme.';}],
     ['AI_REGIONAL_BENEFITS_UNRESOLVED',x=>{x.compensation=[];}],
     ['AI_SUMMARY_EVIDENCE_UNRESOLVED',x=>{x.summary.value+=' In Gauteng.';}],
-    [null,()=>{}]
+    ['AI_LOCATION_EVIDENCE_UNRESOLVED',x=>{x.compensation=[{...x.compensation[0],value:{...x.compensation[0].value,coverage:regionalBenefits}}];x.location.span=[x.location.span[0],x.location.span[0]];}],
+    [null,()=>{}],
+    [null,x=>{x.compensation=[{...x.compensation[0],value:{...x.compensation[0].value,coverage:regionalBenefits}}];}]
   ]) {
     const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=noticeHtml;
-    const wire=noticeWire();change(wire);const before=structuredClone(wire);let sends=0;
+    const wire=noticeWire(),completeLocationSpan=[...wire.location.span];change(wire);const before=structuredClone(wire);let sends=0;
     const worker=f.restart(geminiOptions(async(_url,init)=>{
       sends++;const input=JSON.parse(JSON.parse(init.body).contents[0].parts[0].text);
+      if(!input.extracted)assert.deepEqual(input.locationSpanHints.recommendedSpan,completeLocationSpan);
       return geminiAnswer(input.extracted?{supported:true,issues:[],evidence:[{source:'recentjobs',quote:invitation}]}:wire);
     }));
     const cache=(await db.collection('m0_model_cache').get()).size,drafts=(await db.collection('m0_drafts').get()).size,publicRows=(await db.collection('m0_public').get()).size;

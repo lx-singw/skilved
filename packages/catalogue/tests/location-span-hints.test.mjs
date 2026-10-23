@@ -11,7 +11,7 @@ const map=x=>mapExtraction(candidate,x,{sourceId:'location_span_test',now:'2026-
 
 test('separated prose and table hints retain exact source ranges with no supplied place values',()=>{
   const c=source(workBase+'\nTraining context.\n'+locationLabel),original=structuredClone(c),h=locationSpanHints(c);
-  assert.deepEqual(h,{version:'source_location_spans_v2',passages:[{span:[2,2],originalText:workBase},{span:[4,5],originalText:locationLabel}],titleAlternatives:[],recommendedSpan:[2,5]});
+  assert.deepEqual(h,{version:'source_location_spans_v3',passages:[{span:[2,2],originalText:workBase},{span:[4,5],originalText:locationLabel}],titleAlternatives:[],recommendedSpan:[2,5]});
   for(const p of h.passages)assert.deepEqual(Object.keys(p).sort(),['originalText','span']);
   assert.deepEqual(c,original);assert.deepEqual(groqExtractionPayload(candidate).locationSpanHints,locationSpanHints(candidate));
   const wire=spanWire(),decoded=decodeGroqExtraction(wire,candidate),mapped=map(decoded);
@@ -41,6 +41,20 @@ test('no candidate range crosses excluded evidence, scope gaps, conflicting labe
   const h=locationSpanHints(c);assert.equal(h.passages.length,2);assert.equal(h.recommendedSpan,null);
   const masked={...source(workBase+'\n\nLocation\n\nGauteng'),programmeScope:{includedSpans:[[2,4],[6,6]]}};
   assert.deepEqual(locationSpanHints(masked).passages,[{span:[2,2],originalText:workBase}]);
+});
+
+test('a recommended location range includes separate supported attendance labels without supplying or repairing facts',()=>{
+  const place='Job Location: Exampletown – Gauteng – South Africa',mode='Working Mode: Fully On-Site',c=source(place+'\nTraining context.\n'+mode),before=structuredClone(c),h=locationSpanHints(c);
+  assert.deepEqual(h.passages,[{span:[2,2],originalText:place},{span:[4,4],originalText:mode}]);assert.deepEqual(h.recommendedSpan,[2,4]);assert.deepEqual(c,before);
+  for(const separator of [' - ',' – ',' — '])assert.deepEqual(locationSpanHints(source(place.replaceAll(' – ',separator)+'\n'+mode)).recommendedSpan,[2,3]);
+  const onlyMode=locationSpanHints(source(mode));assert.deepEqual(onlyMode.recommendedSpan,[2,2]);assert.deepEqual(Object.keys(onlyMode.passages[0]).sort(),['originalText','span']);
+  for(const tail of ['Working Mode: not Fully On-Site','Working Mode: Fully On-Site or Remote','Working Mode: Fully On-Site\nAttendance: hybrid',
+    'Repair fully on-site machinery','Documents to prepare\nWorking Mode: Fully On-Site']) {
+    const hint=locationSpanHints(source(place+'\n'+tail));assert.deepEqual(hint.passages,[{span:[2,2],originalText:place}]);assert.deepEqual(hint.recommendedSpan,[2,2]);
+  }
+  for(const gap of ['Join our WhatsApp group.','x'.repeat(4001)])assert.equal(locationSpanHints(source(place+'\n'+gap+'\n'+mode)).recommendedSpan,null);
+  assert.equal(locationSpanHints({...c,programmeScope:{includedSpans:[[2,2],[4,4]]}}).recommendedSpan,null);
+  const excluded=locationSpanHints({...c,programmeScope:{includedSpans:[[1,3]]}});assert.deepEqual(excluded.recommendedSpan,[2,2]);
 });
 
 test('ordinary, split metadata and native Gemini receive the same source-bound guidance with versioned contracts',async()=>{
@@ -107,6 +121,12 @@ test('title alternatives retain mandatory evidence and respect programme, publis
   }
   const after={title:c.title,sourceText:workBase+'\nJoin our WhatsApp group.\n'+locationLabel};
   assert.deepEqual(locationSpanHints(after).recommendedSpan,[1,2]);
+});
+
+test('shorter title alternatives retain separate attendance evidence in their recommended range',()=>{
+  const c=separated();c.sourceText=c.sourceText.replace(workBase,workBase+'\nWorking Mode: Fully On-Site');
+  const h=locationSpanHints(c);assert.deepEqual(h.recommendedSpan,[1,3]);assert.equal(h.titleAlternatives.length,1);
+  assert.ok(h.passages.some(p=>p.originalText==='Working Mode: Fully On-Site'));assert.deepEqual(h.titleAlternatives[0].replacesSpan,[14,15]);
 });
 
 test('title guidance reaches ordinary and split transports without changing or repairing returned spans',async()=>{

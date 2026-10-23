@@ -32,7 +32,7 @@ test('Groq uses strict output, bounded reasoning, a fixed endpoint and preserves
     assert.equal(body.model, GROQ_MODEL); assert.equal(body.response_format.json_schema.strict, true);
     assert.equal(body.max_completion_tokens, 3072); assert.equal(body.reasoning_effort, 'low');
     assert.equal(body.include_reasoning, false); assert.equal('tools' in body, false);
-    // V25 adds scoped metadata completeness guidance; keep the compact request bounded.
+    // V26 adds combined attendance-range guidance; keep the compact request bounded.
     assert.ok(Buffer.byteLength(init.body) < 27000);
     assert.match(JSON.parse(body.messages[1].content).sourceLines, /4: N3 with:\n5: Mathematics/);
     return Response.json(response());
@@ -198,7 +198,7 @@ test('a data-only ordinary response keeps exact evidence and original routes wit
     assert.match(instruction,/Return one opportunity DATA object/);assert.doesNotMatch(instruction,/Return the strict JSON schema/);
     return geminiAnswer(wire());
   }});
-  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v25_groq_v7');
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v26_groq_v7');
   assert.equal(result.extraction.requirements.items[1].fact.quote,'N3 with:\nMathematics\nEngineering Science');
   const mapped=mapExtraction(candidate,result.extraction,{sourceId:'ordinary_shape_test',now:'2026-10-04T10:00:00.000Z'});
   assert.equal(mapped.record.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(mapped.record.publication.approved,false);

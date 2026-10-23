@@ -1,6 +1,7 @@
 import {locationCompletenessPolicy} from './location-completeness.mjs';
 import {practicalEvidencePolicy} from './practical-evidence.mjs';
 import {isPromotionalLine} from './source-lines.mjs';
+import {attendanceEvidencePolicy} from './attendance-evidence-hints.mjs';
 
 export const LOCATION_SPAN_INSTRUCTION = `
 locationSpanHints supplies exact recognised source passages, never city/province/country values.
@@ -8,6 +9,10 @@ Read the source and retain every supported stated place. When values occur in se
 location evidence must be ONE inclusive contiguous range covering every claimed value.
 In particular, a work-base sentence naming a city does not support a province found in a later table.
 recommendedSpan is a bounded source candidate, not a completed fact or proof of completeness.
+Recognised supported attendance labels are included with place passages in recommendedSpan.
+If you return that attendance value, retain its entire labelled passage in location evidence.
+A place-only span does not support a working mode found elsewhere. This recommendation neither
+fills attendance nor infers it from the place; unsupported/conflicting labels supply no mode hint.
 titleAlternatives repeats an exact parenthesised location-label value in the title; replacesSpan
 identifies the original label passage. These are alternative supporting passages, not additional
 places or geography. Prefer the shorter recommendedSpan only if it supports every returned value,
@@ -23,7 +28,7 @@ Code will not widen or repair the returned location evidence.`;
 const label=/^((?:(?:Work|Job|Training) )?Locations?|Worksites?)\s*(?::\s*(.*)|\s*)$/i;
 const blocked=/^(?:Residence(?: requirements)?|Residential address|Contact(?: details| information| address)?|Postal address|Company address|Employer address|Head office address)\s*:?$/i;
 const reset=/^(?:Job|Vacancy|Position) details\s*:?$/i;
-const simple=text=>text.length<=200&&/^[\p{Lu}][\p{L}\p{M} ’'.,-]*$/u.test(text)&&
+const simple=text=>text.length<=200&&/^[\p{Lu}][\p{L}\p{M} ’'.,–—-]*$/u.test(text)&&
   !/\b(?:if|unless|may|might|could|either|or|not|no|unknown|unspecified|tba|tbc|all provinces|nationwide|remote|hybrid|contact|reside|address|office|centre|center|salary|closing|requirements|apply|duties|reference|qualifications|summary|duration|deadline|documents|benefits)\b/i.test(text);
 
 /** Advisory source ranges only. No returned model field or evidence is changed. */
@@ -35,6 +40,8 @@ export function locationSpanHints(candidate) {
   const found=new Map(),labels=[],mandatory=new Set();
   const add=span=>{if(allowed(span))found.set(span.join(':'),{span:[...span],originalText:lines.slice(span[0]-1,span[1]).join('\n')});};
   for(const h of locationCompletenessPolicy(candidate).obligations){add(h.span);mandatory.add(h.span.join(':'));}
+  const attendance=attendanceEvidencePolicy(candidate);
+  if(attendance.status==='supported')for(const h of attendance.labels){add(h.span);mandatory.add(h.span.join(':'));}
   let otherContext=false;
   for(let i=1;i<lines.length;i++) {
     if(!permitted(i))continue;
@@ -77,5 +84,5 @@ export function locationSpanHints(candidate) {
       }
     }
   }
-  return {version:'source_location_spans_v2',passages,titleAlternatives,recommendedSpan};
+  return {version:'source_location_spans_v3',passages,titleAlternatives,recommendedSpan};
 }

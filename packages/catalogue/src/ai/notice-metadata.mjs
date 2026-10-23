@@ -68,8 +68,9 @@ export function assertRegionalBenefitsCompleteness(extracted,policy) {
       fact.value?.kind==='other'&&fact.value.amount===null&&fact.value.maximum===null&&fact.value.currency===null&&
       fact.value.period==='not_stated'&&typeof fact.value.coverage==='string'&&
       contains(fact.value.coverage,hint.scope)&&contains(fact.value.coverage,name)&&
-      // Only source scope/list words are permitted here; notably no added guarantee.
-      normalise(fact.value.coverage).split(' ').every(word=>normalise(`${hint.scope} including ${hint.benefits.join(' ')}`).split(' ').includes(word)));
+      // A complete verbatim passage preserves its own corporate/regional context.
+      // Shorter coverage still permits only scope/list words, with no added promise.
+      (fact.value.coverage.trim()===hint.originalText.trim()||normalise(fact.value.coverage).split(' ').every(word=>normalise(`${hint.scope} including ${hint.benefits.join(' ')}`).split(' ').includes(word))));
     if(!retained)throw new DomainError('AI_REGIONAL_BENEFITS_UNRESOLVED');
   }
 }
