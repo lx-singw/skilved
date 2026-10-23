@@ -155,6 +155,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [CNH V25 trial and complete metadata passages](143_CNH_V25_TRIAL_AND_COMPLETE_METADATA_PASSAGES_2026-10-23.md)
 - [CNH V26 private shadow pass](144_CNH_V26_PRIVATE_SHADOW_PASS_2026-10-23.md)
 - [CNH repeat and unseen-notice screening](145_CNH_REPEAT_AND_UNSEEN_NOTICE_SCREENING_2026-10-23.md)
+- [Signed suggestion replay-ticket foundation](141_SIGNED_SUGGESTION_REPLAY_TICKET_FOUNDATION_2026-10-22.md)
 
 - [Current-notice extraction, validation headroom and one private draft](82_CURRENT_NOTICE_EXTRACTION_AND_VALIDATION_HEADROOM_2026-10-16.md)
 
