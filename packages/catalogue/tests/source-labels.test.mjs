@@ -59,7 +59,7 @@ test('provider payload carries scoped skill and attendance hints while keeping o
     assert.equal(input.requirementSourcePolicy.lineHints.filter(h=>h.level==='required').length,2);
     return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(raw)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
   }});
-  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v26_groq_v7');map(result.extraction);assert.deepEqual(c,before);
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v27_groq_v7');map(result.extraction);assert.deepEqual(c,before);
 });
 
 test('explicit qualification and subject labels retain the slash wording and attached exclusion in one preferred passage',()=>{

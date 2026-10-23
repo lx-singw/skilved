@@ -16,6 +16,7 @@ import {assertExperienceEvidence, EXPERIENCE_EVIDENCE_INSTRUCTION} from './quali
 import {assertExperienceCompleteness,experienceCompletenessPolicy,EXPERIENCE_COMPLETENESS_INSTRUCTION} from './experience-completeness.mjs';
 import {assertResidenceEvidence, RESIDENCE_EVIDENCE_INSTRUCTION} from './residence-evidence.mjs';
 import {assertMetadataCompleteness, metadataCompletenessPolicy, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
+import {assertIssuerAttribution,issuerAttributionPolicy,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,96}$/);
 const text = z.string().min(1).max(4000);
@@ -83,7 +84,7 @@ A list introduced by one of the following is ANY.
 Separate alternatives into items; subjects required together stay in the same item's span as their qualification.
 Example: Grade 12 with Maths OR N3 with Maths and Science means two items under ANY, not three independent subject alternatives.
 If source logic is genuinely unclear use "unknown(firstLine,lastLine)" citing its actual line numbers and empty items.
-Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${LOCATION_SPAN_INSTRUCTION}${ATTENDANCE_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${EXPERIENCE_COMPLETENESS_INSTRUCTION}${RESIDENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}`;
+Do not use unknown to avoid a clear list of alternatives.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${LOCATION_SPAN_INSTRUCTION}${ATTENDANCE_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${EXPERIENCE_COMPLETENESS_INSTRUCTION}${RESIDENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}${ISSUER_ATTRIBUTION_INSTRUCTION}`;
 
 function sourceLines(candidate) {
   if (typeof candidate?.title !== 'string' || typeof candidate?.sourceText !== 'string') throw new DomainError('AI_INVALID_SOURCE');
@@ -97,6 +98,7 @@ export function groqExtractionPayload(candidate) {
     requirementSourcePolicy: requirementSourcePolicy(candidate),
     practicalEvidencePolicy: practicalEvidencePolicy(candidate),
     metadataCompletenessPolicy: metadataCompletenessPolicy(candidate),
+    issuerAttributionPolicy: issuerAttributionPolicy(candidate),
     locationEvidenceHints: locationEvidenceHints(candidate),
     locationSpanHints: locationSpanHints(candidate),
     attendanceEvidencePolicy: attendanceEvidencePolicy(candidate),
@@ -185,6 +187,7 @@ export function decodeGroqMetadata(input,candidate) {
     compensation: data.compensation.map(f => decodeFact(f)) };
   for (const key of ['issuer', 'summary', 'intake', 'location', 'residence', 'experience', 'deadline', 'practicalConditions']) decoded[key] = decodeFact(data[key], key);
   let parsed;try { parsed=ExtractionSchema.omit({requirements:true}).parse(decoded); } catch { fail(); }
+  assertIssuerAttribution(candidate,parsed.issuer);
   assertPracticalEvidence(candidate,parsed.practicalConditions);
   assertExperienceEvidence(candidate,parsed.experience);
   assertExperienceCompleteness(candidate,parsed.experience);

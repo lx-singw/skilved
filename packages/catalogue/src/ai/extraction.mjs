@@ -17,8 +17,9 @@ import {assertExperienceCompleteness, EXPERIENCE_COMPLETENESS_INSTRUCTION} from 
 import {assertResidenceEvidence, RESIDENCE_EVIDENCE_INSTRUCTION} from './residence-evidence.mjs';
 import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
 import {noticeMetadataPolicy,assertReferenceCompleteness} from './notice-metadata.mjs';
+import {assertIssuerAttribution,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v26';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v27';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -93,7 +94,7 @@ which belong in practicalConditions. Never substitute a generic contact address.
 Listed submissionInstructions may be required document items or complete practicalConditions
 instructions; preserve each full originalText in the value and evidence of the chosen field.
 Put a stated recruitment reference number in intake. Classify qualification requirements as education.
-Return only the requested JSON. Do not add confidence, review, approval or publication fields.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${LOCATION_SPAN_INSTRUCTION}${ATTENDANCE_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${EXPERIENCE_COMPLETENESS_INSTRUCTION}${RESIDENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}`;
+Return only the requested JSON. Do not add confidence, review, approval or publication fields.${PREFERRED_EXPRESSION_INSTRUCTION}${LOCATION_EVIDENCE_INSTRUCTION}${LOCATION_SPAN_INSTRUCTION}${ATTENDANCE_EVIDENCE_INSTRUCTION}${REQUIREMENT_SOURCE_INSTRUCTION}${PRACTICAL_EVIDENCE_INSTRUCTION}${EXPERIENCE_EVIDENCE_INSTRUCTION}${EXPERIENCE_COMPLETENESS_INSTRUCTION}${RESIDENCE_EVIDENCE_INSTRUCTION}${METADATA_COMPLETENESS_INSTRUCTION}${ISSUER_ATTRIBUTION_INSTRUCTION}`;
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = code => { throw new DomainError(code); };
@@ -107,6 +108,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
     extracted = ExtractionSchema.parse(input);
   } catch { fail('AI_INVALID_EXTRACTION'); }
   const corpus = `${candidate.title}\n${candidate.sourceText}`;
+  assertIssuerAttribution(candidate,extracted.issuer);
   const checkQuote = quote => { if (quote !== null && !corpus.includes(quote)) fail('AI_UNSUPPORTED_EVIDENCE'); };
   // Labelled reference codes identify the intake and must not disappear even if
   // a second model overlooks the omission. Unsupported formats remain for review.
