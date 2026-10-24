@@ -175,3 +175,5 @@ Apply the relevant specifications within the [delivery work packages](../plannin
 - [Private suggestion access and client foundation — 23 October 2026](154_PRIVATE_SUGGESTION_ACCESS_AND_CLIENT_FOUNDATION_2026-10-23.md)
 
 - [Suggestion form, receipts and native browser checks — 23 October 2026](155_SUGGESTION_FORM_RECEIPTS_AND_NATIVE_BROWSER_CHECKS_2026-10-23.md)
+
+- [Native suggestion replay and intake pause — 24 October 2026](156_NATIVE_SUGGESTION_REPLAY_AND_INTAKE_PAUSE_2026-10-24.md)
