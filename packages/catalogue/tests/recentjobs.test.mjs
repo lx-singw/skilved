@@ -98,6 +98,30 @@ test('programme emails stay separate while form-request addresses and unlabelled
   assert.notEqual(result.applicationCandidates[0].originalText,result.applicationCandidates[1].originalText);
 });
 
+test('mail-the-below recipients require an immediate numbered CV list and keep exact source evidence',()=>{
+  for(const prefix of ['If you are interested in this position, mail the below to – ',
+    'If you are interested in this role, email the following to: ', 'Please mail the following to - ']) {
+    const instruction=prefix+'Applications@employer.example';
+    const result=parseDetail(`<p>${instruction}</p><p>1. A CV (2 pages max)</p><p>2. Certificates</p>`);
+    assert.deepEqual(result.applicationCandidates,[{method:'email',destination:'Applications@employer.example',originalText:instruction,check:'pending'}]);
+    assert.equal(result.issues.includes('application_route_missing'),false);
+    assert.ok(result.sourceText.includes(instruction));
+  }
+  for(const [line,next]of [
+    ['Mail the below to – jobs@employer.example',''],
+    ['Mail the below to – jobs@employer.example','A CV'],
+    ['Mail the below to – jobs@employer.example','1. A contact list'],
+    ['For enquiries mail the below to – jobs@employer.example','1. A CV'],
+    ['Do not mail the below to – jobs@employer.example','1. A CV'],
+    ['Request an application form: jobs@employer.example','1. A CV'],
+    ['Mail the below to – first@employer.example and second@employer.example','1. A CV'],
+    ['Mail the below to – jobs@employer.example or apply online','1. A CV'],
+    ['Mail the below to – jobs@employer.example will not be accepted','1. A CV'],
+    ['Mail the below to – bad..address@employer.example','1. A CV'],
+    ['Mail the below to – https://jobs@employer.example/apply','1. A CV'],
+  ]) assert.deepEqual(parseDetail(`<p>${line}</p><p>${next}</p>`).applicationCandidates,[],line);
+});
+
 test('next-line application recipients preserve the heading, document instruction and original address', () => {
   for (const instruction of ['Email your CV, ID copy and qualifications to:', 'Send your CV to:', 'Submit applications to:']) {
     const result=parseDetail(`<h2>HOW TO APPLY</h2><p>${instruction}<br><strong>Applications@employer.example</strong></p>`);

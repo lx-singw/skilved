@@ -326,8 +326,8 @@ test('strict layout failures are remembered without inventing a parsed candidate
 test('a prior hold-policy version releases the notice after preflight policy changes', async () => {
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,cadenceHours:1});
   f.state.html=missingDeadline(); await f.worker.run(f.sourceId);
-  const ref=f.worker.ref('worker_holds',sourceHoldId(f)),hold=value(await ref.get()); assert.equal(hold.version,3);
-  await ref.set(payload({...hold,version:2})); f.state.html=detailHtml; f.advance(3600000);
+  const ref=f.worker.ref('worker_holds',sourceHoldId(f)),hold=value(await ref.get()); assert.equal(hold.version,4);
+  await ref.set(payload({...hold,version:3})); f.state.html=detailHtml; f.advance(3600000);
   const result=detailResult(await f.restart().run(f.sourceId)); assert.ok(result); assert.equal(result.published,false);
   assert.ok(f.now()<hold.recheckAt); assert.equal(value(await f.worker.ref('worker_jobs',hold.jobId).get()).state,'exception');
 });
@@ -343,6 +343,25 @@ test('a scoped next-line application email reaches a private draft through regis
   assert.equal(draft.applicationRoute.value.method,'email'); assert.equal(draft.applicationRoute.value.destination,'applications@employer.example');
   assert.equal(draft.publication.approved,false); assert.equal(f.state.modelCalls,1); assert.equal(f.state.validations,1);
   assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});
+
+test('mail-the-below discovery still requires the registered email and never sends mail or crawls an employer',async()=>{
+  for(const qualified of [true,false]){
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:true});
+    const instruction='If you are interested in this position, mail the below to – applications@employer.example',cv='1. A CV (2 pages max)';
+    f.state.html=detailHtml.replace('<a href="https://employer.example/apply">Apply now</a>',`<p>${instruction}</p><p>${cv}</p>`);
+    f.source.automation.issuers[0].emailAddresses=qualified?['applications@employer.example']:[];
+    await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+    f.worker.extractor=async()=>{f.state.modelCalls++;const x=syntheticExtraction();
+      x.practicalConditions={state:'stated',value:instruction+'\n'+cv,quote:instruction+'\n'+cv};
+      x.requirements.items.push({id:'cv',kind:'document',level:'required',fact:{state:'stated',quote:cv,value:{description:cv,qualification:null,document:null}}});
+      x.requirements.expression={op:'all',children:[x.requirements.expression,{op:'ref',id:'cv'}]};return {extraction:x,provenance:{usage:{totalTokens:20}}};};
+    const results=await f.worker.run(f.sourceId);assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+    if(qualified){const result=detailResult(results);assert.ok(result);const draft=value(await f.worker.ref('drafts',result.recordId).get());
+      assert.deepEqual(draft.applicationRoute.value,{method:'email',destination:'applications@employer.example'});assert.equal(draft.applicationRoute.originalText,instruction);
+      assert.equal(draft.publication.approved,false);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+    }else{assert.ok(results.results.some(r=>r.reason==='ISSUER_RELATIONSHIP_UNQUALIFIED'));assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);}
+  }
 });
 
 test('model rejection and semantic failure do not create source holds or suppress later retrievals', async () => {

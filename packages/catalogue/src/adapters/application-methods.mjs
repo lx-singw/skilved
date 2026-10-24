@@ -5,6 +5,8 @@ const address = /(?<![A-Za-z0-9_.@-])[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9
 const application = /\bapply\s*(?::|(?:by|via)\s+e-?mail\b|(?:to|at)\b)|\b(?:e-?mail|submit|send)\b[^\n]{0,160}\b(?:applications?|cv|curriculum vitae)\b|\bapplications?\b[^\n]{0,160}\b(?:to|e-?mail)\b/i;
 const recipient = /(?:\bto(?:\s+(?:e-?mail|address))?\s*:?[ \t]*|\b(?:by|via)\s+e-?mail\s*:?[ \t]*|\be-?mail(?:\s+address)?\s*:[ \t]*|\b(?:apply|applications?)\s*:[ \t]*)$/i;
 const excluded = /\b(?:enquir\w*|inquir\w*|queries|contact|request|forms?|do not|must not|cannot|not accepted|not be accepted|not permitted|not allowed|will not|no e-?mail|unsolicited)\b/i;
+const mailBelow = /^(?:if you are interested in this (?:position|role),\s*)?(?:please\s+)?(?:mail|e-?mail)\s+the\s+(?:below|following)\s+to\s*[:–—-]?\s*$/i;
+const firstCv = /^1[.)]\s+(?:an?\s+)?(?:cv|curriculum vitae)\b/i;
 
 /** Conservative discovery only: no recipient probes, inferred programme scope or approvals. */
 export function applicationMethods(sourceText) {
@@ -40,7 +42,13 @@ export function applicationMethods(sourceText) {
     if (excluded.test(line) || /\b(?:references?|referees?|contactable)\b[^\n]{0,60}\b(?:e-?mail|addresses?)\b/i.test(line) || /https?:\/\//i.test(line)) continue;
     const matches = [...line.matchAll(address)];
     const prefix = matches.length ? line.slice(0, matches[0].index) : '';
-    if (!matches.length || !application.test(prefix) || !recipient.test(prefix)) continue;
+    // "Mail the below to – address" is an application instruction only with
+    // its immediate numbered CV list. Never harvest a bare contact or infer
+    // additional recipients from an ambiguous/mixed continuation.
+    const belowApplication = matches.length === 1 && mailBelow.test(prefix.trim()) &&
+      firstCv.test(lines[index+1]?.trim() ?? '') &&
+      /^[\s.]*$/.test(line.slice(matches[0].index + matches[0][0].length));
+    if (!matches.length || !(application.test(prefix) && recipient.test(prefix) || belowApplication)) continue;
     for (const match of matches) {
       const destination = match[0].replace(/\.+$/, '');
       if (email.safeParse(destination).success) candidates.push({method:'email',destination,originalText:line,check:'pending'});
