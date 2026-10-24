@@ -108,6 +108,7 @@ test("canonical detail renders original instructions before explanation and actu
   const whatsapp = await load("lib/public-export-whatsapp.ts")
   const exporting = await load("components/catalogue/PublicChecklistExport.tsx", { "@/lib/public-export": exportCore, "@/lib/public-export-actions": exportActions, "@/lib/public-export-share": sharing, "@/lib/public-export-whatsapp": whatsapp })
   const settings = await load("lib/public-export-config.ts")
+  const metadata = await load("lib/public-opportunity-metadata.ts")
   let exportProps
   const page = await load("app/opportunities/[id]/page.tsx", {
     "next/link": { __esModule: true, default: ({ children, href, ...props }) => React.createElement("a", { href, ...props }, children) },
@@ -117,6 +118,7 @@ test("canonical detail renders original instructions before explanation and actu
     "@/components/catalogue/PreparationChecklist": preparation,
     "@/components/catalogue/PublicChecklistExport": { PublicChecklistExport: props => { exportProps = props; return React.createElement(exporting.PublicChecklistExport, props) } },
     "@/lib/public-export-config": { publicExportSettings: () => settings.publicExportSettings({ SKILVED_PUBLIC_ORIGIN: "https://skilved.example", SECRET: "PRIVATE_ENV_SENTINEL" }) },
+    "@/lib/public-opportunity-metadata": metadata,
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
     "@/components/catalogue/EntryStage": stage,

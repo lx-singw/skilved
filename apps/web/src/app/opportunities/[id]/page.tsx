@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { cache } from "react"
 import { notFound } from "next/navigation"
 import { CATEGORY_LABELS } from "@skilved/types/opportunities"
 import { Header } from "@/components/layout/Header"
@@ -13,13 +14,22 @@ import { OpportunityContext, OpportunityConditions } from "@/components/catalogu
 import { ApplicationRouteLink, SaveOpportunity } from "@/components/catalogue/SavedProgress"
 import { PublicChecklistExport } from "@/components/catalogue/PublicChecklistExport"
 import { publicExportSettings } from "@/lib/public-export-config"
+import { publicOpportunityMetadata } from "@/lib/public-opportunity-metadata"
 
 export const dynamic = "force-dynamic"
+// React request memoization: metadata and body share one current read, never a cross-request snapshot.
+const readCurrentOpportunity = cache(readOpportunity)
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const result = await readCurrentOpportunity(id)
+  return publicOpportunityMetadata(result, publicExportSettings().origin, new Date().toISOString())
+}
 
 export default async function OpportunityPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params
   const back = catalogueReturnHref((await searchParams)?.from, id)
-  const result = await readOpportunity(id)
+  const result = await readCurrentOpportunity(id)
   if (!result) notFound()
   if (result.kind === "unavailable") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
     <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
