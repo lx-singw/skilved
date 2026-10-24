@@ -11,6 +11,8 @@ import { catalogueReturnHref } from "@/lib/catalogue-query"
 import { EntryStage } from "@/components/catalogue/EntryStage"
 import { OpportunityContext, OpportunityConditions } from "@/components/catalogue/OpportunityConditions"
 import { ApplicationRouteLink, SaveOpportunity } from "@/components/catalogue/SavedProgress"
+import { PublicChecklistExport } from "@/components/catalogue/PublicChecklistExport"
+import { publicExportSettings } from "@/lib/public-export-config"
 
 export const dynamic = "force-dynamic"
 
@@ -54,6 +56,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
       <p className="mt-4 text-sm text-muted-foreground">Follow the application method stated in the notice. Skilved rechecks the listing before opening a portal or your email app; you complete and submit the application yourself.</p>
     </section>
     <PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} />
+    <PublicChecklistExport id={o.id} origin={publicExportSettings().origin} />
     <RequirementExplanation opportunity={o} />
     <EntryStage opportunity={o} />
     <OpportunityConditions opportunity={o} />

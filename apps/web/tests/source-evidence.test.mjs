@@ -102,12 +102,19 @@ test("canonical detail renders original instructions before explanation and actu
   const report = await load("components/catalogue/OpportunityReport.tsx")
   const stage = await load("components/catalogue/EntryStage.tsx")
   const conditions = await load("components/catalogue/OpportunityConditions.tsx")
+  const exportCore = await load("lib/public-export.ts")
+  const exportActions = await load("lib/public-export-actions.ts", { "./public-export": exportCore })
+  const exporting = await load("components/catalogue/PublicChecklistExport.tsx", { "@/lib/public-export": exportCore, "@/lib/public-export-actions": exportActions })
+  const settings = await load("lib/public-export-config.ts")
+  let exportProps
   const page = await load("app/opportunities/[id]/page.tsx", {
     "next/link": { __esModule: true, default: ({ children, href, ...props }) => React.createElement("a", { href, ...props }, children) },
     "@/components/layout/Header": { Header: () => null },
     "@/components/catalogue/PublicCatalogue": { placeLabel: () => "Synthetic place" },
     "@/lib/public-catalogue": { readOpportunity: async () => result },
     "@/components/catalogue/PreparationChecklist": preparation,
+    "@/components/catalogue/PublicChecklistExport": { PublicChecklistExport: props => { exportProps = props; return React.createElement(exporting.PublicChecklistExport, props) } },
+    "@/lib/public-export-config": { publicExportSettings: () => settings.publicExportSettings({ SKILVED_PUBLIC_ORIGIN: "https://skilved.example", SECRET: "PRIVATE_ENV_SENTINEL" }) },
     "@/components/catalogue/OpportunityReport": report,
     "@/components/catalogue/SourceEvidence": components,
     "@/components/catalogue/EntryStage": stage,
@@ -116,6 +123,9 @@ test("canonical detail renders original instructions before explanation and actu
     "@/lib/catalogue-query": navigation,
   })
   const html = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
+  assert.deepEqual(exportProps, { id: o.id, origin: "https://skilved.example" })
+  assert.match(html, /Take a public checklist with you/)
+  assert.doesNotMatch(html, /PRIVATE_ENV_SENTINEL/)
   assert.ok(html.indexOf("Requirements and preparation checklist") < html.indexOf("Reviewed explanation"))
   assert.ok(html.indexOf("Reviewed explanation") < html.indexOf("Sources and checks"))
   assert.match(html, /Application route linked to the notice/)
@@ -143,12 +153,12 @@ test("canonical detail renders original instructions before explanation and actu
   const held = renderToStaticMarkup(await page.default(context))
   assert.match(held, /needs a fresh check/)
   assert.ok(held.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
-  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|About this opportunity|Experience and practical conditions|Pay and support|\/apply\?revision/)
+  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|About this opportunity|Experience and practical conditions|Pay and support|Take a public checklist|\/apply\?revision/)
   result = { kind: "unavailable" }
   const unavailable = renderToStaticMarkup(await page.default(context))
   assert.match(unavailable, /We couldn’t load this opportunity/)
   assert.match(unavailable, /does not establish that the listing has closed or been removed/)
   assert.ok(unavailable.includes(`href="/opportunities/${o.id}?from=%2F%3Fprovince%3Dgauteng%26remote%3Dfalse%26limit%3D1"`))
   assert.ok(unavailable.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
-  assert.doesNotMatch(unavailable, /Sources and checks|About this opportunity|\/apply\?revision|PRIVATE_/)
+  assert.doesNotMatch(unavailable, /Sources and checks|About this opportunity|Take a public checklist|\/apply\?revision|PRIVATE_/)
 })
