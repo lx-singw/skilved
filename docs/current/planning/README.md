@@ -1,6 +1,6 @@
 # Planning documentation
 
-Updated: 24 September 2026. Phases, chronological M0 tasks, capacity-sized sprints, delivery status and cross-discipline gates.
+Updated: 24 October 2026. Phases, chronological M0 tasks, capacity-sized sprints, delivery status and cross-discipline gates.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
@@ -13,6 +13,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - **Latest B04 packet:** [Preparation checklist and report UI](11_B04_PREPARATION_AND_REPORT_PACKET.md).
 - **Build local save/resume:** [B05 implementation sequence and acceptance](12_B05_LOCAL_CONTINUITY_IMPLEMENTATION_PLAN.md).
 - **Build safe public-link suggestions:** [B06 implementation sequence and acceptance](13_B06_SUGGESTIONS_IMPLEMENTATION_PLAN.md).
+- **Build public checklist export/share:** [B07 implementation sequence and acceptance](14_B07_PUBLIC_EXPORT_IMPLEMENTATION_PLAN.md).
 - **Execute the next iteration:** [Detailed B01 carry-over and B02 implementation plan](06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md) — ordered tasks, capacity, contracts, tests, evidence and handoff.
 
 - [M0 detailed delivery B01–B10 and estimates](03_M0_COMPANION_DELIVERY_PLAN.md)

@@ -179,3 +179,5 @@ Apply the relevant specifications within the [delivery work packages](../plannin
 - [Native suggestion replay and intake pause — 24 October 2026](156_NATIVE_SUGGESTION_REPLAY_AND_INTAKE_PAUSE_2026-10-24.md)
 
 - [Native suggestion results and progress isolation — 24 October 2026](157_NATIVE_SUGGESTION_RESULTS_AND_PROGRESS_ISOLATION_2026-10-24.md)
+
+- [Public checklist whitelist formatter — 24 October 2026](158_PUBLIC_CHECKLIST_WHITELIST_FORMATTER_2026-10-24.md)
