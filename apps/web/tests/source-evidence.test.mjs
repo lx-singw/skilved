@@ -104,7 +104,9 @@ test("canonical detail renders original instructions before explanation and actu
   const conditions = await load("components/catalogue/OpportunityConditions.tsx")
   const exportCore = await load("lib/public-export.ts")
   const exportActions = await load("lib/public-export-actions.ts", { "./public-export": exportCore })
-  const exporting = await load("components/catalogue/PublicChecklistExport.tsx", { "@/lib/public-export": exportCore, "@/lib/public-export-actions": exportActions })
+  const sharing = await load("lib/public-export-share.ts")
+  const whatsapp = await load("lib/public-export-whatsapp.ts")
+  const exporting = await load("components/catalogue/PublicChecklistExport.tsx", { "@/lib/public-export": exportCore, "@/lib/public-export-actions": exportActions, "@/lib/public-export-share": sharing, "@/lib/public-export-whatsapp": whatsapp })
   const settings = await load("lib/public-export-config.ts")
   let exportProps
   const page = await load("app/opportunities/[id]/page.tsx", {

@@ -1,11 +1,13 @@
 import { type PublicChecklistExport } from "@skilved/types/opportunities"
 import { createPublicExportReader, type createPublicExportPreparer } from "./public-export"
 import { type NativeShareOutcome } from "./public-export-share"
+import { type WhatsAppOutcome } from "./public-export-whatsapp"
 
-export type ExportIntent = "preview" | "copy" | "download" | "share"
+export type ExportIntent = "preview" | "copy" | "download" | "share" | "whatsapp"
 export type ExportView = { kind: "idle" | "reading" | "acting" | "ready" | "disabled"; payload?: PublicChecklistExport; message: string }
-type Effects = { copy: (text: string) => Promise<void>; download: (payload: PublicChecklistExport) => void | Promise<void>; share?: (text: string) => Promise<NativeShareOutcome> }
+type Effects = { copy: (text: string) => Promise<void>; download: (payload: PublicChecklistExport) => void | Promise<void>; share?: (text: string) => Promise<NativeShareOutcome>; whatsapp?: (payload: PublicChecklistExport) => WhatsAppOutcome | Promise<WhatsAppOutcome> }
 const SHARE_UNAVAILABLE = "Sharing is unavailable here. Select the public preview text to copy it yourself."
+const WHATSAPP_UNAVAILABLE = "Couldn’t request WhatsApp compose. You can copy or download the public preview instead. App opening and delivery are not confirmed."
 
 /** Effects receive only a freshly prepared public result. Browser persistence is never read here. */
 export function createPublicExportActions(id: string, prepare: ReturnType<typeof createPublicExportPreparer>, publish: (view: ExportView) => void, effects: Effects) {
@@ -30,9 +32,17 @@ export function createPublicExportActions(id: string, prepare: ReturnType<typeof
         const payload = result.payload
         const fallback = payload.kind === "link" ? "Only a public reference is available. Current checklist details and the application destination are omitted. " : ""
         if (intent === "preview") { emit({ kind: "ready", payload, message: fallback + "Preview ready. Any later copy or download checks the details again." }); return }
-        emit({ kind: "acting", payload, message: fallback + (intent === "share" ? "Requesting native sharing…" : intent === "copy" ? "Copying public text…" : "Requesting a text-file download…") })
+        emit({ kind: "acting", payload, message: fallback + (intent === "whatsapp" ? "Requesting WhatsApp compose…" : intent === "share" ? "Requesting native sharing…" : intent === "copy" ? "Copying public text…" : "Requesting a text-file download…") })
         if (!active()) return
         try {
+          if (intent === "whatsapp") {
+            const outcome = await effects.whatsapp?.(payload)
+            const message = outcome?.kind !== "requested" ? WHATSAPP_UNAVAILABLE
+              : (outcome.content === "link" ? "Only the public link was passed to WhatsApp because the full text could not fit safely. Copy or download the preview for the full text. " : "WhatsApp compose requested with the dated public text. ")
+                + "You choose the recipient and send it yourself. App opening and delivery are not confirmed."
+            if (active()) emit({ kind: "ready", payload, message: fallback + message })
+            return
+          }
           if (intent === "share") {
             const outcome = await effects.share?.(payload.text)
             const message = outcome === "handed_off" ? "Share handoff completed. Delivery is not confirmed."
@@ -45,7 +55,7 @@ export function createPublicExportActions(id: string, prepare: ReturnType<typeof
           else await effects.download(payload)
           if (active()) emit({ kind: "ready", payload, message: fallback + (intent === "copy" ? "Public text copied." : "Text-file download requested. Check your browser’s downloads.") })
         } catch {
-          if (active()) emit({ kind: "ready", payload, message: fallback + (intent === "share" ? SHARE_UNAVAILABLE : intent === "copy" ? "Couldn’t copy automatically. Select the preview text and copy it yourself." : "Couldn’t request the download. You can select and copy the preview text.") })
+          if (active()) emit({ kind: "ready", payload, message: fallback + (intent === "whatsapp" ? WHATSAPP_UNAVAILABLE : intent === "share" ? SHARE_UNAVAILABLE : intent === "copy" ? "Couldn’t copy automatically. Select the preview text and copy it yourself." : "Couldn’t request the download. You can select and copy the preview text.") })
         }
       } finally { if (active()) busy = false }
     },
