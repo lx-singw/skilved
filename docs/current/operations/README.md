@@ -177,3 +177,5 @@ Apply the relevant specifications within the [delivery work packages](../plannin
 - [Suggestion form, receipts and native browser checks — 23 October 2026](155_SUGGESTION_FORM_RECEIPTS_AND_NATIVE_BROWSER_CHECKS_2026-10-23.md)
 
 - [Native suggestion replay and intake pause — 24 October 2026](156_NATIVE_SUGGESTION_REPLAY_AND_INTAKE_PAUSE_2026-10-24.md)
+
+- [Native suggestion results and progress isolation — 24 October 2026](157_NATIVE_SUGGESTION_RESULTS_AND_PROGRESS_ISOLATION_2026-10-24.md)
