@@ -11,11 +11,13 @@ export type PublicChecklistExport = {
   filename: string;
 };
 
+export const PublicChecklistOriginSchema = z.string().max(2048).refine(value => {
+  try { const u = new URL(value); return u.protocol === 'https:' && u.origin === value; }
+  catch { return false; }
+}, 'Expected a trusted HTTPS origin without path, credentials, query or fragment');
+
 const Context = JsonBoundarySchema.pipe(z.object({
-  origin: z.string().max(2048).refine(value => {
-    try { const u = new URL(value); return u.protocol === 'https:' && u.origin === value; }
-    catch { return false; }
-  }, 'Expected a trusted HTTPS origin without path, credentials, query or fragment'),
+  origin: PublicChecklistOriginSchema,
   id: IdSchema,
   exportedAt: InstantSchema,
 }).strict());

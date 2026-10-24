@@ -8,5 +8,5 @@ export { EntryStageSchema, EntryStagesSchema, ENTRY_STAGE_LABELS } from './value
 export type { EntryStage } from './values';
 export * from './api';
 export * from './local-progress';
-export { formatPublicChecklist, PUBLIC_CHECKLIST_MAX_BYTES } from './public-checklist';
+export { formatPublicChecklist, PublicChecklistOriginSchema, PUBLIC_CHECKLIST_MAX_BYTES } from './public-checklist';
 export type { PublicChecklistExport } from './public-checklist';

@@ -181,3 +181,5 @@ Apply the relevant specifications within the [delivery work packages](../plannin
 - [Native suggestion results and progress isolation — 24 October 2026](157_NATIVE_SUGGESTION_RESULTS_AND_PROGRESS_ISOLATION_2026-10-24.md)
 
 - [Public checklist whitelist formatter — 24 October 2026](158_PUBLIC_CHECKLIST_WHITELIST_FORMATTER_2026-10-24.md)
+
+- [Public export current-read and origin boundary — 24 October 2026](159_PUBLIC_EXPORT_CURRENT_READ_AND_ORIGIN_BOUNDARY_2026-10-24.md)
