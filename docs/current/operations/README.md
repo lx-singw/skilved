@@ -166,6 +166,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Source-bound optional direction comparison](168_SOURCE_BOUND_OPTIONAL_DIRECTION_COMPARISON_2026-10-25.md)
 - [PepsiCo original-route review](169_PEPSICO_ORIGINAL_ROUTE_REVIEW_2026-10-25.md)
 - [Extended dated-notice screen](170_EXTENDED_DATED_NOTICE_SCREEN_2026-10-25.md)
+- [Bound copied-description layout](171_BOUND_COPIED_DESCRIPTION_LAYOUT_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

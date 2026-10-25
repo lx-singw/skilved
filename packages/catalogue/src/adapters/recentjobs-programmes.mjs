@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { DomainError } from '../config.mjs';
-import {RECENTJOBS_ADAPTER,RECENTJOBS_BOUND_DETAIL_ADAPTER} from './recentjobs.mjs';
+import {RECENTJOBS_ADAPTER,RECENTJOBS_BOUND_DETAIL_ADAPTER,RECENTJOBS_COPIED_DESCRIPTION_ADAPTER} from './recentjobs.mjs';
 
 export const PROGRAMME_PLAN_VERSION = 'recentjobs_programme_plan_v2';
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -64,7 +64,7 @@ function subjectPlan(candidate,base,lines) {
 }
 /** Private source-bound planning only. No record creation, eligibility decisions or fetching. */
 export function planRecentJobsProgrammes(candidate) {
-  if (![RECENTJOBS_ADAPTER,RECENTJOBS_BOUND_DETAIL_ADAPTER].includes(candidate?.adapter) || typeof candidate.title !== 'string' ||
+  if (![RECENTJOBS_ADAPTER,RECENTJOBS_BOUND_DETAIL_ADAPTER,RECENTJOBS_COPIED_DESCRIPTION_ADAPTER].includes(candidate?.adapter) || typeof candidate.title !== 'string' ||
       typeof candidate.sourceText !== 'string' || !candidate.title || !candidate.sourceText || candidate.title.length > 500 || candidate.sourceText.length > 20_000 ||
       typeof candidate.sourceUrl !== 'string' || !/^https:\/\/recentjobs\.co\.za\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i.test(candidate.sourceUrl) ||
       candidate.sourceRecordId !== hash(candidate.sourceUrl) || !/^[a-f0-9]{64}$/.test(candidate.contentHash ?? '') ||

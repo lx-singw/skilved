@@ -7,6 +7,7 @@ import { applicationMethods } from './application-methods.mjs';
 // source permissions or instructions to fetch an application destination.
 export const RECENTJOBS_ADAPTER = 'recentjobs_html_v1';
 export const RECENTJOBS_BOUND_DETAIL_ADAPTER = 'recentjobs_html_bound_detail_v2';
+export const RECENTJOBS_COPIED_DESCRIPTION_ADAPTER = 'recentjobs_html_copied_description_v1';
 const ARTICLE_PATH = /^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i;
 const LIST_PATH = /^\/category\/apprenticeships\/(?:page\/([1-9]\d*)\/)?$/;
 const IGNORE_TAGS = new Set(['script', 'style', 'iframe', 'noscript', 'template', 'svg', 'form', 'aside', 'nav', 'footer']);
@@ -77,21 +78,7 @@ const ancestor = (node, predicate) => {
 };
 const within = (node, parent) => ancestor(node, n => n === parent) !== null;
 
-function detailBinding(root, url) {
-  const candidates = posts(root);
-  if (candidates.length === 1) {
-    const post = candidates[0];
-    if (find(post, n => n.tagName === 'article').length !== 1) fail('RECENTJOBS_LAYOUT_CHANGED');
-    return { post, content: one(find(post, n => hasClass(n, 'entry-content'))), adapter: RECENTJOBS_ADAPTER };
-  }
-  // One known unheaded template wrapper may live inside the complete outer body.
-  // Bind the outer notice to page identity; retain its introduction AND nested
-  // body. Independent embedded notices and unfamiliar structures stay held.
-  if (candidates.length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
-  const post = one(candidates.filter(n => !ancestor(n, p => p.tagName === 'article')));
-  const nested = candidates.find(n => n !== post);
-  if (!hasClass(nested, 'sensy-entry') || ancestor(nested, n => n.tagName === 'article') !== post ||
-      find(post, n => n.tagName === 'article').length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+function bindPageIdentity(root, url, post) {
   const body = one(find(root, n => n.tagName === 'body'));
   const identity = one(classes(body).filter(c => /^postid-\d{1,12}$/.test(c))).slice(7);
   const main = one(find(root, n => n.tagName === 'main' && attr(n, 'id') === 'main' && hasClass(n, 'site-main')));
@@ -103,8 +90,50 @@ function detailBinding(root, url) {
   try { target = sourceUrl(new URL(attr(canonical, 'href'), url).href, 'detail'); } catch { fail('RECENTJOBS_LAYOUT_CHANGED'); }
   if (canonical.parentNode?.tagName !== 'head' || target !== url) fail('RECENTJOBS_LAYOUT_CHANGED');
   const title = one(find(post, n => n.tagName === 'h1' && hasClass(n, 'entry-title')));
-  if (ancestor(title, n => n.tagName === 'article') !== post ||
+  if (ancestor(title, n => n.tagName === 'article') !== post) fail('RECENTJOBS_LAYOUT_CHANGED');
+}
+
+// A copied, unheaded description is content of this notice, not a second post.
+// Keep the complete outer body; only this exact structural wrapper is admitted.
+function copiedDescription(root, url, post, articles) {
+  if (articles.length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+  bindPageIdentity(root, url, post);
+  const content = one(find(post, n => hasClass(n, 'entry-content'))), nested = articles.find(n => n !== post);
+  const expected = ['jobs-description__container', 'jobs-description__container--condensed'];
+  if (classes(nested).length !== expected.length || !expected.every(c => hasClass(nested, c)) ||
+      nested.attrs.some(a => a.name !== 'class') || !within(nested, content) ||
+      ancestor(nested, n => n.tagName === 'article') !== post ||
       find(nested, n => n.tagName === 'h1' || hasClass(n, 'entry-title') || hasClass(n, 'entry-header') ||
+        n.tagName === 'time').length) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const description = one(find(nested, n => hasClass(n, 'jobs-description__content')));
+  const details = one(find(post, n => attr(n, 'id') === 'job-details'));
+  const onlyChild = (parent, child) => (parent.childNodes ?? []).every(n => n === child ||
+    n.nodeName === '#comment' || n.nodeName === '#text' && !n.value.trim());
+  if (description.tagName !== 'div' || !hasClass(description, 'jobs-description-content') ||
+      !hasClass(description, 'jobs-description__content--condensed') || description.parentNode !== nested ||
+      details.tagName !== 'div' || !hasClass(details, 'jobs-box__html-content') || details.parentNode !== description ||
+      !onlyChild(nested, description) || !onlyChild(description, details)) fail('RECENTJOBS_LAYOUT_CHANGED');
+  return { post, content, adapter: RECENTJOBS_COPIED_DESCRIPTION_ADAPTER };
+}
+
+function detailBinding(root, url) {
+  const candidates = posts(root);
+  if (candidates.length === 1) {
+    const post = candidates[0];
+    const articles = find(post, n => n.tagName === 'article');
+    if (articles.length !== 1) return copiedDescription(root, url, post, articles);
+    return { post, content: one(find(post, n => hasClass(n, 'entry-content'))), adapter: RECENTJOBS_ADAPTER };
+  }
+  // One known unheaded template wrapper may live inside the complete outer body.
+  // Bind the outer notice to page identity; retain its introduction AND nested
+  // body. Independent embedded notices and unfamiliar structures stay held.
+  if (candidates.length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+  const post = one(candidates.filter(n => !ancestor(n, p => p.tagName === 'article')));
+  const nested = candidates.find(n => n !== post);
+  if (!hasClass(nested, 'sensy-entry') || ancestor(nested, n => n.tagName === 'article') !== post ||
+      find(post, n => n.tagName === 'article').length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
+  bindPageIdentity(root, url, post);
+  if (find(nested, n => n.tagName === 'h1' || hasClass(n, 'entry-title') || hasClass(n, 'entry-header') ||
         n.tagName === 'time' && hasClass(n, 'published')).length) fail('RECENTJOBS_LAYOUT_CHANGED');
   const contents = find(post, n => hasClass(n, 'entry-content'));
   if (contents.length !== 2) fail('RECENTJOBS_LAYOUT_CHANGED');
