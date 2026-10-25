@@ -82,6 +82,8 @@ export class RecentJobsWorker {
       const raw = value(await tx.get(this.ref('sources', sourceId)));
       if (!grant?.active || grant.principal !== this.principal || !grant.sources?.includes(sourceId) ||
           !grant.roles?.includes('ingest') || (publishing && !grant.roles.includes('publish'))) fail('WORKER_FORBIDDEN');
+      if (grant.expiresAt !== undefined && (!InstantSchema.safeParse(grant.expiresAt).success || Date.parse(grant.expiresAt) <= Date.parse(this.now())))
+        fail('WORKER_FORBIDDEN');
       if (!raw) fail('SOURCE_PAUSED');
       const source = Source.parse(raw);
       if (this.provider === 'gemini' && source.automation?.mode !== 'shadow') fail('GEMINI_SHADOW_ONLY');

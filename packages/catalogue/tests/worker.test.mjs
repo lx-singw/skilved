@@ -50,6 +50,39 @@ before(async () => {
 });
 after(async () => { await db?.terminate(); });
 
+test('expired or malformed temporary grants reject before scheduling, fetching or spending',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false});
+ for(const expiresAt of [f.now(),'2026-09-26T10:00:00Z','2026-09-26T09:59:59.999Z','invalid',null]){
+  const ref=f.worker.ref('workers',f.worker.actor),grant=(await ref.get()).data();
+  await ref.set({...grant,expiresAt});
+  await assert.rejects(f.worker.run(f.sourceId),{code:'WORKER_FORBIDDEN'});
+ }
+ assert.equal(f.state.requests.length,0);assert.equal(f.state.modelCalls,0);
+ assert.equal((await f.worker.ref('worker_leases',f.sourceId).get()).exists,false);
+});
+
+test('grant expiry after claim and during pacing prevents a source request',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false});
+ const ref=f.worker.ref('workers',f.worker.actor),grant=(await ref.get()).data();
+ await ref.set({...grant,expiresAt:'2026-09-26T10:00:01.000Z'});
+ const worker=f.restart({sleep:async()=>f.advance(1000)});
+ const claim=await worker.claim(f.sourceId,await worker.schedule(f.sourceId));
+ await assert.rejects(worker.request(claim,RECENTJOBS_INDEX,'html'),{code:'WORKER_FORBIDDEN'});
+ assert.equal(f.state.requests.length,0);
+});
+
+test('expiry during an admitted call never refunds its reserved source allowance',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false});
+ const ref=f.worker.ref('workers',f.worker.actor),grant=(await ref.get()).data();
+ await ref.set({...grant,expiresAt:'2026-09-26T10:00:01.000Z'});
+ const claim=await f.worker.claim(f.sourceId,await f.worker.schedule(f.sourceId));
+ await assert.rejects(f.worker.modelCall(claim,'extract',async()=>{
+  f.advance(1000);return {provenance:{usage:{totalTokens:1}}};
+ }),{code:'WORKER_FORBIDDEN'});
+ const id=createHash('sha256').update(`${f.sourceId}:2026-09-26`).digest('hex');
+ assert.equal(value(await f.worker.ref('model_budgets',id).get()).calls,1);
+});
+
 function authorityOptions(f, providerProject = `authored-${randomUUID()}`, limits = {}) {
   const env = {...geminiEnv, SKILVED_GEMINI_PROJECT_ID:providerProject,
     SKILVED_GEMINI_AUTHORITY_PROJECT:db.projectId, SKILVED_GEMINI_AUTHORITY_EPOCH:'a'.repeat(64),
