@@ -124,6 +124,31 @@ const sourceHoldId = f => createHash('sha256').update(`${f.sourceId}:${detailUrl
 const missingDeadline = () => detailHtml.replace('<p>Closing date: 30 October 2026</p>', '<p>Closing date: not stated</p>');
 const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs.map(value).filter(x => x.sourceId === f.sourceId);
 
+test('an explicitly written compound-location country cannot disappear before validation or private drafting',async()=>{
+  const place='Job Location: Exampletown – Gauteng – South Africa';
+  for(const complete of [false,true]){
+    const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});
+    f.state.html=detailHtml.replace('<p>Closing date:',`<p>${place}</p><p>Closing date:`);
+    f.worker.extractor=async()=>{
+      f.state.modelCalls++;const x=syntheticExtraction();x.location={state:'stated',quote:place,value:{places:[{city:'Exampletown',province:'gauteng',country:complete?'ZA':null}],coverage:'not_stated',attendance:'not_stated',relocation:null}};
+      return {extraction:x,provenance:{usage:{totalTokens:20}}};
+    };
+    const result=await f.worker.run(f.sourceId);assert.equal(f.state.modelCalls,1);
+    if(!complete){
+      assert.ok(result.results.some(r=>r.reason==='AI_LOCATION_COMPLETENESS_UNRESOLVED'));assert.equal(f.state.validations,0);
+      const job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');
+      assert.equal((await f.worker.ref('worker_candidates',job.id).get()).exists,false);
+      assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
+      assert.equal((await f.worker.ref('public',job.recordId).get()).exists,false);
+    }else{
+      const row=detailResult(result);assert.ok(row);assert.equal(f.state.validations,1);assert.equal(row.published,false);
+      const record=value(await f.worker.ref('drafts',row.recordId).get());assert.equal(record.location.value.places[0].country,'ZA');
+      assert.equal(record.applicationRoute.value.destination,'https://employer.example/apply');
+    }
+    assert.equal((await sourceRows(f,'model_calls')).length,complete?2:1);
+  }
+});
+
 test('source-label checks stop incomplete skills, qualification groups and location evidence before validation or private drafting',async()=>{
   for(const scenario of ['missing_skill','incomplete_location','split_qualification','complete']) {
     const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=labelHtml;

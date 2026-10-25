@@ -92,3 +92,56 @@ test('ordinary and split provider calls preserve usage and stop after one semant
     assert.equal(calls,1);assert.deepEqual(data,original);
   }
 });
+
+test('qualified three-part location lines retain an explicit country without inferring it from other places',()=>{
+  for(const label of ['Job location','Work location','Training location'])for(const country of ['South Africa','ZA','za'])for(const separator of [' – ',' — ',' - ']){
+    const text=label+': Exampletown'+separator+'Gauteng'+separator+country,s=source(text),full=fact(text,[place('Exampletown','gauteng','ZA')]);
+    assert.doesNotThrow(()=>assertLocationCompleteness(s,full));
+    for(const change of [x=>{x.value.places[0].country=null;},x=>{x.value.places[0].country='US';},x=>{x.quote='Gauteng';}]){
+      const x=structuredClone(full);change(x);const before=structuredClone(x);rejects(()=>assertLocationCompleteness(s,x));assert.deepEqual(x,before);
+    }
+    rejects(()=>assertLocationCompleteness(s,absent));
+  }
+});
+
+test('compound country enforcement abstains from ambiguous, unlabelled, excluded and unwritten countries',()=>{
+  for(const text of ['Job location: Exampletown – Gauteng','Location: Exampletown – Gauteng – South Africa',
+    'Company address: Exampletown – Gauteng – South Africa','Job location: Exampletown or North End – Gauteng – South Africa',
+    'Job location: Exampletown – Gauteng – South Africa if selected','Job location: Head Office – Gauteng – South Africa',
+    'Job location: Exampletown – Gauteng – not South Africa','Job location: Exampletown – Gauteng – Country not stated',
+    'Job location: Exampletown – Gauteng – South Africa – Other place','Job location: Exampletown – Gauteng – Namibia',
+    'Documents to prepare\nJob location: Exampletown – Gauteng – South Africa',
+    'Join our WhatsApp group. Job location: Exampletown – Gauteng – South Africa'])
+    assert.doesNotThrow(()=>assertLocationCompleteness(source(text),absent),text);
+  const c={...source('Job location: Exampletown – Gauteng – South Africa'),programmeScope:{includedSpans:[[1,1]]}};
+  assert.doesNotThrow(()=>assertLocationCompleteness(c,absent));
+  // A written province/city without country stays representable with country null.
+  const text='Job location: Exampletown – Gauteng';assert.doesNotThrow(()=>assertLocationCompleteness(source(text),fact(text,[place('Exampletown','gauteng')])));
+});
+
+const compound='Job Location: Exampletown – Gauteng – South Africa';
+function compoundFixture(complete) {
+  const c={...candidate,sourceText:candidate.sourceText.replace(workBase+'\n'+province,compound)};
+  const x=completenessExtraction();x.location=fact(compound,[place('Exampletown','gauteng',complete?'ZA':null)]);
+  const wire=completenessWire(),line=(c.title+'\n'+c.sourceText).split('\n').indexOf(compound)+1;
+  wire.location={state:'stated',value:structuredClone(x.location.value),span:[line,line]};
+  return {c,x,wire};
+}
+
+test('ordinary/split decoding and canonical mapping reject unchanged compound-country omissions',()=>{
+  const {c,x,wire}=compoundFixture(false),{requirements,...metadata}=wire,before=structuredClone({c,x,wire});
+  rejects(()=>decodeGroqExtraction(wire,c));rejects(()=>decodeGroqMetadata(metadata,c));
+  rejects(()=>mapExtraction(c,x,{sourceId:'compound_country',now:'2026-10-25T10:00:00.000Z'}));assert.deepEqual({c,x,wire},before);
+  const full=compoundFixture(true);assert.equal(mapExtraction(full.c,decodeGroqExtraction(full.wire,full.c),{sourceId:'compound_country',now:'2026-10-25T10:00:00.000Z'}).record.location.value.places[0].country,'ZA');
+  assert.equal(Object.hasOwn(groqExtractionPayload(c),'compoundCountryObligations'),false);
+});
+
+test('compound country omissions stop ordinary/split providers after one spent answer with usage intact',async()=>{
+  for(const split of [false,true]){
+    const {c,wire}=compoundFixture(false),{requirements,...metadata}=wire,data=split?metadata:wire,before=structuredClone(data);let calls=0;
+    await assert.rejects((split?extractMetadata:extractWithProvider)(c,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_compound_country',SKILVED_AI_FALLBACK:'true'},fetchImpl:async()=>{
+      calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
+    }}),e=>e.code==='AI_LOCATION_COMPLETENESS_UNRESOLVED'&&e.usage.totalTokens===15);
+    assert.equal(calls,1);assert.deepEqual(data,before);
+  }
+});

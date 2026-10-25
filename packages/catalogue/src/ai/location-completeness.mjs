@@ -47,10 +47,26 @@ export function locationCompletenessPolicy(candidate) {
   return {version:'source_location_completeness_v1',obligations};
 }
 
+// This is an enforcement-only check. Advisory spans and model requests stay
+// unchanged; a province or city never supplies an unwritten country.
+function compoundCountryObligations(candidate) {
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n');
+  const excluded=practicalEvidencePolicy(candidate).publisherPreparationSpans;
+  return lines.flatMap((line,index)=>{
+    if(excluded.some(([first,last])=>index+1>=first&&index+1<=last)||isPromotionalLine(line)||
+      candidate.programmeScope&&!candidate.programmeScope.includedSpans?.some(([first,last])=>index+1>=first&&index+1<=last))return [];
+    const match=line.trim().match(/^(?:Work|Job|Training) location\s*:\s*(.+)$/i);
+    if(!match)return [];
+    const parts=match[1].replace(/[.]$/,'').split(/\s+[–—-]\s+/u);
+    if(parts.length!==3||!parts.every(name)||!/^(?:South Africa|ZA)$/i.test(parts[2]))return [];
+    return [{field:'country',values:[parts[2]],span:[index+1,index+1],originalText:line}];
+  });
+}
+
 /** Reject omissions without filling values, widening quotes or changing answers. */
 export function assertLocationCompleteness(candidate,fact) {
   const fail=()=>{throw new DomainError('AI_LOCATION_COMPLETENESS_UNRESOLVED');};
-  for(const hint of locationCompletenessPolicy(candidate).obligations) {
+  for(const hint of [...locationCompletenessPolicy(candidate).obligations,...compoundCountryObligations(candidate)]) {
     if(fact.state!=='stated'||!fact.quote?.includes(hint.originalText))fail();
     for(const expected of hint.values) {
       const target=normalise(expected),fields=hint.field==='work_base'?['city','province','country']:[hint.field];
