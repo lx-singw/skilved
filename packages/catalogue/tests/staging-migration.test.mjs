@@ -157,7 +157,7 @@ test('cloud project and emulator guards run before any database access', async (
 
 test('operational authority, queues, leases, scheduler state and public data block even a valid manifest', async () => {
   const manifest = fixture();
-  for (const name of ['workers', 'worker_queue', 'worker_leases', 'worker_watches', 'public', 'operators']) {
+  for (const name of ['workers', 'worker_queue', 'worker_leases', 'worker_watches', 'public', 'operators', 'model_authorities']) {
     const db = database(); db.data.set(`m0_${name}/existing`, { active: true });
     await assert.rejects(importStagingMigration(db, manifest, options(manifest)), /STAGING_MIGRATION_AUTHORITY_PRESENT/);
     assert.equal(db.data.size, 1); assert.ok(db.runs.every(run => run.creates === 0));

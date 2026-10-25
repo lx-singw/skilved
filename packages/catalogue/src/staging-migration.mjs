@@ -10,7 +10,7 @@ export const STAGING_MIGRATION_COLLECTIONS = Object.freeze([
   'worker_origin_imports', 'worker_assessments', 'audit',
 ].map(name => `m0_${name}`).sort());
 const PROJECT = 'skilved-staging', RECEIPTS = 'm0_staging_imports';
-const FORBIDDEN_TARGET_COLLECTIONS = ['m0_workers', 'm0_worker_queue', 'm0_worker_leases', 'm0_worker_watches', 'm0_public', 'm0_operators'];
+const FORBIDDEN_TARGET_COLLECTIONS = ['m0_workers', 'm0_worker_queue', 'm0_worker_leases', 'm0_worker_watches', 'm0_public', 'm0_operators', 'm0_model_authorities'];
 const MAX_DOCUMENTS = 450, MAX_BYTES = 8 * 1024 * 1024, MAX_AGE_MS = 24 * 3600000;
 const fail = code => { throw new DomainError(code); };
 const sha = text => createHash('sha256').update(text).digest('hex');

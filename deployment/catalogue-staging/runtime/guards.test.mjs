@@ -10,6 +10,7 @@ const principal = 'catalogue-staging-worker@skilved-staging.iam.gserviceaccount.
 const worker = {...base, SKILVED_STAGING_WORKER_ENABLED:'true', SKILVED_CATALOGUE_READS:'false', SKILVED_AI_MODE:'gemini',
   SKILVED_GEMINI_PROJECT_ID:'skilved-dev', SKILVED_STAGING_SOURCE_ID:'existing_reviewed_source',
   SKILVED_STAGING_SOURCE_REVISION:'2', SKILVED_STAGING_WORKER_PRINCIPAL:principal};
+worker.SKILVED_GEMINI_AUTHORITY_PROJECT='skilved-staging'; worker.SKILVED_GEMINI_AUTHORITY_EPOCH='a'.repeat(64);
 test('staging web permits runtime reads without receiving AI credentials or intake writes', () => {
   assert.deepEqual(stagingEnvironment('web',web), {projectId:'skilved-staging',port:8080});
   for (const change of [{GEMINI_API_KEY:'secret'}, {GROQ_API_KEY:'secret'}, {SKILVED_CATALOGUE_REPORTS:'true'},
@@ -28,6 +29,8 @@ test('worker activation is explicit while quota scope remains the provider key p
   assert.equal(stagingEnvironment('worker',worker).sourceRevision,2);
   for (const change of [{SKILVED_STAGING_WORKER_ENABLED:'false'}, {SKILVED_STAGING_WORKER_ENABLED:undefined},
     {SKILVED_GEMINI_PROJECT_ID:undefined}, {SKILVED_STAGING_SOURCE_REVISION:'0'}, {SKILVED_STAGING_SOURCE_ID:'../source'},
+    {SKILVED_GEMINI_AUTHORITY_PROJECT:undefined}, {SKILVED_GEMINI_AUTHORITY_PROJECT:'skilved-dev'},
+    {SKILVED_GEMINI_AUTHORITY_EPOCH:undefined}, {SKILVED_GEMINI_AUTHORITY_EPOCH:'old'},
     {SKILVED_STAGING_WORKER_PRINCIPAL:'catalogue-staging-worker@skilved-prod.iam.gserviceaccount.com'}]) {
     assert.throws(() => stagingEnvironment('worker',{...worker,...change}), {code:'STAGING_CONFIGURATION_REQUIRED'});
   }

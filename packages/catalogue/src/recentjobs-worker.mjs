@@ -25,6 +25,7 @@ import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,
 import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 import { usesUndatedV2, makeUndatedOrigin, undatedOriginKeys } from './undated-policy.mjs';
 import { capturedNoticeJobs } from './undated-origin-import.mjs';
+import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -65,6 +66,8 @@ export class RecentJobsWorker {
     if (!(provider === 'gemini' ? GEMINI_MODEL_CHAIN : [GROQ_MODEL, 'openai/gpt-oss-20b']).includes(model)) fail('AI_CONFIGURATION_REQUIRED'); this.model = model;
     if (provider === 'gemini' && !['true','false'].includes(env.SKILVED_AI_FALLBACK ?? 'true')) fail('AI_CONFIGURATION_REQUIRED');
     this.quotaScope=provider==='gemini'?geminiQuotaScope(env):null;this.quotaLimits=provider==='gemini'?geminiQuotaLimits(env):{};
+    this.quotaAuthority = provider === 'gemini' ? geminiAuthorityConfiguration(db, { ...process.env, ...env }) : null;
+    if (this.quotaAuthority && this.quotaAuthority.scopeHash !== this.quotaScope) fail('GEMINI_QUOTA_AUTHORITY_REQUIRED');
     this.env = {...env}; this.fallback = (env.SKILVED_AI_FALLBACK ?? 'true') === 'true';
     if (typeof programmeExtraction !== 'boolean' || programmeExtraction && extractionMode !== 'single') fail('AI_CONFIGURATION_REQUIRED');
     this.programmeExtraction=programmeExtraction;this.programmeExtractor=programmeExtractor;this.programmeValidator=programmeValidator;
@@ -74,6 +77,7 @@ export class RecentJobsWorker {
   async transaction(sourceId, action, work, publishing = false) {
     IdSchema.parse(sourceId); InstantSchema.parse(this.now());
     return this.db.runTransaction(async tx => {
+      if (this.provider === 'gemini') await assertGeminiQuotaAuthority(tx, this.db, this.quotaAuthority, this.now());
       const grant = (await tx.get(this.ref('workers', this.actor))).data();
       const raw = value(await tx.get(this.ref('sources', sourceId)));
       if (!grant?.active || grant.principal !== this.principal || !grant.sources?.includes(sourceId) ||

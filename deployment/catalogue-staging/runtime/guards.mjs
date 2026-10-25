@@ -17,6 +17,8 @@ export function stagingEnvironment(kind, env = process.env) {
     return {projectId:STAGING_PROJECT, port:Number(port)};
   }
   if (env.SKILVED_STAGING_WORKER_ENABLED !== 'true' || env.SKILVED_CATALOGUE_READS !== 'false' || env.SKILVED_AI_MODE !== 'gemini' ||
+      env.SKILVED_GEMINI_AUTHORITY_PROJECT !== STAGING_PROJECT ||
+      !/^[a-f0-9]{64}$/.test(env.SKILVED_GEMINI_AUTHORITY_EPOCH ?? '') ||
       !/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(env.SKILVED_GEMINI_PROJECT_ID ?? '') ||
       !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/.test(env.SKILVED_STAGING_SOURCE_ID ?? '') ||
       !/^[1-9]\d{0,8}$/.test(env.SKILVED_STAGING_SOURCE_REVISION ?? '') ||

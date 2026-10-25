@@ -28,6 +28,7 @@ import {boundDetail,boundBody} from './fixtures/recentjobs-bound-detail.mjs';
 import {GEMINI_MODEL_CHAIN} from '../src/ai/gemini-models.mjs';
 import {labelHtml,labelCandidate,labelWire,labelSpan,labelLines} from './fixtures/source-labels.mjs';
 import {noticeHtml,noticeWire,invitation,regionalBenefits} from './fixtures/notice-metadata.mjs';
+import {geminiQuotaScope} from '../src/ai/gemini-quota.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -47,6 +48,64 @@ before(async () => {
   configuration(); runtime = await getRuntime(); db = runtime.db;
 });
 after(async () => { await db?.terminate(); });
+
+function authorityOptions(f, providerProject = `authored-${randomUUID()}`, limits = {}) {
+  const env = {...geminiEnv, SKILVED_GEMINI_PROJECT_ID:providerProject,
+    SKILVED_GEMINI_AUTHORITY_PROJECT:db.projectId, SKILVED_GEMINI_AUTHORITY_EPOCH:'a'.repeat(64),
+    SKILVED_GEMINI_MODEL_LIMITS:JSON.stringify(limits)};
+  const record = {version:1,provider:'gemini',scopeHash:geminiQuotaScope(env),projectId:db.projectId,
+    epoch:env.SKILVED_GEMINI_AUTHORITY_EPOCH,status:'active',migrationSha256:'b'.repeat(64),
+    quotaSha256:'c'.repeat(64),activatedAt:f.now()};
+  return {env,record,ref:db.collection('m0_model_authorities').doc(record.scopeHash),
+    options:{provider:'gemini',env}};
+}
+
+test('authority fencing blocks missing, revoked and stale workers before scheduling or quota writes', async () => {
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false}),a=authorityOptions(f);
+  const worker=f.restart(a.options);
+  for (const change of [null,{status:'revoked'},{epoch:'d'.repeat(64)}]) {
+    if(change)await a.ref.set(payload({...a.record,...change}));
+    await assert.rejects(worker.run(f.sourceId), {code:change?'GEMINI_QUOTA_AUTHORITY_STALE':'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
+    assert.equal((await worker.ref('worker_leases',f.sourceId).get()).exists,false);
+    assert.equal((await worker.ref('model_budgets',createHash('sha256').update(`${f.sourceId}:2026-09-26`).digest('hex')).get()).exists,false);
+  }
+  assert.deepEqual(f.state.requests,[]); assert.equal(f.state.modelCalls,0);
+  await a.ref.set(payload(a.record));
+  const id=await worker.schedule(f.sourceId); assert.ok(await worker.claim(f.sourceId,id));
+  await a.ref.set(payload({...a.record,status:'revoked'}));
+  await assert.rejects(worker.holdModelForDay(f.sourceId,'gemini-3.8-flash'), {code:'GEMINI_QUOTA_AUTHORITY_STALE'});
+  assert.equal((await worker.ref('model_availability',worker.modelAvailabilityId('gemini-3.8-flash')).get()).exists,false);
+});
+
+test('authority revocation during source pacing prevents the external fetch', async () => {
+  const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false}),a=authorityOptions(f);
+  await a.ref.set(payload(a.record));
+  const worker=f.restart({...a.options,sleep:async()=>a.ref.set(payload({...a.record,status:'revoked'}))});
+  const claim=await worker.claim(f.sourceId,await worker.schedule(f.sourceId));
+  await assert.rejects(worker.request(claim,RECENTJOBS_INDEX,'html'),{code:'GEMINI_QUOTA_AUTHORITY_STALE'});
+  assert.deepEqual(f.state.requests,[]); assert.equal(f.state.modelCalls,0);
+});
+
+test('separate workers sharing one authority cannot both reserve the last provider request', async () => {
+  const f=await fixture({mode:'shadow',publisher:false}),g=await fixture({mode:'shadow',publisher:false});
+  const a=authorityOptions(f,`authored-${randomUUID()}`,{'gemini-3.8-flash':{rpd:1}});
+  await a.ref.set(payload(a.record));
+  const workers=[f.restart(a.options),g.restart(a.options)];
+  const claims=await Promise.all(workers.map(async(w,i)=>w.claim([f,g][i].sourceId,await w.schedule([f,g][i].sourceId))));
+  let sends=0;
+  const result=await Promise.allSettled(workers.map((w,i)=>w.modelCall(claims[i],'extract',async()=>{
+    sends++; return {provenance:{usage:{inputTokens:3,totalTokens:5}}};
+  },{model:'gemini-3.8-flash'})));
+  assert.equal(sends,1);assert.equal(result.filter(r=>r.status==='fulfilled').length,1);
+  assert.equal(result.find(r=>r.status==='rejected').reason.code,'AI_RATE_LIMITED');
+  const id=createHash('sha256').update(`${a.record.scopeHash}:gemini-3.8-flash:2026-09-26`).digest('hex');
+  const usage=value(await workers[0].ref('model_usage',id).get());
+  assert.equal(usage.requests,1);assert.equal(usage.knownTotalTokens,5);
+  await a.ref.set(payload({...a.record,epoch:'e'.repeat(64)}));
+  await assert.rejects(workers[0].modelCall(claims[0],'extract',()=>assert.fail('stale model send'),{model:'gemini-3.8-flash'}),
+    {code:'GEMINI_QUOTA_AUTHORITY_STALE'});
+  assert.deepEqual(value(await workers[0].ref('model_usage',id).get()),usage);
+});
 
 test('bounded documents and required competency details gate candidate storage, validation and drafting',async()=>{
  for(const scenario of ['missing_documents','missing_competency','wrong_knowledge_kind','optional_competency','complete']){

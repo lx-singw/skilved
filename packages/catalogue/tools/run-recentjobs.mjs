@@ -12,6 +12,8 @@ Cloud uses ADC workload ID tokens. Emulator requires SKILVED_WORKER_EMULATOR_IDE
 The source's automation.mode selects shadow or automatic publication. Source pause wins.
 Gemini quota tracking shares project/model reservations via SKILVED_GEMINI_PROJECT_ID;
 SKILVED_GEMINI_MODEL_LIMITS optionally supplies JSON rpm/tpm/rpd limits.
+Cloud Gemini workers also require SKILVED_GEMINI_AUTHORITY_PROJECT and
+SKILVED_GEMINI_AUTHORITY_EPOCH matching an active m0_model_authorities record.
 No scheduled cloud resources are provisioned by this command. See the autonomous pipeline document.`);
 } else {
   let runtime;
