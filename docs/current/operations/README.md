@@ -162,6 +162,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Motus/Kia V27 new-day trial](164_MOTUS_KIA_V27_NEW_DAY_TRIAL_2026-10-24.md)
 - [Plain email discovery and repeat screen](165_PLAIN_EMAIL_DISCOVERY_AND_REPEAT_SCREEN_2026-10-24.md)
 - [Nampak intake and original-route review](166_NAMPAK_INTAKE_ROUTE_REVIEW_2026-10-24.md)
+- [Current-notice screen and fresh Motus comparison](167_CURRENT_SCREEN_AND_MOTUS_FRESH_REPEAT_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)
