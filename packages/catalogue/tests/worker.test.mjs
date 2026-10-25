@@ -30,6 +30,7 @@ import {labelHtml,labelCandidate,labelWire,labelSpan,labelLines} from './fixture
 import {noticeHtml,noticeWire,invitation,regionalBenefits} from './fixtures/notice-metadata.mjs';
 import {geminiQuotaScope} from '../src/ai/gemini-quota.mjs';
 import {assertGeminiRequestAuthority} from '../src/ai/gemini-authority.mjs';
+import {handle} from '../src/http.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -225,9 +226,62 @@ async function fixture({ mode = 'automatic', calls = 10, publisher = true, caden
 }
 const detailResult = result => result.results.find(r => r.recordId);
 
+async function httpLifecycle(f,id){
+ const provider=async()=>({config:{reads:true,reports:false},catalogue:f.catalogue});
+ const response=await handle(new Request('https://skilved.test/api/v1/opportunities/'+id),id,provider);
+ assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
+ const detail=await response.json();let cursor,listed=false;
+ do{
+  const query=new URLSearchParams({limit:'50'});if(cursor)query.set('cursor',cursor);
+  const page=await handle(new Request('https://skilved.test/api/v1/opportunities?'+query),undefined,provider);
+  assert.equal(page.status,200);assert.equal(page.headers.get('cache-control'),'no-store');
+  const body=await page.json();listed ||= body.items.some(o=>o.id===id);cursor=body.nextCursor;
+ }while(cursor&&!listed);
+ return {detail,listed};
+}
+
+test('HTTP lifecycle suppresses an automatic publication at exact expiry without rewriting its stored projection',async()=>{
+ const f=await fixture(),result=detailResult(await f.worker.run(f.sourceId));assert.equal(result.published,true);
+ const stored=(await f.worker.ref('public',result.recordId).get()).data();
+ const next=value(await f.worker.ref('public',result.recordId).get()).opportunity.checks[0].nextCheckAt;
+ f.advance(Date.parse(next)-Date.parse(f.now())-1);
+ let read=await httpLifecycle(f,result.recordId);assert.equal(read.listed,true);
+ assert.equal(read.detail.opportunity.application.route.destination,'https://employer.example/apply');
+ f.advance(1);read=await httpLifecycle(f,result.recordId);assert.equal(read.listed,false);
+ assert.deepEqual(read.detail,{kind:'status',status:{schemaVersion:1,id:result.recordId,revision:1,status:'under_review',application:'unavailable'}});
+ assert.deepEqual((await f.worker.ref('public',result.recordId).get()).data(),stored);
+});
+
+test('HTTP lifecycle keeps a failed source correction restricted and an operator withdrawal sticky on retry',async()=>{
+ const f=await fixture(),first=detailResult(await f.worker.run(f.sourceId));assert.equal(first.published,true);
+ f.advance(24*3600000);
+ const summary='Fictional Workshop seeks an electrical apprentice for a corrected intake.';
+ f.state.html=detailHtml.replace('Fictional Workshop seeks an electrical apprentice.',summary);
+ f.worker.extractor=async()=>{
+  f.state.modelCalls++;const extraction=syntheticExtraction();extraction.summary={state:'stated',value:summary,quote:summary};
+  return {extraction,provenance:{model:'synthetic',usage:{totalTokens:20}}};
+ };
+ f.state.supported=false;let observed=false;
+ f.state.afterValidation=async()=>{
+  const read=await httpLifecycle(f,first.recordId);assert.equal(read.listed,false);
+  assert.equal(read.detail.status.status,'under_review');assert.doesNotMatch(JSON.stringify(read.detail),/employer\.example/);observed=true;
+ };
+ const corrected=await f.worker.run(f.sourceId);assert.equal(observed,true,JSON.stringify(corrected.results));
+ const uid='reviewer_'+randomUUID();await f.worker.ref('operators',uid).set({active:true,roles:['reviewer']});
+ const operator=new Catalogue(db,{verifyIdToken:async()=>({uid})},f.now);
+ const draft=value(await f.worker.ref('drafts',first.recordId).get());
+ await operator.publish('synthetic-verified-token',first.recordId,draft.revision,'withdraw','Synthetic lifecycle withdrawal');
+ await assert.rejects(operator.publish('synthetic-verified-token',first.recordId,draft.revision,'restore','Stale restoration'),{code:'CONFLICT'});
+ f.state.afterValidation=null;f.state.supported=true;f.advance(24*3600000);
+ assert.ok((await f.restart().run(f.sourceId)).results.some(r=>r.reason==='RESTORE_REQUIRES_REVIEW'));
+ const read=await httpLifecycle(f,first.recordId);assert.equal(read.listed,false);
+ assert.equal(read.detail.status.status,'withdrawn');assert.doesNotMatch(JSON.stringify(read.detail),/employer\.example/);
+});
+
 const sourceHoldId = f => createHash('sha256').update(`${f.sourceId}:${detailUrl}`).digest('hex');
 const missingDeadline = () => detailHtml.replace('<p>Closing date: 30 October 2026</p>', '<p>Closing date: not stated</p>');
-const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs.map(value).filter(x => x.sourceId === f.sourceId);
+const sourceRows = async (f, collection) => (await db.collection(`m0_${collection}`).get()).docs
+  .map(snap => collection === 'worker_watches' ? snap.data() : value(snap)).filter(x => x.sourceId === f.sourceId);
 
 test('an explicitly written compound-location country cannot disappear before validation or private drafting',async()=>{
   const place='Job Location: Exampletown – Gauteng – South Africa';

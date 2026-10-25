@@ -181,6 +181,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Cloud Gemini quota-authority admission and stale-worker fencing](183_CLOUD_GEMINI_QUOTA_AUTHORITY_FENCING_2026-10-25.md)
 - [Managed Gemini quota-authority cutover](184_MANAGED_GEMINI_QUOTA_AUTHORITY_CUTOVER_2026-10-25.md)
 - [Staging ingest identity and normal draft writer](185_STAGING_INGEST_IDENTITY_AND_NORMAL_WRITER_2026-10-26.md)
+- [Staging private reads and publication lifecycle](186_STAGING_PRIVATE_READS_AND_LIFECYCLE_2026-10-26.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

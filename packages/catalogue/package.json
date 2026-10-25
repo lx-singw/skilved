@@ -15,6 +15,7 @@
     "extract:recentjobs": "node tools/extract-recentjobs.mjs",
     "plan:recentjobs": "node tools/plan-recentjobs-programmes.mjs",
     "worker:recentjobs": "node tools/run-recentjobs.mjs",
+    "check:staging-reads": "node tools/check-staging-reads.mjs",
     "shadow:recentjobs": "node tools/shadow-recentjobs.mjs",
     "checkpoint:shadow": "node tools/export-shadow-checkpoint.mjs",
     "evaluate:recentjobs": "node tools/evaluate-recentjobs.mjs",

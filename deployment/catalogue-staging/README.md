@@ -63,6 +63,22 @@ The YAML templates contain no service-account keys, provider keys, IAM public bi
 
 ## Before activating the worker
 
+The [private-feed acceptance check](../../docs/current/operations/186_STAGING_PRIVATE_READS_AND_LIFECYCLE_2026-10-26.md) now verifies real persistent reads under the delegated staging web identity, denied database writes, an empty feed and 404 for all five drafts. It does not verify attached hosted identity or deploy a website. The normal CLI can repeat the read acceptance check under an existing keyless authentication setup, with the same web identity and staging flags:
+
+```sh
+NODE_ENV=production \
+SKILVED_STAGING_PROJECT=skilved-staging \
+SKILVED_CATALOGUE_PROJECT=skilved-staging \
+SKILVED_CATALOGUE_MODE=cloud \
+SKILVED_CATALOGUE_READS=true \
+SKILVED_CATALOGUE_REPORTS=false \
+SKILVED_SUGGESTIONS_ENABLED=false \
+SKILVED_AI_MODE=disabled \
+pnpm --filter @skilved/catalogue check:staging-reads
+```
+
+Do not load provider keys or emulator settings into this read-only process. The CLI uses ADC, checks existing unapproved private drafts and requires an empty public catalogue. It does not create authentication, attest the caller's IAM role or replace hosted identity verification. It deliberately fails after public listings exist; use the normal catalogue API for later operational checks. The real delegated check supplied its authenticated client in memory without installing global ADC. Publication, correction, expiry and withdrawal were rehearsed separately in an isolated emulator, with no cloud publication.
+
 The persistent database must receive a reviewed migration of existing source versions, jobs, captures, origins/import receipts, decisions, caches, spent source allowances and Gemini usage/availability. Preserve document IDs and the first acquisition/publication timestamps. An empty cloud database is not permission to repeat exhausted experiments. Keep accepted drafts and public projections separate from private assessments, and never extend accepted expiry through migration.
 
 `SKILVED_GEMINI_PROJECT_ID` identifies the actual Google project owning the Gemini key, which can differ from `skilved-staging`. Set the verified value and model-limit configuration consistently across every process sharing that provider project. An isolated database does not automatically share counters with a local worker: import/reconcile the shared ledger, then prevent simultaneous workers using divergent databases. A newly registered source or fresh job must not reset an existing allowance or undated origin.
