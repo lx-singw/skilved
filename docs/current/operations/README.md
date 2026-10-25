@@ -164,6 +164,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Nampak intake and original-route review](166_NAMPAK_INTAKE_ROUTE_REVIEW_2026-10-24.md)
 - [Current-notice screen and fresh Motus comparison](167_CURRENT_SCREEN_AND_MOTUS_FRESH_REPEAT_2026-10-25.md)
 - [Source-bound optional direction comparison](168_SOURCE_BOUND_OPTIONAL_DIRECTION_COMPARISON_2026-10-25.md)
+- [PepsiCo original-route review](169_PEPSICO_ORIGINAL_ROUTE_REVIEW_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)
