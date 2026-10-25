@@ -17,6 +17,7 @@
     "worker:recentjobs": "node tools/run-recentjobs.mjs",
     "shadow:recentjobs": "node tools/shadow-recentjobs.mjs",
     "evaluate:recentjobs": "node tools/evaluate-recentjobs.mjs",
+    "inventory:source-exposure": "node tools/inventory-source-exposure.mjs",
     "operator": "node tools/operator.mjs"
   },
   "dependencies": {
