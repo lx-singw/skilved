@@ -168,6 +168,8 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Extended dated-notice screen](170_EXTENDED_DATED_NOTICE_SCREEN_2026-10-25.md)
 - [Bound copied-description layout](171_BOUND_COPIED_DESCRIPTION_LAYOUT_2026-10-25.md)
 - [Current-output batch measurement](172_CURRENT_OUTPUT_BATCH_MEASUREMENT_2026-10-25.md)
+- [CNH Flash-Lite comparison](173_CNH_FLASH_LITE_COMPARISON_2026-10-25.md)
+- [Proposed recent-undated publication policy](174_RECENT_UNDATED_PUBLICATION_PROPOSAL_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)
