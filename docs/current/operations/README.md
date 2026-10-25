@@ -175,6 +175,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Reviewed V1-to-V2 origin import and private CNH assessment](177_REVIEWED_UNDATED_ORIGIN_IMPORT_2026-10-25.md)
 - [CNH repeatability and compound-country completeness](178_CNH_REPEATABILITY_AND_COMPOUND_COUNTRY_2026-10-25.md)
 - [Fresh CNH assessment under the country-completeness guard](179_CNH_FRESH_COUNTRY_GUARD_ASSESSMENT_2026-10-25.md)
+- [Local shadow checkpoints preserve document identity and history](180_LOSSLESS_LOCAL_SHADOW_CHECKPOINTS_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

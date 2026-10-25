@@ -16,6 +16,7 @@
     "plan:recentjobs": "node tools/plan-recentjobs-programmes.mjs",
     "worker:recentjobs": "node tools/run-recentjobs.mjs",
     "shadow:recentjobs": "node tools/shadow-recentjobs.mjs",
+    "checkpoint:shadow": "node tools/export-shadow-checkpoint.mjs",
     "evaluate:recentjobs": "node tools/evaluate-recentjobs.mjs",
     "inventory:source-exposure": "node tools/inventory-source-exposure.mjs",
     "operator": "node tools/operator.mjs"

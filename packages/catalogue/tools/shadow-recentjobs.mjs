@@ -1,13 +1,13 @@
-import { open, mkdir, writeFile } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
 import { configuration, DomainError } from '../src/config.mjs';
 import { extractionConfiguration } from '../src/ai/provider.mjs';
 import { Source } from '../src/schemas.mjs';
 import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
 import { getRuntime } from '../src/runtime.mjs';
 import { workerPrincipal } from '../src/worker-identity.mjs';
+import { captureShadowCheckpoint, shadowCheckpointCounts } from '../src/shadow-checkpoint.mjs';
+import { writeShadowReport } from './shadow-report.mjs';
 
 const help = `Usage: node --env-file=.env.local packages/catalogue/tools/shadow-recentjobs.mjs [--split|--programmes] <source.json>
 Run inside fresh Firebase Auth/Firestore emulators using a demo project.
@@ -15,6 +15,8 @@ Source must use automation.mode=shadow and permission.method=recentjobs_html.
 This command bootstraps an ingest-only LOCAL grant, runs one bounded worker tick,
 and saves a private report under the repository's ignored .artifacts/shadow/ directory.
 Requires explicit Groq or Gemini opt-in. Fetches real RecentJobs pages and may consume model quota.
+Reports contain checkpoint.version=1 with raw {id,data} documents; preserve the shared quota ledger separately.
+Fresh sources in an empty emulator do not establish a fresh allowance for previously spent real sources.
 --split selects experimental metadata, requirements and validation stages, each separately budgeted/cached.
 --programmes opts into scoped per-intake extraction/validation and private drafts for supported multi-route notices.
 Never connects to cloud Firestore, enables public reads, publishes, or schedules another run.`;
@@ -52,16 +54,11 @@ else {
     if ((await worker.ref('sources', source.id).get()).exists) throw new DomainError('FRESH_EMULATOR_REQUIRED');
     await worker.ref('sources', source.id).set({json:JSON.stringify(source)});
     await worker.ref('workers', worker.actor).set({principal, active:true, sources:[source.id], roles:['ingest']});
-    const result = await worker.run(source.id), records = {};
-    for (const name of ['sources','worker_jobs','worker_holds','worker_programme_plans','worker_programme_candidates','worker_programme_decisions','worker_candidates','worker_exceptions','worker_decisions','model_cache','model_calls','model_budgets','model_usage','model_availability','drafts','public','snapshots']) {
-      const rows = await runtime.db.collection(`m0_${name}`).get();
-      records[name] = rows.docs.map(row => ({id:row.id, ...(row.data().json ? JSON.parse(row.data().json) : row.data())}));
-    }
-    const directory = fileURLToPath(new URL('../../../.artifacts/shadow/', import.meta.url));
-    await mkdir(directory, {recursive:true, mode:0o700});
-    const path = resolve(directory, `${new Date().toISOString().replaceAll(':','-')}-${randomUUID()}.json`);
-    await writeFile(path, JSON.stringify({mode:'local_emulator_shadow', extractionMode:worker.extractionMode,programmeExtraction:worker.programmeExtraction, observedAt:new Date().toISOString(), result, records}, null, 2), {flag:'wx', mode:0o600});
-    console.log(JSON.stringify({report:path, extractionMode:worker.extractionMode,programmeExtraction:worker.programmeExtraction, result, counts:Object.fromEntries(Object.entries(records).map(([key,rows]) => [key,rows.length]))}));
+    const result = await worker.run(source.id), checkpoint = await captureShadowCheckpoint(runtime.db);
+    const path = await writeShadowReport({ mode:'local_emulator_shadow', extractionMode:worker.extractionMode,
+      programmeExtraction:worker.programmeExtraction, observedAt:new Date().toISOString(), result, checkpoint });
+    console.log(JSON.stringify({report:path, checkpointVersion:checkpoint.version, extractionMode:worker.extractionMode,
+      programmeExtraction:worker.programmeExtraction, result, counts:shadowCheckpointCounts(checkpoint)}));
   } catch (error) {
     console.error(JSON.stringify({error:/^[A-Z_]+$/.test(error?.code ?? '') ? error.code : 'SHADOW_RUN_FAILED'}));
     process.exitCode = 1;
