@@ -1,5 +1,6 @@
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
 import { DomainError } from './config.mjs';
+import { usesUndatedV2, undatedV2Window } from './undated-policy.mjs';
 
 export const RECENTJOBS_INDEX = 'https://recentjobs.co.za/category/apprenticeships/';
 export const dayInSA = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg',
@@ -35,15 +36,18 @@ export function approvedRoute(source, route) {
 }
 
 /** Cheap source checks before model work; route scope alone does not establish the issuer. */
-export function preflightCandidate(source, candidate, now, sourceRetrievedAt) {
+export function preflightCandidate(source, candidate, now, sourceRetrievedAt, undatedOrigin) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
   if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
   assertApprenticeshipSource(candidate);
   if (candidate.applicationCandidates.length !== 1) fail('NOTICE_PRECISION_UNSUPPORTED');
-  if (!candidate.deadlineCandidates.length) undatedReviewWindow(source, candidate, now, sourceRetrievedAt);
+  if (usesUndatedV2(source, candidate)) undatedV2Window(source, candidate, now, sourceRetrievedAt, undatedOrigin);
+  else if (!candidate.deadlineCandidates.length) undatedReviewWindow(source, candidate, now, sourceRetrievedAt);
   else if (candidateDeadline(candidate) <= dayInSA(now)) fail('NOTICE_NOT_OPEN');
   const route = candidate.applicationCandidates[0];
-  approvedRoute(source, route);
+  const issuers = approvedRoute(source, route);
+  if (usesUndatedV2(source, candidate) && (issuers.length !== 1 ||
+      nameKey(issuers[0].name) !== undatedOrigin.issuer)) fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
   return route;
 }
 
@@ -131,11 +135,13 @@ export function publicationGate(source, candidate, record, primary, assessment, 
 }
 
 /** The undated exception is limited to a private, unapproved single-notice draft. */
-export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt) {
-  if (candidate.deadlineCandidates.length || source.automation?.undatedNotices !== 'shadow_recent')
+export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt, undatedOrigin) {
+  const v2 = usesUndatedV2(source, candidate);
+  if (!v2 && (candidate.deadlineCandidates.length || source.automation?.undatedNotices !== 'shadow_recent'))
     return publicationGate(source, candidate, record, primary, assessment, now);
-  preflightCandidate(source, candidate, now, sourceRetrievedAt);
-  const window = undatedReviewWindow(source, candidate, now, sourceRetrievedAt);
+  preflightCandidate(source, candidate, now, sourceRetrievedAt, undatedOrigin);
+  const window = v2 ? undatedV2Window(source, candidate, now, sourceRetrievedAt, undatedOrigin)
+    : undatedReviewWindow(source, candidate, now, sourceRetrievedAt);
   const issuer = approvedIssuer(source, record);
   assertMaterialFacts(record);
   if (record.deadline.state !== 'not_stated' || record.deadline.value !== null) fail('NOTICE_PRECISION_UNSUPPORTED');

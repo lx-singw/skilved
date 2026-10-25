@@ -22,7 +22,8 @@ import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
 import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs';
 import { validateExtraction, validateAssessment, validationPayload, VALIDATION_VERSION } from './ai/validation.mjs';
 import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,recentGeminiUsage,mergeGeminiMinuteUsage,geminiUsageDelay } from './ai/gemini-quota.mjs';
-import { RECENTJOBS_INDEX, assertSourceTarget, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
+import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
+import { usesUndatedV2, makeUndatedOrigin } from './undated-policy.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -36,7 +37,8 @@ const SOURCE_HOLD_VERSION = 4;
 const SOURCE_HOLD_MS = 24 * 3_600_000;
 const SOURCE_HOLD_REASONS = new Set(['NOTICE_CATEGORY_REVIEW_REQUIRED', 'NOTICE_CATEGORY_CONFLICT',
   'NOTICE_PRECISION_UNSUPPORTED', 'NOTICE_NOT_OPEN', 'NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED',
-  'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED', 'UNDATED_NOTICE_FRESHNESS_REQUIRED']);
+  'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED', 'UNDATED_NOTICE_FRESHNESS_REQUIRED',
+  'UNDATED_NOTICE_ORIGIN_REQUIRED', 'UNDATED_NOTICE_ORIGIN_CONFLICT']);
 const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0);
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
@@ -390,6 +392,40 @@ export class RecentJobsWorker {
     });
     return result;
   }
+  undatedOriginKeys(candidate) {
+    const route = candidate.applicationCandidates[0];
+    // Tracking/query changes must not create a fresh identity. Query-selected
+    // intakes on a shared path remain held for explicit identity review.
+    const identity = route.method === 'portal' ? new URL(route.destination).origin + new URL(route.destination).pathname
+      : route.destination.toLowerCase();
+    return [hash(`undated_shadow_v2:notice:${candidate.sourceUrl}`),
+      hash(`undated_shadow_v2:route:${route.method}:${identity}`)];
+  }
+  async bindUndatedOrigin(claim, candidate, sourceRetrievedAt) {
+    if (!usesUndatedV2(claim.source, candidate)) return null;
+    return this.transaction(claim.sourceId, 'worker.undated_origin', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      const issuers = approvedRoute(source, candidate.applicationCandidates[0]);
+      if (issuers.length !== 1) fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
+      const provisional = makeUndatedOrigin(source, candidate, issuers[0].name, sourceRetrievedAt, this.now());
+      const keys = this.undatedOriginKeys(candidate);
+      const rows = await Promise.all(keys.map(k => tx.get(this.ref('worker_notice_origins', k))));
+      const existing = rows.map(value);
+      if (existing.some(Boolean) && (!existing.every(Boolean) || JSON.stringify(existing[0]) !== JSON.stringify(existing[1])))
+        fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
+      const origin = existing[0] ?? provisional;
+      preflightCandidate(source, candidate, this.now(), sourceRetrievedAt, origin);
+      if (!existing[0]) keys.forEach(k => tx.create(this.ref('worker_notice_origins', k), payload(origin)));
+      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, undatedOriginKeys: keys }));
+      return origin;
+    });
+  }
+  async assertStoredUndatedOrigin(tx, source, candidate, origin) {
+    if (!origin) return;
+    if (!usesUndatedV2(source, candidate)) fail('SOURCE_CHANGED');
+    const rows = await Promise.all(this.undatedOriginKeys(candidate).map(k => tx.get(this.ref('worker_notice_origins', k))));
+    if (rows.some(r => JSON.stringify(value(r)) !== JSON.stringify(origin))) fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
+  }
   async detail(claim) {
     assertSourceTarget(claim.url);
     const hold = await this.transaction(claim.sourceId, 'worker.source_hold.read', async (tx, source) => {
@@ -423,7 +459,8 @@ export class RecentJobsWorker {
       });
       if (this.programmeExtraction) return this.programmes(claim,candidate,captured,plan);
     }
-    const pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt);
+    const undatedOrigin = await this.bindUndatedOrigin(claim, candidate, captured.sourceRetrievedAt);
+    const pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt, undatedOrigin);
     const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
@@ -468,9 +505,10 @@ export class RecentJobsWorker {
       () => this.modelStage(claim, 'validation', options => this.validator({ record, recentjobsText: mapped.snapshot.text, primary, applicationCandidates: candidate.applicationCandidates }, options)));
     // Validate even injected/internal validators; production does not expose this dependency to callers.
     const parsed = validateAssessment({ supported: assessment.supported, issues: assessment.issues, evidence: assessment.evidence }, mapped.snapshot.text, primary);
-    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt);
+    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin);
     const published = claim.source.automation.mode === 'automatic';
     return this.finish(claim, { recordId: captured.recordId, published, snapshotId: captured.snapshotId }, async (tx, source) => {
+      await this.assertStoredUndatedOrigin(tx, source, candidate, undatedOrigin);
       const old = value(await tx.get(this.ref('drafts', captured.recordId)));
       const state = value(await tx.get(this.ref('state', 'current'))) ?? { revision: 1 };
       const watches = published ? await tx.get(this.db.collection('m0_worker_watches').where('sourceId', '==', source.id).limit(51)) : null;
@@ -479,7 +517,7 @@ export class RecentJobsWorker {
       if (['withdrawn', 'closed', 'archived'].includes(old?.lifecycle) || old?.publication.disposition === 'withheld') fail('RESTORE_REQUIRES_REVIEW');
       if (published && source.automation.mode !== 'automatic') fail('SOURCE_CHANGED');
       // Re-evaluate timing after slow model/network work, inside the commit boundary.
-      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt);
+      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin);
       record.revision = (old?.revision ?? 0) + 1; record.requirements.revision = record.revision;
       record.createdAt = captured.createdAt; record.updatedAt = this.now();
       if (primarySnapshotId) record.citations.push({ id: 'primary_notice', label: 'Employer application notice', url: destination, snapshotId: primarySnapshotId, approved: published });

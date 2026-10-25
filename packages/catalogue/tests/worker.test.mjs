@@ -260,6 +260,143 @@ test('undated shadow assessment still rejects semantic failures without drafting
   assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);assert.equal((await f.worker.ref('worker_holds',sourceHoldId(f)).get()).exists,false);
 });
 
+async function boundedUndatedFixture({wording='Closing date: not stated',publishedAt,ttl=6}={}) {
+  const f=await undatedFixture({...(publishedAt?{publishedAt}:{}),ttl});
+  f.source.automation.undatedNotices='shadow_recent_v2';
+  f.state.html=f.state.html.replace('<a href=',`<p>${wording}</p><a href=`)
+    .replace('https://employer.example/apply',`https://employer.example/apply/${f.sourceId}`);
+  f.url=detailUrl.replace('fictional-apprentice/',`fictional-apprentice-${f.sourceId.replaceAll('_','-')}/`);
+  f.state.listing=listing.replace(detailUrl,f.url);
+  f.options={...f.options,fetcher:async(_source,url,_io,format)=>{
+    f.state.requests.push({url,format});
+    if(url.endsWith('/robots.txt'))return {url,text:'User-agent: *\nAllow: /'};
+    if(url===RECENTJOBS_INDEX)return {url,text:f.state.listing};
+    if(url===f.url)return {url,text:f.state.html};
+    assert.fail(`Unexpected V2 fixture fetch ${url}`);
+  }};
+  f.worker=f.restart(f.options);await f.worker.ref('sources',f.sourceId).set(payload(f.source));return f;
+}
+
+test('V2 stores two immutable private origin bindings and a six-hour decision, with no public checks or watch',async()=>{
+  for(const wording of ['', 'Closing date: not specified']) {
+    const f=await boundedUndatedFixture({wording}),result=await f.worker.run(f.sourceId),row=detailResult(result);assert.ok(row,JSON.stringify(result.results));
+    const decision=(await sourceRows(f,'worker_decisions'))[0],origins=await sourceRows(f,'worker_notice_origins');
+    assert.equal(origins.length,2);assert.deepEqual(origins[0],origins[1]);assert.equal(origins[0].firstSeenAt,f.now());
+    assert.equal(origins[0].sourcePublishedAt,'2026-09-26T09:00:00.000Z');
+    assert.equal(decision.deadlinePolicy,'undated_shadow_v2');assert.equal(decision.reviewExpiresAt,'2026-09-26T16:00:00.000Z');
+    assert.equal(decision.timingEvidence.state,wording?'explicitly_unspecified':'absent');
+    const draft=value(await f.worker.ref('drafts',row.recordId).get());assert.equal(draft.deadline.state,'not_stated');
+    assert.equal(draft.publication.approved,false);assert.deepEqual(draft.checks,[]);assert.equal(row.published,false);
+    assert.equal((await sourceRows(f,'worker_watches')).length,0);assert.equal((await f.worker.ref('public',row.recordId).get()).exists,false);
+    assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  }
+});
+
+test('V2 source rechecks retain origin age and reuse bound caches across new jobs and restarts',async()=>{
+  const f=await boundedUndatedFixture(),first=detailResult(await f.worker.run(f.sourceId));assert.ok(first);
+  const origins=await sourceRows(f,'worker_notice_origins');f.advance(3600000);
+  const second=detailResult(await f.restart(f.options).run(f.sourceId));assert.ok(second);
+  assert.deepEqual(await sourceRows(f,'worker_notice_origins'),origins);
+  const decisions=await sourceRows(f,'worker_decisions');assert.equal(decisions.length,2);
+  assert.ok(decisions.every(d=>d.firstSeenAt==='2026-09-26T10:00:00.000Z'));
+  assert.equal(decisions.find(d=>d.at===f.now()).reviewExpiresAt,'2026-09-26T17:00:00.000Z');
+  assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);assert.equal((await sourceRows(f,'model_calls')).length,2);
+});
+
+test('V2 new job and revised source cannot retime publication, change route or silently replace an intake',async()=>{
+  for(const mutate of [s=>s.replace('2026-09-26T09:00:00+00:00','2026-09-26T10:30:00Z'),
+    s=>s.replace('/apply/source_', '/apply/replacement_source_'),
+    s=>s.replace('Fictional electrical apprentice','Another fictional apprentice intake')]) {
+    const f=await boundedUndatedFixture(),first=detailResult(await f.worker.run(f.sourceId));assert.ok(first);
+    const origins=await sourceRows(f,'worker_notice_origins'),draft=value(await f.worker.ref('drafts',first.recordId).get());
+    f.state.html=mutate(f.state.html);f.source.revision++;await f.worker.ref('sources',f.sourceId).set(payload(f.source));f.advance(3600000);
+    const result=await f.restart(f.options).run(f.sourceId);assert.ok(result.results.some(r=>r.reason==='UNDATED_NOTICE_ORIGIN_CONFLICT'));
+    assert.deepEqual(await sourceRows(f,'worker_notice_origins'),origins);assert.deepEqual(value(await f.worker.ref('drafts',first.recordId).get()),draft);
+    assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  }
+});
+
+test('V2 global origin keys stop a replacement source ID and a different URL using the same original route',async()=>{
+  const f=await boundedUndatedFixture(),first=detailResult(await f.worker.run(f.sourceId));assert.ok(first);
+  const origins=await sourceRows(f,'worker_notice_origins'),other=await boundedUndatedFixture();other.state.html=f.state.html;
+  other.state.listing=other.state.listing.replace(other.url,f.url);other.url=f.url;
+  assert.ok((await other.worker.run(other.sourceId)).results.some(r=>r.reason==='UNDATED_NOTICE_ORIGIN_CONFLICT'));
+  assert.equal(other.state.modelCalls,0);assert.equal((await sourceRows(other,'worker_notice_origins')).length,0);
+  for(const query of ['', '?campaign=repost']) {
+    const url=`https://recentjobs.co.za/2026/09/26/authored-repost-${randomUUID()}/`,id=`repost_${randomUUID()}`;
+    await f.worker.ref('worker_jobs',id).set(payload({id,sourceId:f.sourceId,kind:'detail',url,bucket:999,state:'pending',attempts:0,lease:null,nextAt:f.now()}));
+    const html=f.state.html.replace(`https://employer.example/apply/${f.sourceId}`,`https://employer.example/apply/${f.sourceId}${query}`);
+    const worker=f.restart({...f.options,fetcher:async(_source,target)=>({url:target,text:target.endsWith('/robots.txt')?'User-agent: *\nAllow: /':html})});
+    assert.equal((await worker.runJob(f.sourceId,id)).reason,'UNDATED_NOTICE_ORIGIN_CONFLICT');
+    assert.deepEqual(await sourceRows(f,'worker_notice_origins'),origins);assert.equal(f.state.modelCalls,1);
+  }
+});
+
+test('V2 retry preserves first acquisition at six-hour expiry, retaining prior calls and caches',async()=>{
+  const f=await boundedUndatedFixture();f.worker.validator=async()=>{f.state.validations++;throw new DomainError('UNSUPPORTED_RESPONSE');};
+  assert.ok((await f.worker.run(f.sourceId)).results.some(r=>r.reason==='UNSUPPORTED_RESPONSE'));
+  const job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail'),origins=await sourceRows(f,'worker_notice_origins');f.advance(6*3600000);
+  const result=await f.restart(f.options).runJob(f.sourceId,job.id);assert.equal(result.reason,'UNDATED_NOTICE_FRESHNESS_REQUIRED');
+  assert.equal(value(await f.worker.ref('worker_jobs',job.id).get()).sourceRetrievedAt,job.sourceRetrievedAt);
+  assert.deepEqual(await sourceRows(f,'worker_notice_origins'),origins);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+  assert.equal((await sourceRows(f,'model_calls')).length,2);assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
+});
+
+test('V2 seven-day origin cap is rechecked inside the draft commit after successful validation',async()=>{
+  const f=await boundedUndatedFixture({publishedAt:'2026-09-19T10:01:00Z'}),finish=f.worker.finish.bind(f.worker);
+  f.worker.finish=async(claim,result,write)=>{if(result.recordId)f.advance(120000);return finish(claim,result,write);};
+  assert.ok((await f.worker.run(f.sourceId)).results.some(r=>r.reason==='UNDATED_NOTICE_FRESHNESS_REQUIRED'));
+  assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);assert.equal((await sourceRows(f,'worker_decisions')).length,0);
+  assert.equal((await sourceRows(f,'worker_notice_origins')).length,2);
+});
+
+test('V2 changed text requires new model work and a failed reassessment never renews the accepted decision',async()=>{
+  const f=await boundedUndatedFixture(),first=detailResult(await f.worker.run(f.sourceId));assert.ok(first);
+  const origins=await sourceRows(f,'worker_notice_origins'),draft=value(await f.worker.ref('drafts',first.recordId).get()),decisions=await sourceRows(f,'worker_decisions');
+  f.state.html=f.state.html.replace('Grade 12','Grade 12 and a driving licence');f.advance(3600000);
+  const worker=f.restart({...f.options,extractor:async()=>{f.state.modelCalls++;throw new DomainError('AI_REQUIREMENT_COVERAGE');}});
+  assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='AI_REQUIREMENT_COVERAGE'));
+  assert.equal(f.state.modelCalls,2);assert.equal(f.state.validations,1);assert.deepEqual(await sourceRows(f,'worker_notice_origins'),origins);
+  assert.deepEqual(await sourceRows(f,'worker_decisions'),decisions);assert.deepEqual(value(await worker.ref('drafts',first.recordId).get()),draft);
+});
+
+test('V2 corrupt or removed origin bindings stop before AI and are rechecked during commit',async()=>{
+  for(const stage of ['before_ai','commit']) {
+    const f=await boundedUndatedFixture(),first=detailResult(await f.worker.run(f.sourceId));assert.ok(first);
+    const job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail'),key=job.undatedOriginKeys[0];
+    const draft=value(await f.worker.ref('drafts',first.recordId).get());
+    if(stage==='before_ai')await f.worker.ref('worker_notice_origins',key).delete();
+    const worker=f.restart(f.options),finish=worker.finish.bind(worker);
+    if(stage==='commit')worker.finish=async(claim,result,write)=>{if(result.recordId)await worker.ref('worker_notice_origins',key).delete();return finish(claim,result,write);};
+    f.advance(3600000);assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='UNDATED_NOTICE_ORIGIN_CONFLICT'));
+    assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);assert.deepEqual(value(await worker.ref('drafts',first.recordId).get()),draft);
+  }
+});
+
+test('V2 concurrent replacement-source jobs cannot both establish a fresh origin for one notice and route',async()=>{
+  const a=await boundedUndatedFixture(),b=await boundedUndatedFixture();b.state.html=a.state.html;
+  b.state.listing=b.state.listing.replace(b.url,a.url);b.url=a.url;
+  const results=await Promise.all([a.worker.run(a.sourceId),b.worker.run(b.sourceId)]);
+  assert.equal(results.filter(r=>detailResult(r)).length,1);
+  assert.equal(results.filter(r=>r.results.some(x=>x.reason==='UNDATED_NOTICE_ORIGIN_CONFLICT')).length,1);
+  assert.equal(a.state.modelCalls+b.state.modelCalls,1);assert.equal(a.state.validations+b.state.validations,1);
+  assert.equal((await sourceRows(a,'worker_notice_origins')).length+(await sourceRows(b,'worker_notice_origins')).length,2);
+});
+
+test('V2 source pause, revision change and grant revocation during validation prevent draft commits',async()=>{
+  for(const change of ['pause','revision','grant']) {
+    const f=await boundedUndatedFixture();f.state.afterValidation=async()=>{
+      if(change==='grant')await f.worker.ref('workers',f.worker.actor).update({active:false});
+      else {if(change==='pause')f.source.paused=true;else f.source.revision++;await f.worker.ref('sources',f.sourceId).set(payload(f.source));}
+    };
+    const expected={pause:/SOURCE_PAUSED/,revision:/SOURCE_CHANGED/,grant:/WORKER_FORBIDDEN/}[change];
+    await assert.rejects(()=>f.worker.run(f.sourceId),expected);
+    assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);assert.equal((await sourceRows(f,'worker_decisions')).length,0);
+    const job=(await sourceRows(f,'worker_jobs')).find(j=>j.kind==='detail');assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
+    assert.equal((await sourceRows(f,'worker_notice_origins')).length,2);
+  }
+});
+
 test('source holds survive restart and skip detail requests without changing the original exception, snapshot or quota', async () => {
   const f = await fixture({mode:'shadow', publisher:false, employerCrawl:false, cadenceHours:1});
   f.state.html = missingDeadline();
