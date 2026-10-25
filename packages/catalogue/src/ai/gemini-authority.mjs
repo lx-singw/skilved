@@ -1,5 +1,9 @@
 import { configuration, DomainError } from '../config.mjs';
 import { geminiQuotaScope } from './gemini-quota.mjs';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { geminiAuthorityRoute } from './gemini-authority-routes.mjs';
+
+const admittedAttempt = new AsyncLocalStorage();
 
 const fail = code => { throw new DomainError(code); };
 const hash = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
@@ -17,12 +21,36 @@ export function geminiAuthorityConfiguration(db, env = process.env) {
   const config = configuration(env);
   if (!config || config.projectId !== db.projectId) fail('GEMINI_QUOTA_AUTHORITY_REQUIRED');
   const projectId = env.SKILVED_GEMINI_AUTHORITY_PROJECT, epoch = env.SKILVED_GEMINI_AUTHORITY_EPOCH;
+  const scopeHash = geminiQuotaScope(env), route = geminiAuthorityRoute(scopeHash);
+  if (route && (config.mode !== 'cloud' || projectId !== route.projectId ||
+      config.projectId !== route.projectId || db.databaseId !== route.databaseId || epoch !== route.epoch))
+    fail('GEMINI_QUOTA_AUTHORITY_STALE');
   if (config.mode === 'emulator' && projectId === undefined && epoch === undefined) return null;
   if (!project(projectId) || projectId !== config.projectId || !hash(epoch))
     fail('GEMINI_QUOTA_AUTHORITY_REQUIRED');
   // Never rebase provider usage to the Firestore project's quota scope.
   if (!env.SKILVED_GEMINI_PROJECT_ID) fail('GEMINI_QUOTA_AUTHORITY_REQUIRED');
-  return Object.freeze({ projectId, epoch, scopeHash: geminiQuotaScope(env) });
+  return Object.freeze({ projectId, epoch, scopeHash });
+}
+
+// Trusted worker only: enter after its reservation transaction commits. Keep
+// concurrent attempts isolated and remove context automatically after the call.
+export function withGeminiQuotaAuthority(binding, work) {
+  return admittedAttempt.run(binding, work);
+}
+
+/** Registered scopes require admission even for injected transports. Native
+ * network calls always require admission, retiring direct experiment CLIs.
+ * Unregistered mock transports remain available for synthetic regression work.
+ * This is a managed-code fence, not a sandbox against code holding the API key.
+ */
+export function assertGeminiRequestAuthority(env, nativeTransport) {
+  const scopeHash = geminiQuotaScope(env), route = geminiAuthorityRoute(scopeHash);
+  if (!route && !nativeTransport) return;
+  const binding = admittedAttempt.getStore();
+  if (!binding || binding.scopeHash !== scopeHash) fail('GEMINI_QUOTA_AUTHORITY_REQUIRED');
+  if (route && (binding.projectId !== route.projectId || binding.epoch !== route.epoch))
+    fail('GEMINI_QUOTA_AUTHORITY_STALE');
 }
 
 /** Check inside the same transaction as each claim, fetch admission, quota

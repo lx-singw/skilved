@@ -15,6 +15,8 @@ Source must use automation.mode=shadow and permission.method=recentjobs_html.
 This command bootstraps an ingest-only LOCAL grant, runs one bounded worker tick,
 and saves a private report under the repository's ignored .artifacts/shadow/ directory.
 Requires explicit Groq or Gemini opt-in. Fetches real RecentJobs pages and may consume model quota.
+Registered Gemini provider scopes must use their persistent cloud authority, not an emulator ledger.
+Live Gemini transport requires admitted worker reservations; direct experiment calls are blocked.
 Reports contain checkpoint.version=1 with raw {id,data} documents; preserve the shared quota ledger separately.
 Fresh sources in an empty emulator do not establish a fresh allowance for previously spent real sources.
 --split selects experimental metadata, requirements and validation stages, each separately budgeted/cached.

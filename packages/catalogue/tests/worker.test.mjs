@@ -29,6 +29,7 @@ import {GEMINI_MODEL_CHAIN} from '../src/ai/gemini-models.mjs';
 import {labelHtml,labelCandidate,labelWire,labelSpan,labelLines} from './fixtures/source-labels.mjs';
 import {noticeHtml,noticeWire,invitation,regionalBenefits} from './fixtures/notice-metadata.mjs';
 import {geminiQuotaScope} from '../src/ai/gemini-quota.mjs';
+import {assertGeminiRequestAuthority} from '../src/ai/gemini-authority.mjs';
 
 let runtime, db;
 const payload = v => ({ json: JSON.stringify(v) });
@@ -84,6 +85,18 @@ test('authority revocation during source pacing prevents the external fetch', as
   const claim=await worker.claim(f.sourceId,await worker.schedule(f.sourceId));
   await assert.rejects(worker.request(claim,RECENTJOBS_INDEX,'html'),{code:'GEMINI_QUOTA_AUTHORITY_STALE'});
   assert.deepEqual(f.state.requests,[]); assert.equal(f.state.modelCalls,0);
+});
+
+test('only a committed worker reservation supplies transport admission context', async () => {
+  const f=await fixture({mode:'shadow',publisher:false}),a=authorityOptions(f);
+  await a.ref.set(payload(a.record));const worker=f.restart(a.options);
+  const claim=await worker.claim(f.sourceId,await worker.schedule(f.sourceId));
+  assert.throws(()=>assertGeminiRequestAuthority(a.env,true),{code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
+  await worker.modelCall(claim,'extract',async()=>{
+    assert.doesNotThrow(()=>assertGeminiRequestAuthority(a.env,true));
+    return {provenance:{usage:{inputTokens:1,totalTokens:2}}};
+  },{model:'gemini-3.8-flash'});
+  assert.throws(()=>assertGeminiRequestAuthority(a.env,true),{code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
 });
 
 test('separate workers sharing one authority cannot both reserve the last provider request', async () => {

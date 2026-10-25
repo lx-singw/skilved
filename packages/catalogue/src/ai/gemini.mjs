@@ -8,10 +8,12 @@ import {metadataCompletenessPolicy} from './metadata-completeness.mjs';
 import {locationSpanHints} from './location-span-hints.mjs';
 import {transportCodeOf} from './transport-diagnostic.mjs';
 import {issuerAttributionPolicy} from './issuer-attribution.mjs';
+import {assertGeminiRequestAuthority} from './gemini-authority.mjs';
 
 import { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN, geminiAvailabilityFailure } from './gemini-models.mjs';
 export { GEMINI_MODEL, GEMINI_FLASH_LITE_MODEL, GEMINI_MODEL_CHAIN };
 const MAX_RESPONSE_BYTES = 256_000;
+const nativeFetch = globalThis.fetch;
 export class ExtractionError extends DomainError {
   constructor(code, retryable = false, usage = null, providerStatus = null, retryAfterMs = null) {
     super(code); Object.assign(this, { retryable, usage, providerStatus, retryAfterMs });
@@ -116,6 +118,7 @@ export async function generateStructured(payload, { instruction, schema, version
     try {
       const send = () => {
         if (started) failure('AI_CONFIGURATION_REQUIRED');
+        assertGeminiRequestAuthority(env, fetchImpl === nativeFetch);
         started = true;
         const remaining = deadline - now();
         if (remaining <= 0) failure('AI_TIMEOUT', true);

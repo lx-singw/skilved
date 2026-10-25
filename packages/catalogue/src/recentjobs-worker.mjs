@@ -25,7 +25,7 @@ import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,
 import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 import { usesUndatedV2, makeUndatedOrigin, undatedOriginKeys } from './undated-policy.mjs';
 import { capturedNoticeJobs } from './undated-origin-import.mjs';
-import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
+import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -246,7 +246,8 @@ export class RecentJobsWorker {
       tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, stage }));
     });
     let result, error;
-    try { result = await work(); } catch (caught) { error = caught; }
+    try { result = await (this.provider === 'gemini' ? withGeminiQuotaAuthority(this.quotaAuthority, work) : work()); }
+    catch (caught) { error = caught; }
     const daily=this.provider==='gemini'&&error?.code==='AI_RATE_LIMITED'&&error.rateLimitKind==='daily';
     const unavailable = this.provider === 'gemini' && error?.code !== 'AI_RATE_LIMITED' && geminiAvailabilityFailure(error);
     if (unavailable) error.retryAfterMs = Math.max(GEMINI_UNAVAILABLE_MS,error.retryAfterMs ?? 0);

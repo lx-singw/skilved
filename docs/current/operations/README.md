@@ -179,6 +179,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Persistent staging database and current runtime packaging](181_PERSISTENT_STAGING_DATABASE_FOUNDATION_2026-10-25.md)
 - [Reviewed history and quota migration into inactive staging](182_INACTIVE_STAGING_HISTORY_MIGRATION_2026-10-25.md)
 - [Cloud Gemini quota-authority admission and stale-worker fencing](183_CLOUD_GEMINI_QUOTA_AUTHORITY_FENCING_2026-10-25.md)
+- [Managed Gemini quota-authority cutover](184_MANAGED_GEMINI_QUOTA_AUTHORITY_CUTOVER_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

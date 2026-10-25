@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority } from '../src/ai/gemini-authority.mjs';
+import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, assertGeminiRequestAuthority,
+  withGeminiQuotaAuthority } from '../src/ai/gemini-authority.mjs';
+import { GEMINI_AUTHORITY_ROUTES } from '../src/ai/gemini-authority-routes.mjs';
+import { generateStructured } from '../src/ai/gemini.mjs';
+import { spawnSync } from 'node:child_process';
 import { geminiQuotaScope } from '../src/ai/gemini-quota.mjs';
 import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
 
@@ -68,4 +72,54 @@ test('cloud worker checks authority before grants, effects or any transaction wr
     fetcher:()=>assert.fail('source effect'), extractor:()=>assert.fail('provider effect')});
   await assert.rejects(worker.run('synthetic_source'), {code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
   await assert.rejects(worker.holdModelForDay('synthetic_source','gemini-3.8-flash'), {code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
+});
+
+const routedEnv = {...env, SKILVED_GEMINI_PROJECT_ID:'skilved-dev',
+  SKILVED_GEMINI_AUTHORITY_EPOCH:GEMINI_AUTHORITY_ROUTES[0].epoch};
+test('registered provider scope cannot return to an emulator, another database or an old epoch', () => {
+  assert.equal(geminiQuotaScope(routedEnv),GEMINI_AUTHORITY_ROUTES[0].scopeHash);
+  const database={...db,databaseId:'(default)'};
+  assert.equal(geminiAuthorityConfiguration(database,routedEnv).epoch,GEMINI_AUTHORITY_ROUTES[0].epoch);
+  for(const [database,settings] of [[{...db,databaseId:'other'},routedEnv],
+    [{...db,databaseId:'(default)'},{...routedEnv,SKILVED_GEMINI_AUTHORITY_EPOCH:'f'.repeat(64)}],
+    [{projectId:'demo-retired',databaseId:'(default)'},{SKILVED_CATALOGUE_MODE:'emulator',
+      SKILVED_CATALOGUE_PROJECT:'demo-retired',FIRESTORE_EMULATOR_HOST:'127.0.0.1:18080',
+      FIREBASE_AUTH_EMULATOR_HOST:'127.0.0.1:19099',SKILVED_GEMINI_PROJECT_ID:'skilved-dev'}]])
+    assert.throws(()=>geminiAuthorityConfiguration(database,settings),{code:'GEMINI_QUOTA_AUTHORITY_STALE'});
+});
+
+test('direct registered-scope extraction and a hand-written runAttempt cannot send requests', async () => {
+  const settings={...routedEnv,SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_transport_key_12345'};
+  let calls=0;
+  for(const runAttempt of [undefined,(_attempt,send)=>send()])
+    await assert.rejects(generateStructured({}, {instruction:'Synthetic',schema:{type:'object'},version:'test'},
+      {env:settings,runAttempt,fetchImpl:()=>{calls++;assert.fail('unadmitted request');}}),{code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
+  assert.equal(calls,0);
+});
+
+test('native transport without worker admission fails before the captured fetch is called', () => {
+  // Import after installing a fake native transport in a separate process.
+  // This exercises the real default-transport branch without network access.
+  const source=`let calls=0;globalThis.fetch=async()=>{calls++;throw Error('FETCH_CALLED')};
+    const {generateStructured}=await import(${JSON.stringify(new URL('../src/ai/gemini.mjs',import.meta.url).href)});
+    try{await generateStructured({}, {instruction:'test',schema:{type:'object'},version:'test'},
+      {env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_native_key_12345',SKILVED_AI_FALLBACK:'false'}});
+      process.exitCode=2;}catch(error){if(error.code!=='GEMINI_QUOTA_AUTHORITY_REQUIRED'||calls!==0)process.exitCode=3;}`;
+  const result=spawnSync(process.execPath,['--input-type=module','-e',source],{encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);assert.equal(result.stdout,'');
+});
+
+test('admission context is isolated across concurrent scopes and removed after errors', async () => {
+  const a={...binding}, b={...binding,scopeHash:geminiQuotaScope({SKILVED_GEMINI_PROJECT_ID:'another-synthetic'})};
+  await Promise.all([[a,env],[b,{SKILVED_GEMINI_PROJECT_ID:'another-synthetic'}]].map(async([binding,settings])=>{
+    await withGeminiQuotaAuthority(binding,async()=>{
+      await new Promise(resolve=>setImmediate(resolve));
+      assert.doesNotThrow(()=>assertGeminiRequestAuthority(settings,true));
+      assert.throws(()=>assertGeminiRequestAuthority(settings===env?{SKILVED_GEMINI_PROJECT_ID:'another-synthetic'}:env,true),
+        {code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
+    });
+  }));
+  assert.throws(()=>assertGeminiRequestAuthority(env,true),{code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
+  await assert.rejects(withGeminiQuotaAuthority(a,async()=>{throw Error('synthetic');}),/synthetic/);
+  assert.throws(()=>assertGeminiRequestAuthority(env,true),{code:'GEMINI_QUOTA_AUTHORITY_REQUIRED'});
 });

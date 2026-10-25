@@ -12,7 +12,8 @@ Manifest: {"sourceId":"recentjobs","url":"https://recentjobs.co.za/YYYY/MM/DD/sl
 htmlPath is relative to the manifest. Use permitted saved HTML, not applicant documents.
 Requires SKILVED_AI_MODE=groq with GROQ_API_KEY, or gemini with GEMINI_API_KEY.
 Optional: SKILVED_AI_THINKING=low|medium (default low).
-Groq makes one model request. Gemini may descend through up to six models on availability errors.
+Groq makes one model request. Live Gemini requests require worker quota-authority admission;
+this standalone command cannot provide it. Use the managed worker for Gemini.
 All requests may consume quota; prints a PRIVATE extraction/evidence report.
 --requirements runs the experimental requirements-only stage, with no metadata or route assessment.
 Does not fetch RecentJobs, save to Firestore, schedule work or publish to the feed.
