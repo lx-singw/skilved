@@ -23,7 +23,8 @@ import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs
 import { validateExtraction, validateAssessment, validationPayload, VALIDATION_VERSION } from './ai/validation.mjs';
 import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,recentGeminiUsage,mergeGeminiMinuteUsage,geminiUsageDelay } from './ai/gemini-quota.mjs';
 import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
-import { usesUndatedV2, makeUndatedOrigin } from './undated-policy.mjs';
+import { usesUndatedV2, makeUndatedOrigin, undatedOriginKeys } from './undated-policy.mjs';
+import { capturedNoticeJobs } from './undated-origin-import.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -38,7 +39,8 @@ const SOURCE_HOLD_MS = 24 * 3_600_000;
 const SOURCE_HOLD_REASONS = new Set(['NOTICE_CATEGORY_REVIEW_REQUIRED', 'NOTICE_CATEGORY_CONFLICT',
   'NOTICE_PRECISION_UNSUPPORTED', 'NOTICE_NOT_OPEN', 'NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED',
   'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED', 'UNDATED_NOTICE_FRESHNESS_REQUIRED',
-  'UNDATED_NOTICE_ORIGIN_REQUIRED', 'UNDATED_NOTICE_ORIGIN_CONFLICT']);
+  'UNDATED_NOTICE_ORIGIN_REQUIRED', 'UNDATED_NOTICE_ORIGIN_CONFLICT', 'UNDATED_ORIGIN_IMPORT_REQUIRED',
+  'UNDATED_HISTORY_CAPACITY', 'UNDATED_HISTORY_CONFLICT']);
 const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0);
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
@@ -393,13 +395,7 @@ export class RecentJobsWorker {
     return result;
   }
   undatedOriginKeys(candidate) {
-    const route = candidate.applicationCandidates[0];
-    // Tracking/query changes must not create a fresh identity. Query-selected
-    // intakes on a shared path remain held for explicit identity review.
-    const identity = route.method === 'portal' ? new URL(route.destination).origin + new URL(route.destination).pathname
-      : route.destination.toLowerCase();
-    return [hash(`undated_shadow_v2:notice:${candidate.sourceUrl}`),
-      hash(`undated_shadow_v2:route:${route.method}:${identity}`)];
+    return undatedOriginKeys(candidate);
   }
   async bindUndatedOrigin(claim, candidate, sourceRetrievedAt) {
     if (!usesUndatedV2(claim.source, candidate)) return null;
@@ -414,6 +410,8 @@ export class RecentJobsWorker {
       if (existing.some(Boolean) && (!existing.every(Boolean) || JSON.stringify(existing[0]) !== JSON.stringify(existing[1])))
         fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
       const origin = existing[0] ?? provisional;
+      if (!existing[0] && (await capturedNoticeJobs(tx, this.db, candidate.sourceUrl)).some(j => j.id !== claim.id))
+        fail('UNDATED_ORIGIN_IMPORT_REQUIRED');
       preflightCandidate(source, candidate, this.now(), sourceRetrievedAt, origin);
       if (!existing[0]) keys.forEach(k => tx.create(this.ref('worker_notice_origins', k), payload(origin)));
       tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, undatedOriginKeys: keys }));
@@ -437,6 +435,16 @@ export class RecentJobsWorker {
           !InstantSchema.safeParse(saved.at).success || !InstantSchema.safeParse(saved.recheckAt).success ||
           saved.at > this.now() || saved.recheckAt <= this.now() || Date.parse(saved.recheckAt) - Date.parse(saved.at) > SOURCE_HOLD_MS)
         return null;
+      if (saved.reason === 'UNDATED_ORIGIN_IMPORT_REQUIRED') {
+        const noticeKey = hash(`undated_shadow_v2:notice:${claim.url}`);
+        const receipt = value(await tx.get(this.ref('worker_origin_imports', noticeKey)));
+        if (receipt?.sourceId === source.id && receipt.sourceRevision === source.revision &&
+            receipt.origin?.sourceId === source.id && receipt.origin.sourceUrl === claim.url &&
+            receipt.originKeys?.length === 2 && receipt.originKeys[0] === noticeKey) {
+          const rows = await Promise.all(receipt.originKeys.map(k => tx.get(this.ref('worker_notice_origins', k))));
+          if (rows.every(r => JSON.stringify(value(r)) === JSON.stringify(receipt.origin))) return null;
+        }
+      }
       // A source hold must never postpone a published record's freshness watch.
       const watch = (await tx.get(this.ref('worker_watches', hash(`${source.id}:${hash(claim.url)}`)))).data();
       return watch?.sourceId === source.id && watch.url === claim.url && watch.stopAt > this.now() ? null : saved;

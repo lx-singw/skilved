@@ -172,6 +172,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Proposed recent-undated publication policy](174_RECENT_UNDATED_PUBLICATION_PROPOSAL_2026-10-25.md)
 - [Recent-undated V2 shadow policy and persistent origins](175_UNDATED_V2_SHADOW_ORIGINS_2026-10-25.md)
 - [Full-archive exposure and V2 origin-history review](176_FULL_ARCHIVE_EXPOSURE_AND_ORIGIN_HISTORY_2026-10-25.md)
+- [Reviewed V1-to-V2 origin import and private CNH assessment](177_REVIEWED_UNDATED_ORIGIN_IMPORT_2026-10-25.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

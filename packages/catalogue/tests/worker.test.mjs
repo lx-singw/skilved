@@ -23,6 +23,7 @@ import {spanHtml,spanWire,titleSpanHtml,titleSpanWire,titleSpanCandidate,workBas
 import {residenceHtml,residenceWire,residenceExtraction,residenceSpan,citizenship} from './fixtures/residence-model.mjs';
 import {submissionHtml,submissionWire,submissionCandidate} from './fixtures/submission-competency.mjs';
 import {decodeGroqExtraction} from '../src/ai/groq-schema.mjs';
+import {undatedHistoryHash} from '../src/undated-origin-import.mjs';
 import {boundDetail,boundBody} from './fixtures/recentjobs-bound-detail.mjs';
 import {GEMINI_MODEL_CHAIN} from '../src/ai/gemini-models.mjs';
 import {labelHtml,labelCandidate,labelWire,labelSpan,labelLines} from './fixtures/source-labels.mjs';
@@ -277,6 +278,39 @@ async function boundedUndatedFixture({wording='Closing date: not stated',publish
   f.worker=f.restart(f.options);await f.worker.ref('sources',f.sourceId).set(payload(f.source));return f;
 }
 
+test('V2 holds captured V1 history before AI and resumes only after authenticated matching origin import',async()=>{
+  const f=await boundedUndatedFixture({wording:''});f.source.automation.undatedNotices='shadow_recent';
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+  const first=detailResult(await f.worker.run(f.sourceId));assert.ok(first);
+  const draft=value(await f.worker.ref('drafts',first.recordId).get()),spent=(await sourceRows(f,'model_calls')).length;
+  f.source.revision++;f.source.automation.undatedNotices='shadow_recent_v2';
+  await f.worker.ref('sources',f.sourceId).set(payload(f.source));f.advance(3600000);
+  const result=await f.restart(f.options).run(f.sourceId);
+  assert.ok(result.results.some(r=>r.reason==='UNDATED_ORIGIN_IMPORT_REQUIRED'),JSON.stringify(result));
+  assert.equal((await sourceRows(f,'model_calls')).length,spent);
+  assert.equal((await sourceRows(f,'worker_notice_origins')).length,0);
+  assert.deepEqual(value(await f.worker.ref('drafts',first.recordId).get()),draft);
+  const jobs=(await sourceRows(f,'worker_jobs')).filter(j=>j.sourceRetrievedAt).sort((a,b)=>a.sourceRetrievedAt.localeCompare(b.sourceRetrievedAt));
+  const uid='origin_operator_'+randomUUID(),store=new Catalogue(db,{verifyIdToken:async()=>({uid})},f.now);
+  await f.worker.ref('operators',uid).set({active:true,roles:['source']});
+  const review={sourceId:f.sourceId,sourceRevision:f.source.revision,url:f.url,html:f.state.html,
+    expectedFirstJobId:jobs[0].id,decisionJobId:jobs[0].id,expectedHistoryHash:undatedHistoryHash(jobs)};
+  const imported=await store.importUndatedOrigin('synthetic_operator_token',review,'Reviewed synthetic V1 history including held capture');
+  const hold=(await sourceRows(f,'worker_holds'))[0];assert.equal(hold.reason,'UNDATED_ORIGIN_IMPORT_REQUIRED');
+  const requests=f.state.requests.length;
+  await f.worker.ref('worker_notice_origins',imported.originKeys[1]).delete();f.advance(3600000);
+  assert.ok((await f.restart(f.options).run(f.sourceId)).results.some(r=>r.sourceHeld));
+  assert.equal((await sourceRows(f,'model_calls')).length,spent);assert.equal(f.state.requests.length,requests+2);
+  // Discovery still reads robots/index; the held detail makes no request.
+  await f.worker.ref('worker_notice_origins',imported.originKeys[1]).create(payload(imported.origin));
+  f.advance(3600000);const resumed=detailResult(await f.restart(f.options).run(f.sourceId));assert.ok(resumed);
+  assert.deepEqual((await sourceRows(f,'worker_holds'))[0],hold);
+  const decision=value(await f.worker.ref('worker_decisions',(await sourceRows(f,'worker_jobs')).find(j=>j.recordId===resumed.recordId&&j.sourceRetrievedAt===f.now()).id).get());
+  assert.equal(decision.firstSeenAt,jobs[0].sourceRetrievedAt);assert.equal(decision.deadlinePolicy,'undated_shadow_v2');
+  assert.equal(imported.origin.firstSeenAt,jobs[0].sourceRetrievedAt);
+  assert.equal((await sourceRows(f,'model_calls')).length,spent+2);
+});
+
 test('V2 stores two immutable private origin bindings and a six-hour decision, with no public checks or watch',async()=>{
   for(const wording of ['', 'Closing date: not specified']) {
     const f=await boundedUndatedFixture({wording}),result=await f.worker.run(f.sourceId),row=detailResult(result);assert.ok(row,JSON.stringify(result.results));
@@ -377,10 +411,12 @@ test('V2 concurrent replacement-source jobs cannot both establish a fresh origin
   const a=await boundedUndatedFixture(),b=await boundedUndatedFixture();b.state.html=a.state.html;
   b.state.listing=b.state.listing.replace(b.url,a.url);b.url=a.url;
   const results=await Promise.all([a.worker.run(a.sourceId),b.worker.run(b.sourceId)]);
-  assert.equal(results.filter(r=>detailResult(r)).length,1);
-  assert.equal(results.filter(r=>r.results.some(x=>x.reason==='UNDATED_NOTICE_ORIGIN_CONFLICT')).length,1);
-  assert.equal(a.state.modelCalls+b.state.modelCalls,1);assert.equal(a.state.validations+b.state.validations,1);
-  assert.equal((await sourceRows(a,'worker_notice_origins')).length+(await sourceRows(b,'worker_notice_origins')).length,2);
+  const accepted=results.filter(r=>detailResult(r)).length;
+  // If both captures land before either binding, both require history review.
+  assert.ok(accepted<=1);
+  assert.equal(results.filter(r=>r.results.some(x=>['UNDATED_NOTICE_ORIGIN_CONFLICT','UNDATED_ORIGIN_IMPORT_REQUIRED'].includes(x.reason))).length,2-accepted);
+  assert.equal(a.state.modelCalls+b.state.modelCalls,accepted);assert.equal(a.state.validations+b.state.validations,accepted);
+  assert.equal((await sourceRows(a,'worker_notice_origins')).length+(await sourceRows(b,'worker_notice_origins')).length,2*accepted);
 });
 
 test('V2 source pause, revision change and grant revocation during validation prevent draft commits',async()=>{

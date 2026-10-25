@@ -1,7 +1,18 @@
+import { createHash } from 'node:crypto';
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
 import { DomainError } from './config.mjs';
 
 const fail = code => { throw new DomainError(code); };
+const hash = text => createHash('sha256').update(text).digest('hex');
+
+export function undatedOriginKeys(candidate) {
+  const route = candidate.applicationCandidates[0];
+  // Ignore tracking queries for identity, while retaining the full action URL.
+  const identity = route.method === 'portal' ? new URL(route.destination).origin + new URL(route.destination).pathname
+    : route.destination.toLowerCase();
+  return [hash(`undated_shadow_v2:notice:${candidate.sourceUrl}`),
+    hash(`undated_shadow_v2:route:${route.method}:${identity}`)];
+}
 const timing = /\b(?:closing\b|deadlines?\b|apply\s+(?:by|before)\b|applications?\s+(?:will\s+)?clos(?:e|es|ing)\b|until\s+filled\b|rolling\b|valid\s+through\b|cut[\s-]?off\b|no\s+later\s+than\b|recruitment\s+(?:ends?|closes?)\b|applications?\s+(?:are\s+)?(?:due|open\s+until|accepted\s+until)\b)/i;
 const closed = /\b(?:applications?\s+(?:are\s+)?closed|(?:position|vacancy)\s+(?:is\s+|has\s+been\s+)?filled|no\s+longer\s+accepting\s+applications)\b/i;
 const label = '(?:(?:application\\s+)?(?:closing\\s+date|deadline)|closing)';

@@ -6,6 +6,7 @@ import { Source, Report, Reason, JobInput } from './schemas.mjs';
 import { DomainError } from './config.mjs';
 import { approvedUrl, retrieve } from './fetch.mjs';
 import { enforceAutomaticFreshness } from './worker-policy.mjs';
+import { importUndatedOrigin } from './undated-origin-import.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -46,9 +47,14 @@ export class Catalogue {
   }
   async inspect(token, collection, id) {
     if (!['sources','source_versions','drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
-      'worker_decisions','worker_exceptions','worker_holds','worker_health','model_calls','model_budgets','model_cache'].includes(collection)) fail('INVALID_COMMAND');
+      'worker_decisions','worker_exceptions','worker_holds','worker_health','worker_notice_origins','worker_origin_imports','model_calls','model_budgets','model_cache'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     return this.db.runTransaction(async tx => { await this.operator(tx, uid); return value(await tx.get(this.ref(collection, id))); });
+  }
+  async importUndatedOrigin(token, review, reason) {
+    IdSchema.parse(review?.sourceId);
+    return this.mutate(token, 'source', 'source.undated_origin_import', review.sourceId, reason,
+      (tx, uid) => importUndatedOrigin(this, tx, review, uid));
   }
   async queue(token, collection, after) {
     if (!['sources','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
