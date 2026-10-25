@@ -1,0 +1,44 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: skilved-recentjobs-staging
+spec:
+  template:
+    spec:
+      taskCount: 1
+      parallelism: 1
+      template:
+        spec:
+          serviceAccountName: catalogue-staging-worker@skilved-staging.iam.gserviceaccount.com
+          maxRetries: 0
+          timeoutSeconds: '3600'
+          containers:
+            - image: REPLACE_WITH_WORKER_IMAGE_DIGEST
+              resources:
+                limits:
+                  cpu: '1'
+                  memory: 512Mi
+              env:
+                # Keep false until the existing source/history/quota checkpoint is reviewed and imported.
+                - {name: SKILVED_STAGING_WORKER_ENABLED, value: 'false'}
+                - {name: SKILVED_STAGING_PROJECT, value: skilved-staging}
+                - {name: SKILVED_CATALOGUE_PROJECT, value: skilved-staging}
+                - {name: SKILVED_CATALOGUE_MODE, value: cloud}
+                - {name: SKILVED_CATALOGUE_READS, value: 'false'}
+                - {name: SKILVED_CATALOGUE_REPORTS, value: 'false'}
+                - {name: SKILVED_SUGGESTIONS_ENABLED, value: 'false'}
+                - {name: SKILVED_AI_MODE, value: gemini}
+                - {name: SKILVED_AI_MODEL, value: gemini-3.8-flash}
+                - {name: SKILVED_AI_FALLBACK, value: 'true'}
+                - {name: SKILVED_AI_THINKING, value: low}
+                - {name: SKILVED_AI_VALIDATION_THINKING, value: medium}
+                # Provider key project determines quota sharing, independently of database project.
+                - {name: SKILVED_GEMINI_PROJECT_ID, value: REPLACE_WITH_VERIFIED_PROVIDER_PROJECT}
+                - {name: SKILVED_STAGING_SOURCE_ID, value: REPLACE_WITH_EXISTING_REVIEWED_SOURCE_ID}
+                - {name: SKILVED_STAGING_SOURCE_REVISION, value: '0'}
+                - {name: SKILVED_STAGING_WORKER_PRINCIPAL, value: catalogue-staging-worker@skilved-staging.iam.gserviceaccount.com}
+                - name: GEMINI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: gemini-api-key
+                      key: '1'

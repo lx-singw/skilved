@@ -1,0 +1,31 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: skilved-catalogue-staging
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '1'
+    spec:
+      serviceAccountName: catalogue-staging-web@skilved-staging.iam.gserviceaccount.com
+      containerConcurrency: 20
+      timeoutSeconds: 60
+      containers:
+        - image: REPLACE_WITH_WEB_IMAGE_DIGEST
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          env:
+            - {name: SKILVED_STAGING_PROJECT, value: skilved-staging}
+            - {name: SKILVED_CATALOGUE_PROJECT, value: skilved-staging}
+            - {name: SKILVED_CATALOGUE_MODE, value: cloud}
+            - {name: SKILVED_CATALOGUE_READS, value: 'true'}
+            - {name: SKILVED_CATALOGUE_REPORTS, value: 'false'}
+            - {name: SKILVED_SUGGESTIONS_ENABLED, value: 'false'}
+            - {name: SKILVED_AI_MODE, value: disabled}

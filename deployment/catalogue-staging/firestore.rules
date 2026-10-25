@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Catalogue access is server-only, using separate least-privilege ADC identities.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
