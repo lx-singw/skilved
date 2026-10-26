@@ -10,6 +10,8 @@ import { executeSuggestionCleanup, suggestionCleanupConfiguration } from '../src
 const help=`Usage: pnpm catalogue:operator <command.json>
 Set SKILVED_OPERATOR_TOKEN_FILE to a private file containing a current Firebase ID token.
 Commands: source, undated-origin-import, inspect, queue, save, publish, alias, report-triage, enqueue, run-job, schedule.
+publication-preview: read-only preview with id, expected and action; uses the current reviewer role.
+Preview never approves or publishes; execution repeats current source/role/revision checks.
 Suggestion commands: suggestion-queue; suggestion-review with a strict review object.
 Cleanup commands: suggestion-cleanup-preview with preview {target,limit?,after?};
 suggestion-cleanup-receipt, suggestion-cleanup-work, suggestion-cleanup-public-replay,
@@ -33,6 +35,7 @@ else {
       case 'queue':result=await catalogue.queue(token,c.collection,c.after);break;
       case 'save':result=await catalogue.saveDraft(token,c.record,c.expected,c.reason);break;
       case 'publish':result=await catalogue.publish(token,c.id,c.expected,c.action,c.reason);break;
+      case 'publication-preview':result=await catalogue.previewPublication(token,c.id,c.expected,c.action);break;
       case 'alias':result=await catalogue.alias(token,c.alias,c.expected,c.reason);break;
       case 'report-triage':result=await catalogue.triage(token,c.id,c.expected,c.decision,c.reason);break;
       case 'enqueue':result=await catalogue.enqueue(token,c.job,c.reason);break;

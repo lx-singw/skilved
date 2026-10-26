@@ -90,6 +90,25 @@ export class Catalogue {
   async publish(token, id, expected, action, reason) {
     if (!['publish','withhold','close','withdraw','restore'].includes(action)) fail('INVALID_COMMAND');
     return this.mutate(token, 'reviewer', action, id, reason, async (tx, uid) => {
+      const plan = await this.#publicationPlan(tx, id, expected, action, uid);
+      this.writePublication(tx, plan.record, plan.projection, plan.catalogueRevision, action, uid);
+      return { revision: plan.record.revision, catalogueRevision: plan.catalogueRevision };
+    });
+  }
+  async previewPublication(token, id, expected, action) {
+    if (!['publish','withhold','close','withdraw','restore'].includes(action)) fail('INVALID_COMMAND');
+    const uid = await this.identity(token);
+    return this.db.runTransaction(async tx => {
+      await this.operator(tx, uid);
+      const plan = await this.#publicationPlan(tx, id, expected, action, uid);
+      return { kind: 'publication_preview', publication: false, action, id, expectedRevision: expected,
+        projectedRevision: plan.record.revision, currentCatalogueRevision: plan.catalogueRevision - 1,
+        projectedCatalogueRevision: plan.catalogueRevision, checkedAt: this.now(), projection: plan.projection };
+    });
+  }
+  // Preview and mutation share the same transition, source checks and projection.
+  // This builds a plan only; publish rechecks everything in its own transaction.
+  async #publicationPlan(tx, id, expected, action, uid) {
       const ref = this.ref('drafts', id), record = value(await tx.get(ref));
       if (!record || record.revision !== expected) fail('CONFLICT');
       const stateRef = this.ref('state','current'), state = value(await tx.get(stateRef)) ?? { revision: 1 };
@@ -112,9 +131,7 @@ export class Catalogue {
       OpportunityRecordSchema.parse(record);
       const projection = projectOpportunity(record);
       if (projection.kind === 'invalid' || (approving && projection.kind !== 'opportunity')) fail('INVALID_RECORD');
-      this.writePublication(tx, record, projection, state.revision + 1, action, uid);
-      return { revision: record.revision, catalogueRevision: state.revision + 1 };
-    });
+      return { record, projection, catalogueRevision: state.revision + 1 };
   }
   writePublication(tx, record, projection, revision, action, actor) {
     tx.set(this.ref('drafts',record.id), payload(record));

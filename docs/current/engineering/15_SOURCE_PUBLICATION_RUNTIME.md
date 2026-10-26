@@ -50,11 +50,14 @@ Run `pnpm catalogue:operator /absolute/private/path/command.json`. Input uses on
 | `run-job` | `id` | Claim lease, bounded fetch/extraction and transactional completion |
 | `schedule` | optional `after` source ID | Enqueue due checks by source cadence; repeat using returned continuation |
 | `save` | complete canonical `record`, `expected`, `reason` | Save next draft revision; remove current public action pending review |
+| `publication-preview` | `id`, `expected`, `action` | Reviewer-only, read-only forecast of a publication transition; no approval or writes |
 | `publish` | `id`, `expected`, `action`, `reason` | Actions: publish, withhold, close, withdraw, restore |
 | `alias` | canonical `alias`, `expected`, `reason` | Confirm/reverse reviewed identity decision; cycle checks |
 | `report-triage` | `id`, `expected`, `decision`, `reason` | serious/resolved/spam; serious restricts current resolved record atomically |
 
 Example mutation envelope: `{"command":"publish","id":"<record-id>","expected":2,"action":"publish","reason":"Reviewed current notice and requirement wording"}`. Replace placeholders only after inspecting the current draft. Publishing is an explicit whole-record review: facts/citations are approved under the verified actor. Application handoff additionally requires a supported check for the exact destination and current draft revision; old checks are not silently renewed across draft edits. Use `save` to supply reviewed corrections/checks before `publish`.
+
+Before mutation, use a private command file such as `{"command":"publication-preview","id":"<record-id>","expected":2,"action":"publish"}` under the same verified reviewer setup. The [employer review and preview sprint](../operations/187_EMPLOYER_EVIDENCE_AND_PUBLICATION_PREVIEW_2026-10-26.md) records the real CNH preparation and limits. Preview shares publication's transition/source rules and returns a `publication_preview` envelope with `publication:false`, expected/projected revisions and the proposed public projection. It creates no version, audit, outbox event or public entry. It is a point-in-time forecast, not approval: later execution rechecks current role, revision and source state and supplies its own reason. No command bootstraps a reviewer identity or imports unsupported employer evidence.
 
 `save` increments the draft revision supplied by the operator and requires the previous expected revision. All other publication actions increment it on the server. A withdrawn record needs explicit `restore`; ingestion cannot change it back to a publishable lifecycle. Closing requires a currently published draft. Withholding keeps a minimal under-review status if previously public. Anonymous reports do not automatically withdraw anything; a reviewer must triage them.
 
