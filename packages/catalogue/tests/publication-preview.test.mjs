@@ -89,3 +89,64 @@ test('route checks and withdrawal rules are identical in preview and publication
  assert.equal((await f.store.detail(f.id)).status.status,'withdrawn');
  await assert.rejects(f.store.publish(f.token,f.id,3,'restore','Stale preview revision'),{code:'CONFLICT'});
 });
+
+test('publication and restore cannot turn an expired automatic check into a permanent human check',async()=>{
+ const f=await fixture();let record=await f.store.inspect(f.token,'drafts',f.id);record.revision++;
+ record.checks=[{id:'automatic_relationship',scope:'application_relationship',outcome:'supported',method:'automatic',
+  checkedAt:'2026-10-26T02:00:00.000Z',nextCheckAt:now,reviewerId:'original_worker',citationIds:['citation_fixture'],
+  recordRevision:2,destination:record.applicationRoute.value.destination,public:true,notes:null}];
+ await f.store.saveDraft(f.token,record,1,'Synthetic automatic check');
+ let preview=await f.store.previewPublication(f.token,f.id,2,'publish');
+ assert.equal(preview.projection.kind,'status');assert.equal(preview.projection.status.status,'under_review');
+ await f.store.publish(f.token,f.id,2,'publish','Synthetic publication');
+ assert.deepEqual(await f.store.detail(f.id),preview.projection);
+ assert.equal((await f.store.list(new URLSearchParams())).items.some(item=>item.id===f.id),false);
+ record=await f.store.inspect(f.token,'drafts',f.id);
+ assert.equal(record.checks[0].method,'automatic');assert.equal(record.checks[0].reviewerId,'original_worker');
+ assert.equal(record.checks[0].nextCheckAt,now);
+ preview=await f.store.previewPublication(f.token,f.id,3,'restore');
+ assert.equal(preview.projection.status.status,'under_review');
+ await f.store.publish(f.token,f.id,3,'restore','Synthetic restoration');
+ assert.deepEqual(await f.store.detail(f.id),preview.projection);
+ record=await f.store.inspect(f.token,'drafts',f.id);record.revision++;
+ record.checks=[{...record.checks[0],id:'new_human_check',method:'human',checkedAt:now,nextCheckAt:null,recordRevision:5}];
+ await f.store.saveDraft(f.token,record,4,'New synthetic human observation');
+ preview=await f.store.previewPublication(f.token,f.id,5,'publish');
+ assert.equal(preview.projection.opportunity.application.state,'available');
+});
+
+test('a fresh automatic check survives reviewer publication and expires at its original boundary',async()=>{
+ const f=await fixture();let clock=Date.parse(now);
+ const store=new Catalogue(runtime.db,runtime.auth,()=>new Date(clock).toISOString());
+ let record=await store.inspect(f.token,'drafts',f.id);record.revision++;
+ const expiry=new Date(clock+1000).toISOString();
+ record.checks=[{id:'fresh_automatic',scope:'application_relationship',outcome:'supported',method:'automatic',
+  checkedAt:now,nextCheckAt:expiry,reviewerId:'original_worker',citationIds:['citation_fixture'],recordRevision:2,
+  destination:record.applicationRoute.value.destination,public:true,notes:null}];
+ await store.saveDraft(f.token,record,1,'Synthetic current automatic check');
+ const preview=await store.previewPublication(f.token,f.id,2,'publish');
+ assert.equal(preview.projection.opportunity.application.state,'available');
+ await store.publish(f.token,f.id,2,'publish','Synthetic publication');
+ assert.equal((await store.detail(f.id)).kind,'opportunity');clock+=1000;
+ assert.equal((await store.detail(f.id)).status.status,'under_review');
+ assert.equal((await store.list(new URLSearchParams())).items.some(item=>item.id===f.id),false);
+});
+
+test('private automatic checks cannot silently bypass public freshness on publish or restore',async()=>{
+ for(const expiry of [now,'2026-10-26T04:00:00.000Z']){
+  const f=await fixture();let record=await f.store.inspect(f.token,'drafts',f.id);record.revision++;
+  const check={scope:'application_relationship',outcome:'supported',method:'human',checkedAt:now,nextCheckAt:null,
+   reviewerId:'reviewer_fixture',citationIds:['citation_fixture'],recordRevision:2,
+   destination:record.applicationRoute.value.destination,public:true,notes:null};
+  record.checks=[{...check,id:'public_relationship'},
+   {...check,id:'private_automatic',scope:'availability',method:'automatic',nextCheckAt:expiry,public:false}];
+  await f.store.saveDraft(f.token,record,1,'Synthetic private automatic observation');
+  for(const action of ['publish','restore']){
+   await assert.rejects(f.store.previewPublication(f.token,f.id,2,action),{code:'PRIVATE_AUTOMATIC_CHECK_UNSUPPORTED'});
+   await assert.rejects(f.store.publish(f.token,f.id,2,action,'Reject unsafe projection'),{code:'PRIVATE_AUTOMATIC_CHECK_UNSUPPORTED'});
+  }
+  await assert.rejects(f.store.detail(f.id),{code:'NOT_FOUND'});
+  await f.store.publish(f.token,f.id,2,'withdraw','Withdrawal remains available');
+  record=await f.store.inspect(f.token,'drafts',f.id);assert.equal(record.lifecycle,'withdrawn');
+ }
+});

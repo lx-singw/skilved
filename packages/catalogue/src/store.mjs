@@ -101,9 +101,11 @@ export class Catalogue {
     return this.db.runTransaction(async tx => {
       await this.operator(tx, uid);
       const plan = await this.#publicationPlan(tx, id, expected, action, uid);
+      const checkedAt = this.now();
       return { kind: 'publication_preview', publication: false, action, id, expectedRevision: expected,
         projectedRevision: plan.record.revision, currentCatalogueRevision: plan.catalogueRevision - 1,
-        projectedCatalogueRevision: plan.catalogueRevision, checkedAt: this.now(), projection: plan.projection };
+        projectedCatalogueRevision: plan.catalogueRevision, checkedAt,
+        projection: enforceAutomaticFreshness(plan.projection, checkedAt) };
     });
   }
   // Preview and mutation share the same transition, source checks and projection.
@@ -113,6 +115,10 @@ export class Catalogue {
       if (!record || record.revision !== expected) fail('CONFLICT');
       const stateRef = this.ref('state','current'), state = value(await tx.get(stateRef)) ?? { revision: 1 };
       if (action === 'publish' || action === 'restore') await this.checkSources(tx, record);
+      // Private checks do not appear in the public projection, so read-time
+      // expiry cannot enforce their deadline. Require an explicit review first.
+      if (['publish','restore'].includes(action) && record.checks.some(c =>
+        c.recordRevision === expected && c.method === 'automatic' && !c.public)) fail('PRIVATE_AUTOMATIC_CHECK_UNSUPPORTED');
       if (action === 'publish' && record.lifecycle === 'withdrawn') fail('RESTORE_REQUIRES_REVIEW');
       if (action === 'close' && record.lifecycle !== 'published') fail('REVIEW_REQUIRED');
       record.revision++; record.updatedAt = this.now();
@@ -125,7 +131,12 @@ export class Catalogue {
         for (const fact of facts(record)) { fact.reviewedBy = uid; fact.review = 'approved'; }
         for (const c of record.citations) c.approved = true;
         // Checks must have been reviewed for this exact draft, never silently retarget a stale check.
-        for (const c of record.checks) if (c.recordRevision === expected) { c.recordRevision = record.revision; c.reviewerId = uid; c.method = 'human'; }
+        for (const c of record.checks) if (c.recordRevision === expected) {
+          c.recordRevision = record.revision;
+          // A publication review is not a new source check. Keep automatic
+          // provenance and expiry so public reads can still suppress stale data.
+          if (c.method !== 'automatic') { c.reviewerId = uid; c.method = 'human'; }
+        }
         if (record.explanation?.review === 'approved') record.explanation.reviewedBy = uid;
       }
       OpportunityRecordSchema.parse(record);

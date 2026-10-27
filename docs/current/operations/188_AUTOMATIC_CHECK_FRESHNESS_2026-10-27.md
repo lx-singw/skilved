@@ -1,0 +1,15 @@
+# Automatic check freshness during review
+
+27 October 2026 (SAST). A reviewer publication or restoration could previously relabel an automatic source check as human review. That removed the check from the public read-time expiry guard, potentially making an expired application action visible again. Publication and preview now preserve the automatic check's original method, reviewer identity and next-check time when moving it to the new record revision.
+
+The read-only preview also applies the same automatic freshness rule as catalogue detail and feed reads. At the exact expiry time, the preview and public detail show an under-review status, and discovery omits the entry. A newly recorded human check remains possible through the existing authenticated reviewer workflow; publishing alone is not treated as a new observation.
+
+Private automatic checks are omitted from the public projection, so their expiry cannot be enforced there. For now, publication and restoration reject records with a current private automatic check using `PRIVATE_AUTOMATIC_CHECK_UNSUPPORTED`. Withdrawal and closure remain available. A reviewer must resolve that check through an explicit review before publishing. This restriction applies to the operator publication path; already-public legacy records with private automatic checks need a separate audit and remediation before rollout. A read-only staging inspection on 27 October found zero public records.
+
+## Verification and remaining limits
+
+The focused emulator tests cover expired and fresh automatic checks, exact-boundary expiry, preview/read agreement, restoration, explicit human rechecking, and both expired and future private automatic checks. All **995 catalogue tests passed** in a fresh emulator. The worker image was not rebuilt: the local Docker daemon and buildx were unavailable. The earlier image predates this change. No source was fetched, no AI call was made, and no cloud data or publication was changed.
+
+The CNH worker decision expired at 06:40 SAST on 26 October. The earlier manual review packet is historical evidence and cannot establish current application availability or freshness. The existing human publication path does not bind a draft to that worker decision's expiry or automatically enforce the undated shadow-only decision; that separate gap remains unresolved. No deadline, first-acquisition time or quota was refreshed by this change.
+
+Hosting remains undeployed at the user's request, employer crawling optional/off, Gemini shadow-only and production publishing disabled. Before enabling publication, establish an explicit policy and enforcement for expired undated worker decisions, and audit any already-public records containing private automatic checks.
