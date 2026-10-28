@@ -6,7 +6,7 @@ import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
 import { Catalogue } from '../src/store.mjs';
 import { getRuntime } from '../src/runtime.mjs';
 import { configuration, DomainError } from '../src/config.mjs';
-import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
+import { RECENTJOBS_INDEX, allFacts } from '../src/worker-policy.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
 import { GroqError } from '../src/ai/groq.mjs';
 import {extractWithProvider} from '../src/ai/provider.mjs';
@@ -392,6 +392,70 @@ test('recent undated shadow notices create unapproved private drafts with honest
   assert.equal(decision.sourceRetrievedAt,f.now());assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
   assert.equal((await f.worker.ref('public',result.recordId).get()).exists,false);assert.equal((await sourceRows(f,'worker_watches')).length,0);
   assert.ok(f.state.requests.every(r=>r.url.startsWith('https://recentjobs.co.za/')));
+});
+
+test('fresh and expired undated worker drafts stay private on publication and restoration',async()=>{
+ for(const mode of ['v1','v2'])for(const expired of [false,true]){
+  const f=mode==='v1'?await undatedFixture():await boundedUndatedFixture();
+  const result=detailResult(await f.worker.run(f.sourceId));assert.ok(result);assert.equal(result.published,false);
+  const uid='reviewer_'+randomUUID();await f.worker.ref('operators',uid).set({active:true,roles:['reviewer']});
+  const operator=new Catalogue(db,{verifyIdToken:async()=>({uid})},f.now);
+  const before=value(await f.worker.ref('drafts',result.recordId).get());
+  if(expired)f.advance(24*3600000);
+  for(const action of ['publish','restore']){
+   await assert.rejects(operator.previewPublication('synthetic-token',result.recordId,1,action),{code:'UNDATED_WORKER_PUBLICATION_UNSUPPORTED'});
+   await assert.rejects(operator.publish('synthetic-token',result.recordId,1,action,'Synthetic review'),{code:'UNDATED_WORKER_PUBLICATION_UNSUPPORTED'});
+  }
+  assert.deepEqual(value(await f.worker.ref('drafts',result.recordId).get()),before);
+  assert.equal((await f.worker.ref('public',result.recordId).get()).exists,false);
+  await operator.publish('synthetic-token',result.recordId,1,'withdraw','Synthetic withdrawal remains allowed');
+ }
+});
+
+test('worker origin remains binding after a citation replacement and source policy change',async()=>{
+ const f=await undatedFixture(),result=detailResult(await f.worker.run(f.sourceId));assert.ok(result);
+ const uid='reviewer_'+randomUUID();await f.worker.ref('operators',uid).set({active:true,roles:['reviewer']});
+ const operator=new Catalogue(db,{verifyIdToken:async()=>({uid})},f.now),id=result.recordId;
+ const snapshotId='manual_'+randomUUID(),url='https://employer.example/apply';
+ await f.worker.ref('snapshots',snapshotId).set(payload({id:snapshotId,sourceId:f.sourceId,sourceRevision:1,url}));
+ let record=value(await f.worker.ref('drafts',id).get());record.revision++;
+ record.citations=[{id:'manual_source',label:'Synthetic employer notice',url,snapshotId,approved:false}];
+ allFacts(record).forEach(fact=>{if(fact.sourceSnapshotIds.length)fact.sourceSnapshotIds=[snapshotId];});
+ await operator.saveDraft('synthetic-token',record,1,'Synthetic citation replacement');
+ f.source.revision++;f.source.automation.undatedNotices='reject';await f.worker.ref('sources',f.sourceId).set(payload(f.source));
+ await assert.rejects(operator.previewPublication('synthetic-token',id,2,'publish'),{code:'UNDATED_WORKER_PUBLICATION_UNSUPPORTED'});
+ record=value(await f.worker.ref('drafts',id).get());record.revision++;record.private.queueId=snapshotId;
+ await assert.rejects(operator.saveDraft('synthetic-token',record,2,'Attempt to replace worker origin'),{code:'WORKER_SOURCE_BINDING_REQUIRED'});
+ assert.equal(value(await f.worker.ref('drafts',id).get()).revision,2);
+});
+
+test('unrelated manual records and worker records with a stated date retain their reviewer path',async()=>{
+ const f=await undatedFixture(),result=detailResult(await f.worker.run(f.sourceId));assert.ok(result);
+ const uid='reviewer_'+randomUUID();await f.worker.ref('operators',uid).set({active:true,roles:['reviewer']});
+ const operator=new Catalogue(db,{verifyIdToken:async()=>({uid})},f.now);
+ const original=value(await f.worker.ref('drafts',result.recordId).get());
+ const manual=structuredClone(original);manual.id='manual_'+randomUUID();manual.revision=1;manual.private.queueId=null;
+ await operator.saveDraft('synthetic-token',manual,null,'Synthetic independently reviewed record');
+ assert.equal((await operator.previewPublication('synthetic-token',manual.id,1,'publish')).projection.kind,'opportunity');
+ const dated=structuredClone(original);dated.revision++;
+ dated.deadline={...dated.deadline,state:'stated',value:{kind:'date',originalText:'30 October 2026',localDate:'2026-10-30',localTime:null,timezone:null,utcInstant:null},
+  originalText:'30 October 2026',sourceSnapshotIds:[dated.citations[0].snapshotId],evidenceRefs:['deadline_evidence']};
+ await operator.saveDraft('synthetic-token',dated,1,'Synthetic independently verified closing date');
+ assert.equal((await operator.previewPublication('synthetic-token',dated.id,2,'publish')).projection.kind,'opportunity');
+});
+
+test('ambiguous and open-until-filled worker deadlines do not bypass the private-only guard',async()=>{
+ for(const kind of ['ambiguous','open_until_filled']){
+  const f=await undatedFixture(),result=detailResult(await f.worker.run(f.sourceId));assert.ok(result);
+  const uid='reviewer_'+randomUUID();await f.worker.ref('operators',uid).set({active:true,roles:['reviewer']});
+  const operator=new Catalogue(db,{verifyIdToken:async()=>({uid})},f.now);
+  const record=value(await f.worker.ref('drafts',result.recordId).get());record.revision++;
+  record.deadline=kind==='ambiguous'?{...record.deadline,state:'ambiguous',value:null,originalText:'Unclear closing date'}:
+   {...record.deadline,state:'stated',value:{kind:'open_until_filled',originalText:'Open until filled',localDate:null,localTime:null,timezone:null,utcInstant:null},
+    originalText:'Open until filled',sourceSnapshotIds:[record.citations[0].snapshotId],evidenceRefs:['deadline_evidence']};
+  await operator.saveDraft('synthetic-token',record,1,'Synthetic deadline clarification');
+  await assert.rejects(operator.previewPublication('synthetic-token',record.id,2,'publish'),{code:'UNDATED_WORKER_PUBLICATION_UNSUPPORTED'});
+ }
 });
 
 test('opting into undated shadow assessment with a source revision releases the old negative hold',async()=>{

@@ -12,6 +12,12 @@ const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
 const payload = value => ({ json: JSON.stringify(value) });
 const value = snap => snap.exists ? JSON.parse(snap.data().json) : null;
+// RecentJobs worker IDs bind the source and original notice URL. This does not
+// infer a decision expiry or identify unrelated manually created records.
+const workerSnapshot = (record, snapshot) => typeof snapshot?.sourceId === 'string' &&
+  typeof snapshot?.url === 'string' && record.id === hash(`${snapshot.sourceId}:${hash(snapshot.url)}`);
+const hasDatedDeadline = record => record.deadline?.state === 'stated' &&
+  record.deadline.value?.kind === 'date' && typeof record.deadline.value.localDate === 'string';
 const MAX_PUBLIC = 1000;
 export class Catalogue {
   constructor(db, auth, now = () => new Date().toISOString()) { this.db = db; this.auth = auth; this.now = now; }
@@ -69,6 +75,10 @@ export class Catalogue {
     return this.mutate(token, 'reviewer', 'draft.save', record.id, reason, async (tx,uid) => {
       const ref = this.ref('drafts', record.id), old = value(await tx.get(ref));
       if ((old?.revision ?? null) !== expected || record.revision !== (expected ?? 0) + 1) fail('CONFLICT');
+      if (old?.private.queueId && old.private.queueId !== record.private.queueId) {
+        const origin = value(await tx.get(this.ref('snapshots', old.private.queueId)));
+        if (workerSnapshot(old, origin)) fail('WORKER_SOURCE_BINDING_REQUIRED');
+      }
       await this.checkSources(tx, record);
       const state=value(await tx.get(this.ref('state','current'))) ?? { revision:1 };
       record.lifecycle = old?.lifecycle==='withdrawn'?'withdrawn':'review'; record.publication = { approved: false, disposition: 'review_required', previouslyPublic: old?.publication.previouslyPublic ?? false, reviewedBy: null };
@@ -78,11 +88,12 @@ export class Catalogue {
       return { revision: record.revision };
     });
   }
-  async checkSources(tx, record) {
+  async checkSources(tx, record, publishing = false) {
     if (!record.citations.length) fail('SOURCE_REQUIRED');
     for (const citation of record.citations) {
       const snapshot = value(await tx.get(this.ref('snapshots', citation.snapshotId)));
       if (!snapshot || snapshot.url !== citation.url) fail('SOURCE_REQUIRED');
+      if (publishing && !hasDatedDeadline(record) && workerSnapshot(record, snapshot)) fail('UNDATED_WORKER_PUBLICATION_UNSUPPORTED');
       const source = value(await tx.get(this.ref('sources', snapshot.sourceId)));
       if (!source || source.paused || !source.categories.includes(record.category)) fail('SOURCE_PAUSED');
     }
@@ -114,7 +125,15 @@ export class Catalogue {
       const ref = this.ref('drafts', id), record = value(await tx.get(ref));
       if (!record || record.revision !== expected) fail('CONFLICT');
       const stateRef = this.ref('state','current'), state = value(await tx.get(stateRef)) ?? { revision: 1 };
-      if (action === 'publish' || action === 'restore') await this.checkSources(tx, record);
+      if (action === 'publish' || action === 'restore') {
+        await this.checkSources(tx, record, true);
+        // The worker snapshot remains binding even if a later review replaces
+        // its discovery citation with a different source.
+        if (!hasDatedDeadline(record) && record.private.queueId) {
+          const origin = value(await tx.get(this.ref('snapshots', record.private.queueId)));
+          if (workerSnapshot(record, origin)) fail('UNDATED_WORKER_PUBLICATION_UNSUPPORTED');
+        }
+      }
       // Private checks do not appear in the public projection, so read-time
       // expiry cannot enforce their deadline. Require an explicit review first.
       if (['publish','restore'].includes(action) && record.checks.some(c =>

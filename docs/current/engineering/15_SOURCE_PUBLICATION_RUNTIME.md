@@ -61,6 +61,8 @@ Before mutation, use a private command file such as `{"command":"publication-pre
 
 Reviewer actions preserve an automatic check's method, original reviewer identity and expiry; they do not turn it into a new human observation. The preview applies read-time freshness at its own check time. Publication and restoration reject current private automatic checks because their expiry cannot be enforced from the public projection. See the [freshness report](../operations/188_AUTOMATIC_CHECK_FRESHNESS_2026-10-27.md) for legacy-record and undated-decision limitations.
 
+The [undated worker guard](../operations/189_UNDATED_WORKER_PUBLICATION_GUARD_2026-10-28.md) rejects publication or restoration of identifiable worker-derived drafts without a stated calendar date. The original worker snapshot remains binding when citations are replaced, and operator draft edits cannot replace that bound queue ID. This does not verify a newly supplied date or recover missing historical provenance; current evidence and reviewer checks are still required.
+
 `save` increments the draft revision supplied by the operator and requires the previous expected revision. All other publication actions increment it on the server. A withdrawn record needs explicit `restore`; ingestion cannot change it back to a publishable lifecycle. Closing requires a currently published draft. Withholding keeps a minimal under-review status if previously public. Anonymous reports do not automatically withdraw anything; a reviewer must triage them.
 
 ## Persistence and consistency
