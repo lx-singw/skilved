@@ -328,6 +328,11 @@ test('source-label checks stop incomplete skills, qualification groups and locat
     }else{
       const reason={missing_skill:'AI_REQUIREMENT_COVERAGE',incomplete_location:'AI_LOCATION_EVIDENCE_UNRESOLVED',split_qualification:'AI_REQUIREMENT_GROUP_UNRESOLVED'}[scenario];
       assert.ok(result.results.some(r=>r.reason===reason));
+      if(scenario==='incomplete_location'){
+        const exception=value(await f.worker.ref('worker_exceptions',job.id).get());
+        assert.deepEqual(exception.locationDiagnostic,{version:1,field:'attendance',reason:'explicit_label_not_supported',placeIndex:null});
+        assert.equal(Object.hasOwn(result.results.find(r=>r.reason===reason),'locationDiagnostic'),false);
+      }
       assert.equal(f.state.validations,0);assert.equal((await f.worker.ref('worker_candidates',job.id).get()).exists,false);
       assert.equal((await f.worker.ref('drafts',job.recordId).get()).exists,false);
     }

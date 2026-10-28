@@ -16,6 +16,7 @@ import { GROQ_MODEL } from './ai/groq.mjs';
 import { GEMINI_MODEL, GEMINI_MODEL_CHAIN } from './ai/gemini.mjs';
 import { geminiAvailabilityFailure } from './ai/gemini-models.mjs';
 import { transportCodeOf } from './ai/transport-diagnostic.mjs';
+import { privateLocationDiagnostic } from './ai/location-evidence.mjs';
 import { extractWithProvider } from './ai/provider.mjs';
 import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
@@ -313,6 +314,7 @@ export class RecentJobsWorker {
       const retry = windowFailure ? windowRetry : isRetryable(error) && ordinaryAttempts(job) < 3;
       const candidateCode = error.code ?? (/^RECENTJOBS_[A-Z_]+$/.test(error.message ?? '') ? error.message : null);
       const code = /^[A-Z_]+$/.test(candidateCode ?? '') ? candidateCode : 'WORKER_STAGE_FAILED';
+      const locationDiagnostic=privateLocationDiagnostic(error);
       const recordId = hash(`${source.id}:${hash(job.url)}`);
       const old = job.kind === 'detail' ? value(await tx.get(this.ref('drafts', recordId))) : null;
       const catalogueState = value(await tx.get(this.ref('state', 'current'))) ?? { revision: 1 };
@@ -332,6 +334,7 @@ export class RecentJobsWorker {
           reason: code, stage: job.stage ?? job.kind, url: job.url, snapshotId: job.snapshotId ?? null,
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
           programmePlanId:job.programmePlanId ?? null,
+          ...(locationDiagnostic?{locationDiagnostic}:{}),
           attempts: job.attempts, modelWindowRetries:job.modelWindowRetries ?? 0, at: this.now() }));
         const sourceHold = job.kind === 'detail' && !old?.publication.previouslyPublic && !old?.publication.approved &&
           (job.stage === 'preflight' && SOURCE_HOLD_REASONS.has(code) || !job.stage && code === 'RECENTJOBS_LAYOUT_CHANGED');
@@ -617,10 +620,12 @@ export class RecentJobsWorker {
         // Stop before further siblings on quota/provider/system failures. Semantic failures stay isolated.
         if(error.retryable || /^(?:AI_(?:PROVIDER|TRANSPORT|TIMEOUT|RATE|CONFIGURATION|DISABLED)|MODEL_BUDGET|WORKER_|SOURCE_|STALE_LEASE)/.test(error.code??''))throw error;
         const reason=/^[A-Z_]+$/.test(error.code??'')?error.code:'PROGRAMME_STAGE_FAILED';
+        const locationDiagnostic=privateLocationDiagnostic(error);
         await this.transaction(claim.sourceId,'worker.programme.exception',async(tx,source)=>{
           await this.assertClaim(tx,source,claim);tx.set(this.ref('worker_programme_decisions',decisionId),payload({sourceId:source.id,
             jobId:claim.id,intakeId:intake.id,snapshotId:captured.snapshotId,decision:'exception',reason,
-            ...(error.outputDiagnostic?{outputDiagnostic:error.outputDiagnostic}:{}),at:this.now()}));
+            ...(error.outputDiagnostic?{outputDiagnostic:error.outputDiagnostic}:{}),
+            ...(locationDiagnostic?{locationDiagnostic}:{}),at:this.now()}));
         });
         results.push({intakeId:intake.id,state:'exception',reason});
       }

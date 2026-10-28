@@ -20,7 +20,22 @@ otherwise leave relocation null. Do not guess or paraphrase these missing detail
 
 const normalise = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 const contains = (quote,text) => (` ${normalise(quote)} `).includes(` ${normalise(text)} `);
-const fail = () => { throw new DomainError('AI_LOCATION_EVIDENCE_UNRESOLVED'); };
+const fail = (field, reason, placeIndex = null) => {
+  const error = new DomainError('AI_LOCATION_EVIDENCE_UNRESOLVED');
+  error.locationDiagnostic = {version:1, field, reason, placeIndex};
+  throw error;
+};
+// Private operational metadata only. Never copy quotes, values or arbitrary keys.
+export function privateLocationDiagnostic(error) {
+  if(error?.code !== 'AI_LOCATION_EVIDENCE_UNRESOLVED')return null;
+  const d=error.locationDiagnostic;
+  const reasons={city:'place_not_in_span',province:'place_not_in_span',country:'place_not_in_span',
+    attendance:'explicit_label_not_supported',coverage:'explicit_label_not_supported',relocation:'verbatim_line_not_supported'};
+  if(!d||d.version!==1||typeof d.field!=='string'||!Object.hasOwn(reasons,d.field)||d.reason!==reasons[d.field])return null;
+  const place=['city','province','country'].includes(d.field);
+  if(place?!(Number.isInteger(d.placeIndex)&&d.placeIndex>=0&&d.placeIndex<10000):d.placeIndex!==null)return null;
+  return {version:1,field:d.field,reason:d.reason,placeIndex:d.placeIndex};
+}
 // Deliberately narrow affirmative labels. A city, local-residence rule, duty,
 // alternative, negation or a remote-control skill does not establish these facts.
 export const attendanceLabel = /^(?:Attendance|Work arrangement|Work mode|Working mode)\s*:/i;
@@ -35,18 +50,18 @@ const labelled = (lines,pattern,label,canonical) => new Set(lines.flatMap(line=>
 export function assertLocationEvidence(fact) {
   if (fact.state !== 'stated') return;
   const {places,coverage,attendance,relocation}=fact.value,quote=fact.quote,lines=quote.split('\n');
-  for (const place of places) {
-    if(place.city && !contains(quote,place.city)) fail();
-    if(place.province && !contains(quote,place.province)) fail();
-    if(place.country && !(contains(quote,place.country) || place.country==='ZA'&&contains(quote,'South Africa'))) fail();
+  for (const [index,place] of places.entries()) {
+    if(place.city && !contains(quote,place.city)) fail('city','place_not_in_span',index);
+    if(place.province && !contains(quote,place.province)) fail('province','place_not_in_span',index);
+    if(place.country && !(contains(quote,place.country) || place.country==='ZA'&&contains(quote,'South Africa'))) fail('country','place_not_in_span',index);
   }
   const modes=labelled(lines,attendancePattern,attendanceLabel,attendanceValue);
-  if(attendance!=='not_stated' && (modes.size!==1 || !modes.has(attendance))) fail();
+  if(attendance!=='not_stated' && (modes.size!==1 || !modes.has(attendance))) fail('attendance','explicit_label_not_supported');
   const scopes=labelled(lines,coveragePattern,/^(?:Coverage|Geographical coverage|Recruitment coverage|Recruitment scope)\s*:/i,v=>v==='nationwide'?'national':v);
   if(lines.some((line,index)=>/^Locations?\s*:\s*All provinces[.]?$/i.test(line.trim()) ||
      /^Locations?\s*:?[ \t]*$/i.test(line.trim()) && /^All provinces[.]?$/i.test(lines[index+1]?.trim()??''))) scopes.add('national');
-  if(coverage!=='not_stated' && (scopes.size!==1 || !scopes.has(coverage))) fail();
-  if(relocation && !lines.some(line=>line.trim()===relocation && /\brelocat(?:ion|e|ing)\b/i.test(line))) fail();
+  if(coverage!=='not_stated' && (scopes.size!==1 || !scopes.has(coverage))) fail('coverage','explicit_label_not_supported');
+  if(relocation && !lines.some(line=>line.trim()===relocation && /\brelocat(?:ion|e|ing)\b/i.test(line))) fail('relocation','verbatim_line_not_supported');
 }
 
 /** Source-local hints only; the model still returns its own checked facts. */

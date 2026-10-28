@@ -1,7 +1,33 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assertLocationEvidence,locationEvidenceHints} from '../src/ai/location-evidence.mjs';
+import {assertLocationEvidence,locationEvidenceHints,privateLocationDiagnostic} from '../src/ai/location-evidence.mjs';
 const fact=(quote,patch={})=>({state:'stated',quote,value:{places:[{country:null,province:null,city:'Polokwane'}],coverage:'not_stated',attendance:'not_stated',relocation:null,...patch}});
+
+test('private location diagnostics identify rejected fields without retaining provider/source text',()=>{
+ const secret='DO_NOT_STORE_PROVIDER_VALUE';
+ for(const [field,patch,reason,index]of [
+  ['city',{places:[{city:secret}]},'place_not_in_span',0],
+  ['province',{places:[{province:secret}]},'place_not_in_span',0],
+  ['country',{places:[{country:secret}]},'place_not_in_span',0],
+  ['attendance',{attendance:'remote'},'explicit_label_not_supported',null],
+  ['coverage',{coverage:'national'},'explicit_label_not_supported',null],
+  ['relocation',{relocation:secret},'verbatim_line_not_supported',null]
+ ]){
+  const input=fact('Location: Polokwane',patch),before=structuredClone(input);
+  assert.throws(()=>assertLocationEvidence(input),e=>{
+   const diagnostic=privateLocationDiagnostic(e);assert.deepEqual(diagnostic,{version:1,field,reason,placeIndex:index});
+   assert.equal(e.message,'AI_LOCATION_EVIDENCE_UNRESOLVED');assert.ok(!JSON.stringify(diagnostic).includes(secret));return true;
+  });assert.deepEqual(input,before);
+ }
+});
+
+test('private diagnostic projection rejects invalid shapes and strips all extra values',()=>{
+ const valid={version:1,field:'city',reason:'place_not_in_span',placeIndex:0};
+ const error=d=>({code:'AI_LOCATION_EVIDENCE_UNRESOLVED',locationDiagnostic:d});
+ assert.deepEqual(privateLocationDiagnostic(error({...valid,quote:'SECRET',value:'SECRET',extra:{secret:true}})),valid);
+ for(const patch of [{version:2},{field:'SECRET'},{field:['city']},{field:'toString'},{reason:'SECRET'},{placeIndex:-1},{placeIndex:Infinity},{placeIndex:10000},{placeIndex:0.5},{placeIndex:null}])assert.equal(privateLocationDiagnostic(error({...valid,...patch})),null);
+ assert.equal(privateLocationDiagnostic({...error(valid),code:'OTHER'}),null);assert.equal(privateLocationDiagnostic(null),null);
+});
 
 test('a city alone cannot establish province, country, coverage or attendance',()=>{
  const quote='Location: Polokwane';assert.doesNotThrow(()=>assertLocationEvidence(fact(quote)));

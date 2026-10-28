@@ -26,7 +26,10 @@ test('short location spans fail after one simulated ordinary/split call without 
     const wire=locationWire(false),{requirements,...metadata}=wire,data=split?metadata:wire,original=structuredClone(data);let calls=0;
     await assert.rejects((split?extractMetadata:extractWithProvider)(candidate,{env:{SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_location_metadata_key',SKILVED_AI_FALLBACK:'true'},fetchImpl:async()=>{
       calls++;return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(data)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
-    }}),error=>error.code==='AI_LOCATION_EVIDENCE_UNRESOLVED'&&error.usage.totalTokens===15);
+    }}),error=>{
+      assert.equal(error.code,'AI_LOCATION_EVIDENCE_UNRESOLVED');assert.equal(error.usage.totalTokens,15);
+      assert.deepEqual(error.locationDiagnostic,{version:1,field:'province',reason:'place_not_in_span',placeIndex:0});return true;
+    });
     assert.equal(calls,1);assert.deepEqual(data,original);
   }
 });
