@@ -14,6 +14,8 @@ This was an operational recovery using private scripts and preserved artifacts; 
 
 ## Remaining work
 
-The audit also checked the current decisions against source-version history. Three additional references remain missing: Transnet revision 11, UFS revision 6 and ALPLA revision 14. Their recovery is still pending. The audit did not certify every older job, call or decision revision, so the four restored snapshot versions must not be described as complete historical recovery.
+Follow-up: the [decision-history and dated-notice sprint](191_DECISION_HISTORY_AND_DATED_NOTICE_ASSESSMENT_2026-10-28.md) subsequently restored the three references below and tested ALPLA afresh. Its original employer destination reports the job unavailable, so it is held from publication.
+
+At audit completion, three additional current-decision references were still missing: Transnet revision 11, UFS revision 6 and ALPLA revision 14. Their recovery was pending at that point. The audit did not certify every older job, call or decision revision, so the four restored snapshot versions must not be described as complete historical recovery.
 
 Next reconcile the three current-decision references against preserved evidence, then perform a fresh bounded assessment of a dated notice such as ALPLA if it remains eligible. Closed notices should not be republished, and expired/undated assessments must not be renewed by migration or history restoration. These steps still do not establish application acceptance or production qualification.
