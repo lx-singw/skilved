@@ -185,6 +185,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Employer evidence and read-only publication preview](187_EMPLOYER_EVIDENCE_AND_PUBLICATION_PREVIEW_2026-10-26.md)
 - [Automatic check freshness during review](188_AUTOMATIC_CHECK_FRESHNESS_2026-10-27.md)
 - [Undated worker publication guard](189_UNDATED_WORKER_PUBLICATION_GUARD_2026-10-28.md)
+- [Staging provenance audit and snapshot history restoration](190_STAGING_PROVENANCE_AUDIT_2026-10-28.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)
