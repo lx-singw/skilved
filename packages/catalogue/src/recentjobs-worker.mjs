@@ -33,6 +33,7 @@ import { ISSUER_REGISTRY_VERSION, lookupIssuerRelationships, validateIssuerBindi
 import { ORIGIN_DISCOVERY_VERSION, discoveryOutcome, probeUrl, issuerHint, corporateAnchor, corporateLink, makeDelegation,
   delegationBinding, delegationDocument, readDelegation, lookupDelegations, validateDelegationBindings } from './origin-discovery.mjs';
 import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
+import {onboardingNeedId} from './employer-onboarding.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -614,11 +615,13 @@ export class RecentJobsWorker {
     } else if (claim.source.automation.employerCrawl) resolution = discoveryOutcome('unsupported','PROBE_TARGET_UNSUPPORTED');
     const observations = [primary,corporate].filter(Boolean).map(o=>({ ...o, hash:hash(o.text), id:hash(`${claim.sourceId}:${o.url}:${hash(o.text)}`) }));
     const proposed = link ? makeDelegation(anchor,link,{now:this.now(),snapshotId:observations.at(-1).id,sourceId:claim.sourceId,sourceRevision:claim.sourceRevision}) : null;
+    const needId=hint&&resolution.reason==='CORPORATE_AUTHORITY_UNQUALIFIED'?onboardingNeedId(hint):null;
     let delegation;
     try {
       delegation = await this.transaction(claim.sourceId,'worker.origin.observe',async(tx,source)=>{
         const job = await this.assertClaim(tx,source,claim);
         const previous = await Promise.all(observations.map(o=>tx.get(this.ref('snapshots',o.id))));
+        const need=needId?value(await tx.get(this.ref('employer_onboarding_needs',needId))):null;
         let chosen = proposed, versionExists = null;
         if (proposed) {
           const current = readDelegation(await tx.get(this.ref('employer_delegations',proposed.id)));
@@ -634,6 +637,8 @@ export class RecentJobsWorker {
         tx.create(this.ref('worker_origin_discoveries',id),payload({id,sourceId:source.id,sourceRevision:source.revision,jobId:claim.id,at:this.now(),
           resolution, snapshots:observations.map(o=>o.id), ...(hint?{issuerHint:{version:'issuer_hint_v2',method:hint.host===null?'organization_name':'structured_url',...hint}}:{}),
           ...(chosen?{delegations:[delegationBinding(chosen)]}:{})}));
+        if(needId)tx.set(this.ref('employer_onboarding_needs',needId),payload({id:needId,version:'employer_onboarding_v1',state:'needs_evidence',issuerHint:hint,
+          firstSeenAt:need?.firstSeenAt??this.now(),lastSeenAt:this.now(),observations:[...(need?.observations??[]),{sourceId:source.id,jobId:claim.id,originDiscoveryId:id}].slice(-20)}));
         tx.set(this.ref('worker_jobs',job.id),payload({...job,originDiscoveryId:id})); return chosen;
       });
     } finally { delete claim.originAnchor; }

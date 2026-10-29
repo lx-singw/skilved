@@ -1,5 +1,7 @@
 # Name-only corporate anchor lookup
 
+Follow-up: [evidence-backed employer onboarding](204_EVIDENCE_BACKED_EMPLOYER_ONBOARDING_2026-10-29.md) adds unknown-origin needs, bounded evidence collection and versioned source-role review. Later notices reuse the resulting authority; unavailable real identity evidence remains held and unattended unknown-company qualification is not yet enabled.
+
 29 October 2026 (SAST). The shared shadow origin-discovery path can now use an exact organization name when a supported original JobPosting supplies no corporate URL. The name is a bounded lookup hint into already-reviewed corporate authority, not permission to guess a domain or qualify a new employer. The reviewed corporate careers page must still link back to the exact supported recruitment scope; original-vacancy and [deadline checks](202_ORIGINAL_DEADLINE_EVIDENCE_2026-10-29.md) still follow before AI.
 
 ## Lookup and authority boundaries

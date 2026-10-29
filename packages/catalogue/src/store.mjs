@@ -9,6 +9,7 @@ import { approvedUrl, retrieve } from './fetch.mjs';
 import { enforceAutomaticFreshness } from './worker-policy.mjs';
 import { importUndatedOrigin } from './undated-origin-import.mjs';
 import { IssuerIndexBatch, reindexIssuerNames } from './issuer-name-index.mjs';
+import {OnboardingBundle,onboardingHash,recordOnboarding,decideOnboarding} from './employer-onboarding.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -55,6 +56,7 @@ export class Catalogue {
   }
   async inspect(token, collection, id) {
     if (!['sources','source_versions','employer_relationships','employer_relationship_versions','worker_issuer_resolutions',
+      'employer_onboarding','employer_onboarding_snapshots','employer_onboarding_decisions','employer_onboarding_needs',
       'employer_delegations','employer_delegation_versions','worker_origin_discoveries',
       'drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
       'worker_decisions','worker_exceptions','worker_holds','worker_health','worker_discovery','worker_discovery_pages',
@@ -84,8 +86,17 @@ export class Catalogue {
     return this.mutate(token, 'source', 'employer_relationship.reindex', hash(JSON.stringify(bindings)), reason,
       tx => reindexIssuerNames(this, tx, bindings));
   }
+  async recordEmployerOnboarding(token,input,reason){
+    const bundle=OnboardingBundle.parse(input);
+    return this.mutate(token,'source','employer_onboarding.record',onboardingHash(bundle),reason,(tx,uid)=>recordOnboarding(this,tx,bundle,uid));
+  }
+  async decideEmployerOnboarding(token,input,reason){
+    IdSchema.parse(input?.proposalId);
+    return this.mutate(token,'source','employer_onboarding.review',input.proposalId,reason,(tx,uid)=>decideOnboarding(this,tx,input,uid));
+  }
   async queue(token, collection, after) {
     if (!['sources','employer_relationships','employer_delegations','worker_origin_discoveries','worker_issuer_resolutions','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
+      'employer_onboarding','employer_onboarding_decisions','employer_onboarding_needs',
       'worker_exceptions','worker_holds','worker_health','worker_discovery','worker_original_resolutions','model_calls','model_budgets'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     if (after!==undefined) IdSchema.parse(after);

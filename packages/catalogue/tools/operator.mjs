@@ -6,11 +6,14 @@ import { SuggestionAdmission } from '../src/suggestion-admission.mjs';
 import { SuggestionReview } from '../src/suggestion-review.mjs';
 import { SuggestionReplayTickets } from '../src/suggestion-replay-tickets.mjs';
 import { executeSuggestionCleanup, suggestionCleanupConfiguration } from '../src/suggestion-cleanup-operator.mjs';
+import {readOnboardingFile} from './collect-employers.mjs';
 // Tokens are read from a private file, never command arguments, output, or a public route.
 const help=`Usage: pnpm catalogue:operator <command.json>
 Set SKILVED_OPERATOR_TOKEN_FILE to a private file containing a current Firebase ID token.
 Commands: source, employer-relationship, employer-relationship-reindex, undated-origin-import, inspect, queue, save, publish, alias, report-triage, enqueue, run-job, schedule.
 employer-relationship-reindex: source role; bindings [{id,revision,hash}] (1-30) and reason. Updates derived lookup metadata only.
+employer-onboarding-record: source role; private bundleFile and reason; records evidence, grants no authority.
+employer-onboarding-review: source role; strict review with proposalId, expectedHash, action, expectedAuthority and explicit identity review for qualification.
 publication-preview: read-only preview with id, expected and action; uses the current reviewer role.
 Preview never approves or publishes; execution repeats current source/role/revision checks.
 Suggestion commands: suggestion-queue; suggestion-review with a strict review object.
@@ -33,6 +36,8 @@ else {
       case 'source':result=await catalogue.registerSource(token,c.source,c.expected,c.reason);break;
       case 'employer-relationship':result=await catalogue.registerEmployerRelationship(token,c.relationship,c.expected,c.reason);break;
       case 'employer-relationship-reindex':result=await catalogue.reindexEmployerRelationships(token,c.bindings,c.reason);break;
+      case 'employer-onboarding-record':result=await catalogue.recordEmployerOnboarding(token,await readOnboardingFile(c.bundleFile),c.reason);break;
+      case 'employer-onboarding-review':result=await catalogue.decideEmployerOnboarding(token,c.review,c.reason);break;
       case 'undated-origin-import':result=await catalogue.importUndatedOrigin(token,c.review,c.reason);break;
       case 'inspect':result=await catalogue.inspect(token,c.collection,c.id);break;
       case 'queue':result=await catalogue.queue(token,c.collection,c.after);break;

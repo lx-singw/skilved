@@ -21,6 +21,7 @@
     "evaluate:recentjobs": "node tools/evaluate-recentjobs.mjs",
     "inventory:source-exposure": "node tools/inventory-source-exposure.mjs",
     "coverage:recentjobs": "node tools/assess-recentjobs-coverage.mjs",
+    "onboard:employers": "node tools/collect-employers.mjs",
     "operator": "node tools/operator.mjs"
   },
   "dependencies": {
