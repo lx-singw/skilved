@@ -84,15 +84,15 @@ test('native mapping independently blocks practical expansion and retains exact 
 
 test('metadata rejects extra prose and publisher evidence without repairing a response or trying another model',async()=>{
  const env={SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_practical_test_key',SKILVED_AI_FALLBACK:'true'};
- for(const [value,quote,error] of [[attachment+' Updated CV',attachment,'AI_PRACTICAL_EVIDENCE_UNRESOLVED'],['Updated CV','Updated CV','AI_PUBLISHER_PREPARATION_UNRESOLVED']]){
-  const wire={...partial(),practicalConditions:{state:'stated',value,span:span(quote)}};let calls=0;
+ for(const [value,quote,error] of [[attachment+' Updated CV',attachment,'AI_INVALID_EXTRACTION'],[undefined,'Updated CV','AI_PUBLISHER_PREPARATION_UNRESOLVED']]){
+  const wire={...partial(),practicalConditions:{state:'stated',...(value===undefined?{}:{value}),span:span(quote)}};let calls=0;
   await assert.rejects(extractMetadata(candidate,{env,fetchImpl:async(_url,init)=>{
    calls++;const request=JSON.parse(init.body),payload=JSON.parse(request.contents[0].parts[0].text);
    assert.deepEqual(payload.practicalEvidencePolicy,practicalEvidencePolicy(candidate));assert.match(request.systemInstruction.parts[0].text,/value must equal its supporting quote/);
    return Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(wire)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}});
   }}),e=>e.code===error&&e.usage.totalTokens===15);assert.equal(calls,1);
  }
- const wire={...partial(),practicalConditions:{state:'stated',value:attachment,span:span(attachment)}};
+ const wire={...partial(),practicalConditions:{state:'stated',span:span(attachment)}};
  assert.equal(decodeGroqMetadata(wire,candidate).practicalConditions.value,attachment);
  assert.deepEqual(groqExtractionPayload(candidate).practicalEvidencePolicy,practicalEvidencePolicy(candidate));
 });

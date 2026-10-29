@@ -80,7 +80,7 @@ test('ordinary mapping preserves original routes and missing attachment does not
 });
 
 test('split metadata receives required submission instructions and retains the full source wording',async()=>{
- const {requirements,...metadata}=wire();metadata.practicalConditions={state:'stated',value:attachment,span:span(attachment)};
+ const {requirements,...metadata}=wire();metadata.practicalConditions={state:'stated',span:span(attachment)};
  const result=await extractMetadata(candidate,{env,fetchImpl:async(_url,init)=>{
   const request=JSON.parse(init.body),payload=JSON.parse(request.contents[0].parts[0].text);
   assert.deepEqual(payload.submissionInstructions,[{originalText:attachment,span:span(attachment),level:'required'}]);

@@ -27,6 +27,6 @@ export function metadataWire() {
   for(const fact of [x.issuer,x.summary,x.deadline])fact.span=metadataSpan(oldLines.slice(fact.span[0]-1,fact.span[1]).join('\n'));
   x.compensation=[{state:'stated',value:salary(),span:metadataSpan(qualitativePay)}];
   x.summary={state:'stated',value:'The programme runs for up to three years.',span:metadataSpan(maximumDuration)};
-  x.practicalConditions={state:'stated',value:document,span:metadataSpan(document)};
+  x.practicalConditions={state:'stated',span:metadataSpan(document)};
   return x;
 }

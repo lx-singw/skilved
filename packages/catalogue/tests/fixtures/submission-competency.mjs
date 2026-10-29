@@ -43,7 +43,7 @@ export function submissionWire(){
  ];
  return {category:'apprenticeship',categorySpan:[1,1],issuer:stated('Fictional Workshop',sourceLines[0]),summary:stated(sourceLines[0]),intake:null,
   location:stated({places:[{country:null,province:null,city:'Durban'}],coverage:'not_stated',attendance:'not_stated',relocation:null},'Location: Durban'),
-  residence:null,experience:stated(experience),compensation:[],practicalConditions:stated(submission),applicationCandidateIndex:0,
+  residence:null,experience:stated(experience),compensation:[],practicalConditions:{state:'stated',span:submissionSpan(submission)},applicationCandidateIndex:0,
   deadline:stated({kind:'date',localDate:'2026-10-30',localTime:null,timezone:null,utcInstant:null},'Closing date: 30 October 2026'),
   requirements:{items:rows.map(({id,quote,kind,level})=>({id,kind,level,state:'stated',span:submissionSpan(quote)})),expression:'all('+rows.map(r=>r.id).join(',')+')'}};
 }

@@ -2,8 +2,9 @@ import {DomainError} from '../config.mjs';
 import {isPromotionalLine} from './source-lines.mjs';
 
 export const PRACTICAL_EVIDENCE_INSTRUCTION = `
-For stated practicalConditions, copy ONE complete contiguous source passage verbatim into value.
-The value must equal its supporting quote (or the text reconstructed from its span), including
+For practicalConditions, select ONE complete contiguous source passage.
+In a span-only wire contract, return only state and span; do not return value or quote.
+The canonical value must equal its supporting quote (the text reconstructed from its span), including
 line breaks, negations, conditions and context. Do not paraphrase, append advice, concatenate
 separated passages or select only part of a conditional instruction. Other fields may still
 use supported paraphrases. practicalEvidencePolicy.publisherPreparationSpans identifies

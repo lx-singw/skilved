@@ -18,7 +18,7 @@ const stated=(value,text=value)=>({state:'stated',value,span:span(text)});
 function wire(){
  return {category:'apprenticeship',categorySpan:[1,1],issuer:stated('Fictional Workshop','Fictional Workshop invites apprentices.'),summary:stated('Fictional Workshop invites apprentices.'),intake:null,location:null,residence:null,experience:null,compensation:[],
  deadline:stated({kind:'date',localDate:'2026-10-30',localTime:null,timezone:null,utcInstant:null},'Closing date: 30 October 2026'),
- practicalConditions:stated('Other supporting certificates, if applicable'),applicationCandidateIndex:0,
+ practicalConditions:{state:'stated',span:span('Other supporting certificates, if applicable')},applicationCandidateIndex:0,
  requirements:{items:[['r1','education','required','Grade 12'],['r2','education','required','N3 Electrical'],['r3','education','preferred','N2 Mechanical'],['r4','other','preferred','Basic hand-skills training'],['r5','document','required','Certified ID']].map(([id,kind,level,text])=>({id,kind,level,state:'stated',span:span(text)})),expression:'all(any(r1,r2),r3,r4,r5)'}};
 }
 const options={sourceId:'authored_preferences',now:'2026-10-04T10:00:00.000Z'},mapped=()=>mapExtraction(candidate,decodeGroqExtraction(wire(),candidate),options),env={SKILVED_AI_MODE:'gemini',GEMINI_API_KEY:'synthetic_preference_key',SKILVED_AI_FALLBACK:'true'};

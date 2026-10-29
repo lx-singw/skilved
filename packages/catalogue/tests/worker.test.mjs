@@ -15,7 +15,7 @@ import {extractProgramme,validateProgramme} from '../src/ai/programme-extraction
 import {programmeWire,subjectProgrammeWire} from './fixtures/programme-model.mjs';
 import {parseRecentJobsDetail} from '../src/adapters/recentjobs.mjs';
 import {qualificationHtml,qualificationWire,qualificationSpan,qualificationPassage} from './fixtures/qualification-model.mjs';
-import {metadataHtml,metadataWire} from './fixtures/metadata-completeness.mjs';
+import {metadataHtml,metadataWire,metadataExtraction} from './fixtures/metadata-completeness.mjs';
 import {locationHtml,locationWire} from './fixtures/location-metadata.mjs';
 import {completenessHtml,completenessWire,completenessExtraction} from './fixtures/location-completeness.mjs';
 import {extractMetadata} from '../src/ai/metadata.mjs';
@@ -1021,7 +1021,7 @@ test('complete qualitative pay and bounded duration reach validation and one pri
  const publicRows=(await db.collection('m0_public').get()).size,record=detailResult(await worker.run(f.sourceId));assert.ok(record);assert.equal(sends,2);
  const draft=value(await worker.ref('drafts',record.recordId).get());
  assert.deepEqual(draft.compensation[0].value,wire.compensation[0].value);
- assert.equal(draft.summary.value,wire.summary.value);assert.equal(draft.practicalConditions.value,wire.practicalConditions.value);
+ assert.equal(draft.summary.value,wire.summary.value);assert.equal(draft.practicalConditions.value,metadataExtraction().practicalConditions.value);
  assert.equal(draft.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(draft.publication.approved,false);
  const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
  assert.equal(calls.length,2);assert.equal(calls.reduce((n,c)=>n+c.usage.totalTokens,0),30);

@@ -57,7 +57,7 @@ test('ordinary and split metadata requests carry full block and attendance guida
 });
 
 test('an omitted block still fails the original submission guard; advisory ranges do not widen or repair output',()=>{
- const raw=submissionWire();raw.practicalConditions={state:'stated',value:acceptance,span:span(acceptance)};const before=structuredClone(raw),x=decodeGroqExtraction(raw,candidate),xBefore=structuredClone(x);
+ const raw=submissionWire();raw.practicalConditions={state:'stated',span:span(acceptance)};const before=structuredClone(raw),x=decodeGroqExtraction(raw,candidate),xBefore=structuredClone(x);
  assert.throws(()=>assertRequirementSourcePolicy(candidate,x),/AI_SUBMISSION_INSTRUCTION_COVERAGE/);assert.throws(()=>mapExtraction(candidate,x,options),/AI_SUBMISSION_INSTRUCTION_COVERAGE/);
  assert.deepEqual(raw,before);assert.deepEqual(x,xBefore);assert.equal(x.practicalConditions.quote,acceptance);
  const complete=decodeGroqExtraction(submissionWire(),candidate),mapped=mapExtraction(candidate,complete,options);assert.equal(mapped.record.practicalConditions.originalText,submission);assert.equal(mapped.record.publication.approved,false);
@@ -77,5 +77,5 @@ test('scoped programme extraction inherits both guidance contracts and preserves
  const result=await extractProgramme(c,intake.id,{env,fetchImpl:async(_url,init)=>{
   calls++;const request=JSON.parse(init.body),payload=JSON.parse(request.contents[0].parts[0].text);assert.ok(request.systemInstruction.parts[0].text.includes(SUBMISSION_BLOCK_INSTRUCTION));assert.ok(request.systemInstruction.parts[0].text.includes(ATTENDANCE_EVIDENCE_INSTRUCTION));
   assert.ok(Array.isArray(payload.requirementSourcePolicy.submissionBlocks));assert.equal(payload.attendanceEvidencePolicy.status,'no_label');return answer(raw);
- }});assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_programme_extraction_v27');assert.equal(result.extraction.intake.value,intake.reference.value);
+ }});assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_programme_extraction_v28');assert.equal(result.extraction.intake.value,intake.reference.value);
 });

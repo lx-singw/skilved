@@ -32,6 +32,8 @@ Application code did not change. Verification covers authenticated registration 
 
 ## Next extraction change
 
+Follow-up: the [span-only practical contract](195_SPAN_ONLY_PRACTICAL_EXTRACTION_2026-10-29.md) implements the prospective format below. Live Sasol qualification remains pending; this failed answer and its spent allowance are preserved.
+
 The present wire format redundantly asks AI to return both a practical value and a source span, although that value must equal the span's text. Prospectively replace this field with state and span only; trusted code should reconstruct its value from the chosen source passage. This is a contract change, not permission to repair an old rejected answer.
 
 Version the ordinary/split contracts and cache identities together. Preserve null and ambiguous/conflicting states, full conditional/negative wording, exact source bounds, publisher/preparation exclusion, scope binding and coverage checks. Prove that model-supplied values and extra keys are rejected under the new contract; retain legacy replay under its original version. The unchanged Sasol answer remains rejected and must not be relabelled successful. Only after offline checks should a new bounded trial be considered within the original source and provider allowances. This prospective change has not yet been implemented.

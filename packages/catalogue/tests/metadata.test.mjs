@@ -8,7 +8,7 @@ const stated = (value,span)=>({state:'stated',value,span});
 const wire = ()=>({category:'apprenticeship',categorySpan:[1,1],issuer:stated('Fictional Works',[1,1]),summary:null,intake:null,
   location:stated({places:[{city:'Exampletown',province:'gauteng',country:null}],coverage:'not_stated',attendance:'not_stated',relocation:null},[2,3]),
   residence:null,experience:null,deadline:null,compensation:[stated({kind:'salary',amount:null,maximum:null,currency:null,period:'not_stated',coverage:'Market related'},[4,4])],
-  practicalConditions:stated('Based in Exampletown for four years.',[2,2]),applicationCandidateIndex:0});
+  practicalConditions:{state:'stated',span:[2,2]},applicationCandidateIndex:0});
 
 test('metadata stage preserves prose city and qualitative pay without requirements or invented country/amount',async()=>{
   let calls=0;
