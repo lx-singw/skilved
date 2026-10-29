@@ -55,6 +55,9 @@ jobs:
       - name: Install pinned Firebase emulator CLI
         run: npm install --global firebase-tools@15.22.3
 
+      - name: Install bounded PDF evidence tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils util-linux
+
       - name: Test source publication with isolated emulators
         run: pnpm catalogue:test
 

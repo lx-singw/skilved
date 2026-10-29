@@ -25,7 +25,10 @@ COPY apps/web/next.config.js apps/web/tsconfig.json apps/web/next-env.d.ts apps/
 # Runtime flags are read by dynamic routes; building never initializes a cloud database.
 RUN SKILVED_CATALOGUE_MODE=disabled SKILVED_AI_MODE=disabled NEXT_TELEMETRY_DISABLED=1 pnpm --filter @skilved/web build
 
-FROM node:22-bookworm-slim AS worker
+FROM node:22-bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils util-linux && rm -rf /var/lib/apt/lists/*
+
+FROM runtime AS worker
 ENV NODE_ENV=production
 WORKDIR /workspace
 COPY --from=worker-build --chown=node:node /worker /workspace/packages/catalogue
@@ -33,7 +36,7 @@ COPY --from=dependencies --chown=node:node /workspace/deployment/catalogue-stagi
 USER node
 ENTRYPOINT ["node", "deployment/catalogue-staging/runtime/worker.mjs"]
 
-FROM node:22-bookworm-slim AS web
+FROM runtime AS web
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=8080
 WORKDIR /workspace
 COPY --from=web-build --chown=node:node /workspace /workspace

@@ -6,19 +6,21 @@ import {EmployerRelationship} from './schemas.mjs';
 import {probeUrl} from './origin-discovery.mjs';
 import {issuerNameKey,readRelationship,relationshipBinding,relationshipDocument} from './issuer-registry.mjs';
 import {DomainError} from './config.mjs';
+import {PdfEvidence,pdfIdentityMaterial,verifyPdfEvidence} from './onboarding-pdf.mjs';
 
 export const ONBOARDING_VERSION='employer_onboarding_v1';
 export const onboardingHash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const fail=code=>{throw new DomainError(code);};
 const url=z.string().max(2048).refine(v=>{const u=probeUrl(v);return u&&u.href===v&&!u.search;});
 const name=z.string().trim().min(1).max(200);
-export const OnboardingPlan=z.object({issuer:name,aliases:z.array(name).max(10).default([]),corporateUrl:url,careersUrl:url,identityUrl:url,needId:IdSchema.optional()}).strict()
+export const OnboardingPlan=z.object({issuer:name,aliases:z.array(name).max(10).default([]),corporateUrl:url,careersUrl:url,identityUrl:url,identityFormat:z.literal('pdf').optional(),needId:IdSchema.optional()}).strict()
  .refine(p=>new URL(p.corporateUrl).pathname==='/'&&new URL(p.corporateUrl).origin===new URL(p.careersUrl).origin&&new URL(p.corporateUrl).origin!==new URL(p.identityUrl).origin&&p.corporateUrl!==p.careersUrl,'Corporate homepage, separate identity evidence and a same-origin careers page required');
-const Observation=z.object({url,at:InstantSchema,html:z.string().refine(v=>Buffer.byteLength(v)<=500000).optional(),error:z.string().regex(/^[A-Z][A-Z_]{0,79}$/).optional()}).strict()
- .refine(o=>(o.html!==undefined)!==(o.error!==undefined)).refine(o=>Buffer.byteLength(JSON.stringify(o))<=900000);
+const Observation=z.object({url,at:InstantSchema,html:z.string().refine(v=>Buffer.byteLength(v)<=500000).optional(),pdf:PdfEvidence.optional(),error:z.string().regex(/^[A-Z][A-Z_]{0,79}$/).optional()}).strict()
+ .refine(o=>[o.html,o.pdf,o.error].filter(v=>v!==undefined).length===1).refine(o=>Buffer.byteLength(JSON.stringify(o))<=900000);
 export const OnboardingObservations=z.array(Observation).max(3).refine(rows=>new Set(rows.map(r=>r.url)).size===rows.length);
 export const OnboardingBundle=z.object({version:z.literal(ONBOARDING_VERSION),plan:OnboardingPlan,observations:z.array(Observation).length(3)}).strict()
- .refine(b=>new Set(b.observations.map(o=>o.url)).size===3&&[b.plan.corporateUrl,b.plan.careersUrl,b.plan.identityUrl].every(u=>b.observations.some(o=>o.url===u)));
+ .refine(b=>new Set(b.observations.map(o=>o.url)).size===3&&[b.plan.corporateUrl,b.plan.careersUrl,b.plan.identityUrl].every(u=>b.observations.some(o=>o.url===u)))
+ .refine(b=>b.observations.every(o=>o.error!==undefined||(o.pdf?o.url===b.plan.identityUrl&&b.plan.identityFormat==='pdf':o.url!==b.plan.identityUrl||!b.plan.identityFormat)));
 export const OnboardingReview=z.object({proposalId:IdSchema,expectedHash:z.string().regex(/^[a-f0-9]{64}$/),action:z.enum(['qualify','reject']),
  expectedAuthority:z.object({id:IdSchema,revision:z.number().int().positive(),hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict().nullable(),
  identityKind:z.enum(['government','exchange','reviewed_directory']).optional(),identityConfirmed:z.literal(true).optional(),
@@ -48,7 +50,7 @@ function linked(page,base,target){const matches=page.links.filter(link=>{try{ret
 export function evaluateOnboarding(input){
  const b=OnboardingBundle.parse(input),pages=new Map(),issues=[];
  for(const o of b.observations){if(o.error){issues.push({url:o.url,reason:o.error});continue;}
-  try{pages.set(o.url,onboardingPage(o.html));}catch(e){if(e.code!=='ONBOARDING_LAYOUT_UNSUPPORTED')throw e;issues.push({url:o.url,reason:e.code});}}
+  try{pages.set(o.url,o.pdf?pdfIdentityMaterial(o.pdf,b.plan.corporateUrl):onboardingPage(o.html));}catch(e){if(!['ONBOARDING_LAYOUT_UNSUPPORTED','PDF_EVIDENCE_UNSUPPORTED'].includes(e.code))throw e;issues.push({url:o.url,reason:e.code});}}
  const p=b.plan,identity=pages.get(p.identityUrl),corporate=pages.get(p.corporateUrl),careers=pages.get(p.careersUrl);
  if(identity&&(!contains(identity.text,p.issuer)||!linked(identity,p.identityUrl,p.corporateUrl)))issues.push({url:p.identityUrl,reason:'INDEPENDENT_IDENTITY_LINK_UNSUPPORTED'});
  if(corporate&&(!contains(corporate.text,p.issuer)||!linked(corporate,p.corporateUrl,p.careersUrl)))issues.push({url:p.corporateUrl,reason:'CORPORATE_CAREERS_LINK_UNSUPPORTED'});
@@ -61,7 +63,8 @@ function current(b,now){if(!InstantSchema.safeParse(now).success||b.observations
 function checkNeed(snapshot,plan){const n=snapshot?.exists?JSON.parse(snapshot.data().json):null;
  if(!n||n.id!==plan.needId||![plan.issuer,...plan.aliases].some(v=>issuerNameKey(v)===issuerNameKey(n.issuerHint?.issuer))||n.issuerHint.host!==null&&n.issuerHint.host!==new URL(plan.corporateUrl).hostname)fail('ONBOARDING_NEED_CONFLICT');}
 export async function recordOnboarding(c,tx,input,uid){
- const b=OnboardingBundle.parse(input);current(b,c.now());const id=onboardingHash(b),ref=c.ref('employer_onboarding',id),old=await tx.get(ref);
+ const b=OnboardingBundle.parse(input);current(b,c.now());for(const o of b.observations)if(o.pdf)await verifyPdfEvidence(o.pdf);
+ const id=onboardingHash(b),ref=c.ref('employer_onboarding',id),old=await tx.get(ref);
  const snapshots=b.observations.map(o=>({id:onboardingHash(o),observation:o}));
  const existing=await Promise.all(snapshots.map(s=>tx.get(c.ref('employer_onboarding_snapshots',s.id))));
  const need=b.plan.needId?await tx.get(c.ref('employer_onboarding_needs',b.plan.needId)):null;
@@ -80,8 +83,11 @@ export async function decideOnboarding(c,tx,input,uid){
  const decisionRef=c.ref('employer_onboarding_decisions',p.id),previous=await tx.get(decisionRef);if(previous.exists)fail('ONBOARDING_ALREADY_REVIEWED');
  if(review.action==='reject'){tx.create(decisionRef,{json:JSON.stringify({id:p.id,proposalId:p.id,action:'reject',actor:uid,at:c.now()})});return{action:'reject',proposalId:p.id};}
  current(b,c.now());if(evaluateOnboarding(b).state!=='awaiting_identity_review'||!review.identityConfirmed||!review.identityKind||!review.identityQuote||!review.expiresAt)fail('ONBOARDING_REVIEW_REQUIRED');
- const identity=onboardingPage(b.observations.find(o=>o.url===b.plan.identityUrl).html);
+ const identityObservation=b.observations.find(o=>o.url===b.plan.identityUrl);
+ if(identityObservation.pdf)await verifyPdfEvidence(identityObservation.pdf);
+ const identity=identityObservation.pdf?pdfIdentityMaterial(identityObservation.pdf,b.plan.corporateUrl):onboardingPage(identityObservation.html);
  if(!identity.text.includes(review.identityQuote)||!contains(review.identityQuote,b.plan.issuer))fail('ONBOARDING_IDENTITY_QUOTE_UNSUPPORTED');
+ if(identityObservation.pdf&&!identity.links.some(l=>!l.denied&&review.identityQuote.includes(l.printed)))fail('ONBOARDING_IDENTITY_QUOTE_UNSUPPORTED');
  if(review.expiresAt<=c.now()||Date.parse(review.expiresAt)-Date.parse(c.now())>30*86400000)fail('ONBOARDING_EXPIRY_INVALID');
  const id=review.expectedAuthority?.id??onboardingHash(['corporate',issuerNameKey(b.plan.issuer),new URL(b.plan.corporateUrl).origin]);
  const old=readRelationship(await tx.get(c.ref('employer_relationships',id)));

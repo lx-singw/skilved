@@ -33,6 +33,6 @@ export async function collectEmployersCli(args,output=console.log,options={}){
  return reports;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
- if(process.argv.includes('--help'))console.log('Usage: collect-employers.mjs <private-plan.json>\nPlan: {version:1,employers:[{issuer,aliases?,corporateUrl,careersUrl,identityUrl,needId?}]}; 1-10 employers.\nPublic HTTPS reads only; robots, pacing, DNS/TLS and exact URLs enforced. At most one observed careers-path correction; at most seven bounded retrieval attempts per employer. Saves private bundles. No AI, database access, authority approval or publication.');
+ if(process.argv.includes('--help'))console.log('Usage: collect-employers.mjs <private-plan.json>\nPlan: {version:1,employers:[{issuer,aliases?,corporateUrl,careersUrl,identityUrl,identityFormat?:"pdf",needId?}]}; 1-10 employers.\nPDF identity evidence requires Poppler and prlimit; <=400000 bytes, <=20 pages, <=120000 text bytes.\nPublic HTTPS reads only; robots, pacing, DNS/TLS and exact URLs enforced. At most one observed careers-path correction; at most seven bounded retrieval attempts per employer. Saves private bundles. No AI, database access, authority approval or publication.');
  else try{await collectEmployersCli(process.argv.slice(2));}catch(e){console.error(JSON.stringify({error:e.code??(/^ONBOARDING_[A-Z_]+$/.test(e.message??'')?e.message:'ONBOARDING_COLLECTION_FAILED')}));process.exitCode=1;}
 }

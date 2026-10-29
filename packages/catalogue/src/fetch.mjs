@@ -17,7 +17,8 @@ export function approvedUrl(input, source) {
 export async function retrieve(source, initialUrl, io = { lookup, request: https.request }, format = 'json') {
   if (source.paused) throw new DomainError('SOURCE_PAUSED');
   const formats = { json: ['application/json', /^application\/(?:[a-z0-9.+-]+\+)?json(?:;|$)/i],
-    html: ['text/html', /^text\/html(?:;|$)/i], text: ['text/plain', /^text\/plain(?:;|$)/i] };
+    html: ['text/html', /^text\/html(?:;|$)/i], text: ['text/plain', /^text\/plain(?:;|$)/i],
+    pdf: ['application/pdf', /^application\/pdf(?:;|$)/i] };
   if (!formats[format]) throw new DomainError('UNSUPPORTED_FORMAT');
   const [accept, mime] = formats[format];
   const controller = new AbortController();
@@ -47,14 +48,14 @@ export async function retrieve(source, initialUrl, io = { lookup, request: https
             res.destroy(); reject(new DomainError('UNSUPPORTED_RESPONSE')); return;
           }
           res.on('data', chunk => { size += chunk.length; if (size > source.maxBytes) { res.destroy(); reject(new DomainError('BODY_TOO_LARGE')); } else chunks.push(chunk); });
-          res.on('end', () => resolve({ text: Buffer.concat(chunks).toString('utf8'), url: url.href }));
+          res.on('end', () => resolve(format==='pdf'?{data:Buffer.concat(chunks),url:url.href}:{ text: Buffer.concat(chunks).toString('utf8'), url: url.href }));
         });
         req.on('socket', socket => socket.on('secureConnect', () => {
           if (!publicAddress(socket.remoteAddress ?? '') || ipaddr.parse(socket.remoteAddress).toNormalizedString() !== ipaddr.parse(selected.address).toNormalizedString()) req.destroy(new DomainError('UNSAFE_ADDRESS'));
         }));
         req.on('error', reject); req.end();
       });
-      if ('text' in response) return response;
+      if ('text' in response || 'data' in response) return response;
       if (!response.redirect) throw new DomainError('UNSAFE_REDIRECT');
       target = new URL(response.redirect, url).href;
     }

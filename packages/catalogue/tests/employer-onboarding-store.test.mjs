@@ -3,6 +3,7 @@ import {getRuntime} from '../src/runtime.mjs';import {Catalogue} from '../src/st
 import {Source} from '../src/schemas.mjs';import {onboardingNeedId} from '../src/employer-onboarding.mjs';
 import {originalFixture,originalHtml} from './fixtures/original-notices.mjs';import {syntheticExtraction} from './fixtures/recentjobs-model.mjs';
 import {onboardingFixture} from './fixtures/employer-onboarding.mjs';import {RECENTJOBS_INDEX} from '../src/worker-policy.mjs';
+import {authoredPdf} from './fixtures/onboarding-pdf.mjs';import {decodePdfEvidence} from '../src/onboarding-pdf.mjs';
 const hash=s=>createHash('sha256').update(s).digest('hex'),value=s=>s.exists?JSON.parse(s.data().json):null;let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-onboarding';db=(await getRuntime()).db;});
 after(async()=>db?.terminate());
@@ -14,6 +15,19 @@ async function fixture(){
  return{c,uid,issuer,evidence,now:()=>now,advance:ms=>{now=new Date(Date.parse(now)+ms).toISOString();}};
 }
 const review=(p,f,extra={})=>({proposalId:p.id,expectedHash:p.evidenceHash,action:'qualify',expectedAuthority:null,identityKind:'reviewed_directory',identityConfirmed:true,identityQuote:f.issuer,expiresAt:'2026-11-01T10:00:00.000Z',...extra});
+test('PDF onboarding re-extracts source bytes and requires an explicit company/website quote before qualifying a reusable root',async()=>{
+ const f=await fixture(),quote=`${f.issuer} Company website ${f.evidence.plan.corporateUrl}`,b=structuredClone(f.evidence.bundle);
+ b.plan.identityFormat='pdf';b.observations[0]={url:b.plan.identityUrl,at:f.now(),pdf:await decodePdfEvidence(authoredPdf(quote))};
+ const forged=structuredClone(b);forged.observations[0].pdf.text+=' invented website assertion';
+ await assert.rejects(f.c.recordEmployerOnboarding('authored-token',forged,'Reject invented PDF extraction'),{code:'PDF_EVIDENCE_CHANGED'});
+ const p=await f.c.recordEmployerOnboarding('authored-token',b,'Record authored PDF evidence');assert.equal(p.evaluation.state,'awaiting_identity_review');
+ await assert.rejects(f.c.decideEmployerOnboarding('authored-token',review(p,f),'Company-only PDF quote is insufficient'),{code:'ONBOARDING_IDENTITY_QUOTE_UNSUPPORTED'});
+ const approved=await f.c.decideEmployerOnboarding('authored-token',review(p,f,{identityQuote:quote}),'Review pinned authored company and website evidence');
+ const root=value(await f.c.ref('employer_relationships',approved.authority.id).get());assert.equal(root.route.host,new URL(b.plan.corporateUrl).hostname);
+ assert.equal(root.delegationPage,b.plan.careersUrl);assert.deepEqual(root.route.emailAddresses,[]);
+ const snapshots=value(await f.c.ref('employer_onboarding',p.id).get()).snapshots;
+ assert.deepEqual(value(await f.c.ref('employer_onboarding_snapshots',snapshots[0]).get()).pdf,b.observations[0].pdf);
+});
 test('one company onboarding is reused by a later mixed publisher batch without reviewer login or per-advert setup',async()=>{
  const f=await fixture(),host=`ats-${randomUUID()}.example`,cases=['good-a','good-b','wrong-url','wrong-date'].map((slug,i)=>originalFixture({issuer:f.issuer,host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${slug}-${randomUUID()}`}));
  cases[2].posting.url=`https://${host}/tenant-a/job/9999/`;cases[3].posting.validThrough='2026-11-01';

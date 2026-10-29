@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Bounded document identity, directory onboarding and fresh mixed batch — 29 October 2026](205_DOCUMENT_IDENTITY_AND_FRESH_BATCH_2026-10-29.md)
+
 - [Source checks, corrections and community contributions](03_SOURCE_CHECKS_AND_COMMUNITY_CONTRIBUTIONS.md)
 - [Service operations and support](01_SERVICE_OPERATIONS_AND_SUPPORT.md)
 - [Business continuity and operational runbooks](02_BUSINESS_CONTINUITY_AND_RUNBOOKS.md)
