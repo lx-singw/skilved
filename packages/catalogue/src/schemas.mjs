@@ -13,6 +13,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     qualificationRef: z.string().min(1).max(2000), maxArticles: z.number().int().min(1).max(10),
     // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
+    originalVerification: z.literal('shadow_v1').optional(),
     maxModelCallsPerDay: z.number().int().min(1).max(100),
     minRequestIntervalMs: z.number().int().min(2000).max(60000), checkTtlHours: z.number().int().min(1).max(24),
     issuers: z.array(z.object({ name: z.string().trim().min(1).max(200),
@@ -29,7 +30,9 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   !['shadow_recent', 'shadow_recent_v2'].includes(source.automation?.undatedNotices) || source.automation.mode === 'shadow',
   'Undated notices require shadow mode').refine(source => source.automation?.undatedNotices !== 'shadow_recent_v2' ||
   (source.automation.checkTtlHours <= 6 && source.cadenceHours <= source.automation.checkTtlHours),
-  'V2 undated shadow cadence and TTL must fit six hours');
+  'V2 undated shadow cadence and TTL must fit six hours').refine(source =>
+  !source.automation?.originalVerification || source.automation.mode !== 'automatic',
+  'Original notice resolver cannot use automatic mode');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();

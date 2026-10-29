@@ -27,6 +27,8 @@ import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, pr
 import { usesUndatedV2, makeUndatedOrigin, undatedOriginKeys } from './undated-policy.mjs';
 import { capturedNoticeJobs } from './undated-origin-import.mjs';
 import { discoveryChunk } from './recentjobs-discovery.mjs';
+import { ORIGINAL_RESOLVER_VERSION, originalNoticeTarget, originalRetrievalFailure,
+  resolveOriginalNotice, refreshOriginalResolution } from './original-notice-resolver.mjs';
 import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
@@ -91,6 +93,7 @@ export class RecentJobsWorker {
       if (this.provider === 'gemini' && source.automation?.mode !== 'shadow') fail('GEMINI_SHADOW_ONLY');
       if (this.extractionMode === 'split' && source.automation?.mode !== 'shadow') fail('SPLIT_EXTRACTION_SHADOW_ONLY');
       if (this.programmeExtraction && source.automation?.mode !== 'shadow') fail('PROGRAMME_EXTRACTION_SHADOW_ONLY');
+      if (source.automation?.originalVerification && this.programmeExtraction) fail('ORIGINAL_VERIFICATION_SINGLE_NOTICE_ONLY');
       if (source.paused || source.permission.method !== 'recentjobs_html' || !source.automation || source.automation.mode === 'disabled') fail('SOURCE_PAUSED');
       if (!source.categories.includes('apprenticeship') || !source.urls.includes(RECENTJOBS_INDEX)) fail('SOURCE_POLICY_REQUIRED');
       const result = await work(tx, source);
@@ -349,6 +352,7 @@ export class RecentJobsWorker {
         tx.set(this.ref('worker_exceptions', claim.id), payload({ jobId: claim.id, sourceId: source.id,
           reason: code, stage: job.stage ?? job.kind, url: job.url, snapshotId: job.snapshotId ?? null,
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
+          ...(job.originalResolutionId ? { originalResolutionId: job.originalResolutionId } : {}),
           ...(job.discoverySnapshotId ? { discoverySnapshotId: job.discoverySnapshotId } : {}),
           programmePlanId:job.programmePlanId ?? null,
           ...(locationDiagnostic?{locationDiagnostic}:{}),
@@ -484,6 +488,41 @@ export class RecentJobsWorker {
     });
     return result;
   }
+  async originalNotice(claim, candidate, captured) {
+    await this.transaction(claim.sourceId, 'worker.original.begin', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, stage: 'original_resolution' }));
+    });
+    const target = originalNoticeTarget(claim.source, candidate);
+    let observation = null, resolution = target.outcome ? target : null;
+    if (!resolution) {
+      try {
+        await this.robots(claim, target.url);
+        observation = await this.request(claim, target.url, 'html');
+      } catch (error) {
+        resolution = originalRetrievalFailure(error);
+        if (!resolution) throw error;
+      }
+      if (observation) resolution = resolveOriginalNotice({ source: claim.source, candidate, observation, now: this.now() });
+    }
+    const primaryHash = observation ? hash(observation.text) : null;
+    const primarySnapshotId = observation ? hash(`${claim.sourceId}:${target.url}:${primaryHash}`) : null;
+    const id = hash(`${claim.id}:original:${claim.attempts}`);
+    const { primary, ...receipt } = resolution;
+    await this.transaction(claim.sourceId, 'worker.original.resolve', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      const snapshotRef = primarySnapshotId ? this.ref('snapshots', primarySnapshotId) : null;
+      const previous = snapshotRef ? await tx.get(snapshotRef) : null;
+      if (snapshotRef && !previous.exists) tx.create(snapshotRef, payload({ id: primarySnapshotId,
+        sourceId: source.id, sourceRevision: source.revision, url: target.url, hash: primaryHash,
+        text: observation.text, retrievedAt: this.now() }));
+      tx.create(this.ref('worker_original_resolutions', id), payload({ id, sourceId: source.id, sourceRevision: source.revision,
+        jobId: claim.id, attempt: claim.attempts, sourceSnapshotId: captured.snapshotId,
+        primarySnapshotId, resolution: receipt, at: this.now() }));
+      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, originalResolutionId: id, primarySnapshotId }));
+    });
+    return { id, resolution, primaryHash, primarySnapshotId };
+  }
   undatedOriginKeys(candidate) {
     return undatedOriginKeys(candidate);
   }
@@ -558,12 +597,20 @@ export class RecentJobsWorker {
       if (this.programmeExtraction) return this.programmes(claim,candidate,captured,plan);
     }
     const undatedOrigin = await this.bindUndatedOrigin(claim, candidate, captured.sourceRetrievedAt);
-    const pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt, undatedOrigin);
-    const crawlEmployer = claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
+    let pendingRoute;
+    try { pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt, undatedOrigin); }
+    catch (error) {
+      if (!claim.source.automation.originalVerification || error.code !== 'ISSUER_RELATIONSHIP_UNQUALIFIED') throw error;
+      // Record an unknown origin as an explicit private outcome without fetching it.
+      pendingRoute = candidate.applicationCandidates[0];
+    }
+    const original = claim.source.automation.originalVerification ? await this.originalNotice(claim, candidate, captured) : null;
+    if (original && original.resolution.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${original.resolution.outcome.toUpperCase()}`);
+    const crawlEmployer = !original && claim.source.automation.employerCrawl && pendingRoute.method === 'portal';
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
     const policy = this.provider === 'gemini' ? `:json_object:chain_v1:availability_v1:${GEMINI_UNAVAILABLE_MS}:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}` : '';
-    const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}`;
+    const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}${original ? `:${ORIGINAL_RESOLVER_VERSION}` : ''}`;
     let extraction;
     if (this.extractionMode === 'split') {
       const metadata = await this.cache(claim,hash(`${keyBase}:metadata`),
@@ -586,7 +633,8 @@ export class RecentJobsWorker {
     assertMaterialFacts(record);
     approvedIssuer(claim.source, record);
     const destination = record.applicationRoute.value.destination;
-    let primary = null, primaryHash = 'discovery_only', primarySnapshotId = null;
+    let primary = original?.resolution.primary ?? null, primaryHash = original?.primaryHash ?? 'discovery_only',
+      primarySnapshotId = original?.primarySnapshotId ?? null;
     if (crawlEmployer) {
       const primaryResponse = await this.request(claim, destination, 'html');
       primary = parsePrimaryJobPosting(primaryResponse.text); primaryHash = hash(primaryResponse.text);
@@ -603,6 +651,10 @@ export class RecentJobsWorker {
       () => this.modelStage(claim, 'validation', options => this.validator({ record, recentjobsText: mapped.snapshot.text, primary, applicationCandidates: candidate.applicationCandidates }, options)));
     // Validate even injected/internal validators; production does not expose this dependency to callers.
     const parsed = validateAssessment({ supported: assessment.supported, issues: assessment.issues, evidence: assessment.evidence }, mapped.snapshot.text, primary);
+    if (original) {
+      const current = refreshOriginalResolution(original.resolution, this.now());
+      if (current.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${current.outcome.toUpperCase()}`);
+    }
     draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin);
     const published = claim.source.automation.mode === 'automatic';
     return this.finish(claim, { recordId: captured.recordId, published, snapshotId: captured.snapshotId }, async (tx, source) => {
@@ -615,6 +667,10 @@ export class RecentJobsWorker {
       if (['withdrawn', 'closed', 'archived'].includes(old?.lifecycle) || old?.publication.disposition === 'withheld') fail('RESTORE_REQUIRES_REVIEW');
       if (published && source.automation.mode !== 'automatic') fail('SOURCE_CHANGED');
       // Re-evaluate timing after slow model/network work, inside the commit boundary.
+      if (original) {
+        const current = refreshOriginalResolution(original.resolution, this.now());
+        if (current.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${current.outcome.toUpperCase()}`);
+      }
       const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin);
       record.revision = (old?.revision ?? 0) + 1; record.requirements.revision = record.revision;
       record.createdAt = captured.createdAt; record.updatedAt = this.now();
@@ -642,6 +698,7 @@ export class RecentJobsWorker {
         evidence: [...mapped.evidence, ...assessment.evidence], qualificationRef: source.automation.qualificationRef,
         decision: published ? 'published' : currentGate.deadlinePolicy ? 'undated_shadow_pass' : 'shadow_pass',
         validationBasis: primary ? 'discovery_and_primary' : 'discovery_notice',
+        ...(original ? { originalResolutionId: original.id } : {}),
         ...currentGate, at: this.now() }));
       if (published) tx.set(this.ref('worker_watches', record.id), { sourceId: source.id, url: claim.url,
         nextCheckAt: currentGate.nextCheckAt, stopAt: new Date(Date.parse(`${record.deadline.value.localDate}T00:00:00.000+02:00`)).toISOString() });

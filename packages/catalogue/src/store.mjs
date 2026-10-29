@@ -54,6 +54,7 @@ export class Catalogue {
   async inspect(token, collection, id) {
     if (!['sources','source_versions','drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
       'worker_decisions','worker_exceptions','worker_holds','worker_health','worker_discovery','worker_discovery_pages',
+      'worker_original_resolutions',
       'worker_notice_origins','worker_origin_imports','model_calls','model_budgets','model_cache'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     return this.db.runTransaction(async tx => { await this.operator(tx, uid); return value(await tx.get(this.ref(collection, id))); });
@@ -65,7 +66,7 @@ export class Catalogue {
   }
   async queue(token, collection, after) {
     if (!['sources','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
-      'worker_exceptions','worker_holds','worker_health','worker_discovery','model_calls','model_budgets'].includes(collection)) fail('INVALID_COMMAND');
+      'worker_exceptions','worker_holds','worker_health','worker_discovery','worker_original_resolutions','model_calls','model_budgets'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     if (after!==undefined) IdSchema.parse(after);
     return this.db.runTransaction(async tx => { await this.operator(tx, uid); let query=this.db.collection(`m0_${collection}`).orderBy('__name__');if(after)query=query.startAfter(after); const rows = await tx.get(query.limit(101));

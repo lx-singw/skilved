@@ -192,6 +192,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Sasol source review and practical-evidence hold](194_SASOL_SOURCE_REVIEW_AND_PRACTICAL_HOLD_2026-10-29.md)
 - [Span-only practical-instruction extraction](195_SPAN_ONLY_PRACTICAL_EXTRACTION_2026-10-29.md)
 - [Resumable RecentJobs publisher discovery](196_RESUMABLE_PUBLISHER_DISCOVERY_2026-10-29.md)
+- [Shared original-notice corroboration](197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

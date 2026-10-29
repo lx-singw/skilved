@@ -43,6 +43,8 @@ The current staging launcher explicitly admits one source/revision in shadow mod
 
 ## Implementation sequence and acceptance
 
+Original-evidence progress, 29 October: [shared original-notice corroboration](../operations/197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md) adds fixed outcomes and exact portal-notice identity/deadline checks before AI in an opt-in shadow lane, with private immutable receipts and fresh acquisition before cache reuse. It uses existing issuer trust and shared JSON-LD; automatic employer authority discovery, trust separation, indirect original-page discovery and broader ATS/method support remain open. No publication lane is enabled.
+
 Implementation progress, 29 October: [resumable publisher discovery](../operations/196_RESUMABLE_PUBLISHER_DISCOVERY_2026-10-29.md) adds opt-in bounded pagination, immutable parsed page observations, atomic continuations and restart-safe progress under one publisher registration. Authored mixed-employer and large-batch cases exercise the workflow. Employer trust is still configured within the source; its separation and automatic original-source resolution remain next. This is part of A, not completion of A–D or a live publication qualification.
 
 **A. Publisher-wide batch ingestion.** Separate publisher policy, employer/ATS trust and vacancy data. Adapt the existing worker rather than adding another isolated runner. Demonstrate several employers and previously unseen detail URLs under one unchanged RecentJobs registration and machine grant, with duplicate/unchanged notices skipped and immutable provenance retained. First scope remains the intended apprenticeship audience; other categories require their own measured support.
