@@ -198,6 +198,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Fresh RecentJobs cohort: native coverage and shared format gaps](200_REAL_RECENTJOBS_NATIVE_COVERAGE_2026-10-29.md)
 - [Shared Microdata JobPosting support and retained authority/deadline holds](201_SHARED_MICRODATA_JOBPOSTING_2026-10-29.md)
 - [Explicit original deadlines, shadow integration and preserved date conflicts](202_ORIGINAL_DEADLINE_EVIDENCE_2026-10-29.md)
+- [Name-only corporate anchor lookup and compatible metadata backfill](203_NAME_ONLY_CORPORATE_AUTHORITY_2026-10-29.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

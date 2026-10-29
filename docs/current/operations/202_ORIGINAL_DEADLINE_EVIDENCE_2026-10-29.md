@@ -1,5 +1,7 @@
 # Explicit original deadlines and preserved date conflicts
 
+Follow-up: [name-only corporate anchor lookup](203_NAME_ONLY_CORPORATE_AUTHORITY_2026-10-29.md) subsequently makes the frozen portal's literal organization name usable as a reviewed-registry hint. Its authority remains unqualified and the calendar disagreement remains held; the earlier replay reasons below describe the previous hint policy.
+
 29 October 2026 (SAST). The shared original resolver now decodes a bounded subset of explicitly zoned timestamps, including UTC/GMT legacy values, and records the raw value, canonical instant, written calendar date and derived South African date. It does not infer a timezone or reinterpret a midnight timestamp as the end of the preceding day. This follows [shared Microdata support](201_SHARED_MICRODATA_JOBPOSTING_2026-10-29.md); no employer-specific parser, source registration or grant is added.
 
 ## Deadline interpretation

@@ -589,11 +589,11 @@ export class RecentJobsWorker {
   }
   async discoverOrigin(claim, candidate) {
     const id = hash(`${claim.id}:origin:${claim.attempts}`), route = candidate.applicationCandidates[0];
-    let resolution = discoveryOutcome('unsupported','ACQUISITION_DISABLED'), anchor = null, primary = null, corporate = null, link = null;
+    let resolution = discoveryOutcome('unsupported','ACQUISITION_DISABLED'), anchor = null, primary = null, corporate = null, link = null, hint = null;
     if (claim.source.automation.employerCrawl && route?.method === 'portal' && probeUrl(route.destination)) {
       try {
         await this.robots(claim,route.destination); primary = await this.request(claim,route.destination,'html');
-        const hint = issuerHint(primary.text);
+        hint = issuerHint(primary.text);
         if (!hint) resolution = discoveryOutcome('unsupported','ISSUER_HINT_UNSUPPORTED');
         else {
           anchor = await this.transaction(claim.sourceId,'worker.origin.anchor',async(tx,source)=>{
@@ -632,7 +632,8 @@ export class RecentJobsWorker {
           if (!versionExists.exists) tx.create(this.ref('employer_delegation_versions',delegationBinding(chosen).hash),payload(chosen));
         }
         tx.create(this.ref('worker_origin_discoveries',id),payload({id,sourceId:source.id,sourceRevision:source.revision,jobId:claim.id,at:this.now(),
-          resolution, snapshots:observations.map(o=>o.id), ...(chosen?{delegations:[delegationBinding(chosen)]}:{})}));
+          resolution, snapshots:observations.map(o=>o.id), ...(hint?{issuerHint:{version:'issuer_hint_v2',method:hint.host===null?'organization_name':'structured_url',...hint}}:{}),
+          ...(chosen?{delegations:[delegationBinding(chosen)]}:{})}));
         tx.set(this.ref('worker_jobs',job.id),payload({...job,originDiscoveryId:id})); return chosen;
       });
     } finally { delete claim.originAnchor; }

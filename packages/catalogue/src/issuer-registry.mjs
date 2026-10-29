@@ -5,8 +5,16 @@ import { DomainError } from './config.mjs';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const fail = code => { throw new DomainError(code); };
 export const ISSUER_REGISTRY_VERSION = 'issuer_registry_v1';
-export const relationshipKeys = relationship => [`portal:${relationship.route.host}`,
+export const ISSUER_NAME_INDEX_VERSION = 'issuer_name_index_v1';
+export function issuerNameKey(value) {
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > 200) return null;
+  const normalized = value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  return `${ISSUER_NAME_INDEX_VERSION}:${hash(normalized)}`;
+}
+export const legacyRelationshipKeys = relationship => [`portal:${relationship.route.host}`,
   ...relationship.route.emailAddresses.map(address => `email:${address}`)].sort();
+export const relationshipKeys = relationship => [...new Set([...legacyRelationshipKeys(relationship),
+  ...(relationship.delegationPage ? [relationship.route.name,...relationship.route.aliases].map(issuerNameKey) : [])])].sort();
 export const relationshipDocument = relationship => ({ json: JSON.stringify(relationship), routeKeys: relationshipKeys(relationship) });
 
 export function readRelationship(snapshot) {
@@ -14,7 +22,7 @@ export function readRelationship(snapshot) {
   try {
     const data = snapshot.data(), r = EmployerRelationship.parse(JSON.parse(data.json));
     if (snapshot.id !== r.id || Object.keys(data).sort().join(',') !== 'json,routeKeys' ||
-        JSON.stringify(data.routeKeys) !== JSON.stringify(relationshipKeys(r))) fail('ISSUER_REGISTRY_INVALID');
+        ![relationshipKeys(r),legacyRelationshipKeys(r)].some(keys => JSON.stringify(data.routeKeys) === JSON.stringify(keys))) fail('ISSUER_REGISTRY_INVALID');
     return r;
   } catch { fail('ISSUER_REGISTRY_INVALID'); }
 }

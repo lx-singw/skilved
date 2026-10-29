@@ -15,15 +15,15 @@ test('shared Microdata parses distinct employers and corroborates the exact vaca
   assert.throws(()=>parsePrimaryJobPosting(html,{allowMicrodata:false}),{code:'PRIMARY_NOTICE_UNSUPPORTED'});
  }
 });
-test('literal organization names do not invent a corporate URL or authority hint',()=>{
+test('literal organization names supply a lookup hint without inventing a corporate URL or authority',()=>{
  const f=originalFixture(),html=originalMicrodataHtml(f.posting).replace(/<div itemprop="hiringOrganization"[\s\S]*?<\/div>/,'<meta itemprop="hiringOrganization" content="Fictional Workshop">');
- assert.equal(parsePrimaryJobPosting(html).issuer,'Fictional Workshop');assert.equal(issuerHint(html),null);assert.equal(resolve(f,html).outcome,'matched');
+ assert.equal(parsePrimaryJobPosting(html).issuer,'Fictional Workshop');assert.deepEqual(issuerHint(html),{issuer:'Fictional Workshop',host:null});assert.equal(resolve(f,html).outcome,'matched');
  f.source.automation.issuers=[];assert.equal(resolve(f,html).reason,'ORIGIN_UNQUALIFIED');
 });
 test('item scopes keep nested place and unrelated organizations out of the hiring organization',()=>{
  const f=originalFixture(),html=originalMicrodataHtml(f.posting).replace('<time itemprop=',`<div itemprop="jobLocation" itemscope itemtype="http://schema.org/Place"><span itemprop="name">Authored Town</span><div itemprop="address" itemscope itemtype="https://schema.org/PostalAddress"><span itemprop="addressCountry">ZA</span></div></div><time itemprop=`)
   .replace('</body>','<div itemscope itemtype="https://schema.org/Organization"><meta itemprop="name" content="Unrelated"><link itemprop="url" href="https://unrelated.example/"></div></body>');
- const p=inspectPrimaryJobPosting(html);assert.equal(p.primary.issuer,f.posting.hiringOrganization.name);assert.equal(issuerHint(html),null);
+ const p=inspectPrimaryJobPosting(html);assert.equal(p.primary.issuer,f.posting.hiringOrganization.name);assert.deepEqual(issuerHint(html),{issuer:f.posting.hiringOrganization.name,host:null});
  assert.equal(JSON.parse(p.primary.text).jobLocation.address.addressCountry,'ZA');
  const scoped=originalMicrodataHtml({...f.posting,hiringOrganization:{...f.posting.hiringOrganization,url:'https://corporate.example/'}});
  assert.deepEqual(issuerHint(scoped),{issuer:f.posting.hiringOrganization.name,host:'corporate.example'});

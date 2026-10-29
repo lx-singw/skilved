@@ -7,7 +7,7 @@ import {inspectPrimaryJobPosting} from './adapters/primary-jobposting.mjs';
 import {RECENTJOBS_INDEX,dayInSA,preflightCandidate} from './worker-policy.mjs';
 import {issuerHint,probeUrl} from './origin-discovery.mjs';
 
-export const COVERAGE_VERSION='recentjobs_native_coverage_v2';
+export const COVERAGE_VERSION='recentjobs_native_coverage_v3';
 const digest=text=>createHash('sha256').update(text).digest('hex');
 export const CoverageObservation=z.object({url:z.string().url().max(2048),html:z.string().optional(),error:z.string().regex(/^[A-Z][A-Z_]{0,79}$/).optional()})
  .strict().refine(o=>(o.html!==undefined)!==(o.error!==undefined),'One body or error required');
@@ -66,7 +66,8 @@ export function buildRecentJobsCoverage(raw){
   if(!original||original.error){row.reason=original?.error??'PORTAL_OBSERVATION_MISSING';row.blocker='portal_unavailable';continue;}
   row.portalObserved=true;row.format=primaryFormatDiagnostic(original.html);
   if(!row.format.supported){row.reason=row.format.reason;row.blocker='primary_format';continue;}
-  row.stage='authority';row.issuerHintAvailable=issuerHint(original.html)!==null;row.reason='AUTHORITY_NOT_ASSESSED';row.blocker='authority_not_assessed';
+  row.stage='authority';const hint=issuerHint(original.html);row.issuerHintAvailable=hint!==null;
+  row.issuerHintMethod=hint===null?null:hint.host===null?'organization_name':'structured_url';row.reason='AUTHORITY_NOT_ASSESSED';row.blocker='authority_not_assessed';
  }
  if(input.portals.some(o=>!portalTargets.has(o.url)))throw Error('COVERAGE_UNSELECTED_PORTAL');
  const count=predicate=>rows.filter(predicate).length,blockers={};for(const row of rows)blockers[row.blocker]=(blockers[row.blocker]??0)+1;

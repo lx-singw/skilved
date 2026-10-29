@@ -7,20 +7,20 @@ import { Source,EmployerRelationship } from '../src/schemas.mjs';
 import { DomainError } from '../src/config.mjs';
 import { getRuntime } from '../src/runtime.mjs';
 import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
-import { originalFixture,originalHtml } from './fixtures/original-notices.mjs';
+import { originalFixture,originalHtml,originalMicrodataHtml } from './fixtures/original-notices.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
 const hash=s=>createHash('sha256').update(s).digest('hex'),payload=v=>({json:JSON.stringify(v)}),value=s=>s.exists?JSON.parse(s.data().json):null;
 let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-origins';db=(await getRuntime()).db;});
 after(async()=>db?.terminate());
-async function fixture({root=true,count=2}={}){
+async function fixture({root=true,count=2,hint='url',issuer='Fictional Workshop',format='jsonld'}={}){
  const id=randomUUID(),host=`ats-${id}.example`,corp=`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/tenant-a/`;
  let now='2026-10-29T10:00:00.000Z';
- const cases=Array.from({length:count},(_,i)=>originalFixture({host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
- cases.forEach(c=>{c.posting.hiringOrganization.sameAs=`https://${corp}/`;});
+ const cases=Array.from({length:count},(_,i)=>originalFixture({issuer,host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
+ if(hint==='url')cases.forEach(c=>{c.posting.hiringOrganization.sameAs=`https://${corp}/`;});
  const source=Source.parse({...cases[0].source,id:`publisher_${id}`,automation:{...cases[0].source.automation,issuerRegistry:'shadow_v1',originDiscovery:'shadow_v1',issuers:[]}});
  let parent=EmployerRelationship.parse({id:`corporate_${id}`,revision:1,state:'qualified',categories:['apprenticeship'],reviewedAt:now,expiresAt:'2026-11-01T10:00:00.000Z',
-  route:{name:'Fictional Workshop',host:corp,pathPrefix:'/careers/',evidence:'Authored corporate authority'},delegationPage:page});
+  route:{name:issuer,host:corp,pathPrefix:'/careers/',evidence:'Authored corporate authority'},delegationPage:page});
  const state={requests:[],extracted:[],validated:[],page:`<main><h1>Careers</h1><a href="${link}">View jobs</a></main>`,onValidate:null,onRobots:null,failProbe:false};
  const options={now:()=>now,sleep:async()=>{},fetcher:async(_source,url)=>{
   state.requests.push(url);
@@ -28,8 +28,9 @@ async function fixture({root=true,count=2}={}){
   if(url===RECENTJOBS_INDEX)return{url,text:`<div class="articles-wrap">${cases.map(c=>`<article class="type-post"><h2 class="entry-title"><a href="${c.detailUrl}">${c.candidate.title}</a></h2></article>`).join('')}</div>`};
   if(url===page)return{url,text:state.page};const c=cases.find(c=>c.url===url||c.detailUrl===url);assert.ok(c,`Unexpected URL ${url}`);
   if(url===c.url&&state.failProbe)throw new DomainError('FETCH_TIMEOUT');
-  return{url,text:url===c.url?originalHtml(c.posting):c.detailHtml};
- },extractor:async candidate=>{state.extracted.push(candidate.sourceUrl);const x=syntheticExtraction(),r=candidate.sourceText.match(/^Reference: (.+)$/m);x.intake={state:'stated',value:r[1],quote:r[0]};
+  const html=format==='microdata_literal'?originalMicrodataHtml(c.posting).replace(/<div itemprop="hiringOrganization"[\s\S]*?<\/div>/,`<meta itemprop="hiringOrganization" content="${issuer}">`):originalHtml(c.posting);
+  return{url,text:url===c.url?html:c.detailHtml};
+ },extractor:async candidate=>{state.extracted.push(candidate.sourceUrl);const x=JSON.parse(JSON.stringify(syntheticExtraction()).replaceAll('Fictional Workshop',issuer)),r=candidate.sourceText.match(/^Reference: (.+)$/m);x.intake={state:'stated',value:r[1],quote:r[0]};
   return{extraction:x,provenance:{usage:{inputTokens:10,totalTokens:20}}};},validator:async({primary})=>{state.validated.push(primary.issuer);await state.onValidate?.();
   return{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'},{source:'primary',quote:primary.issuer}],provenance:{usage:{inputTokens:10,totalTokens:20}}};}};
  const principal=`${id}@example.test`,uid=`operator_${id}`,worker=new RecentJobsWorker(db,principal,options);
@@ -39,7 +40,7 @@ async function fixture({root=true,count=2}={}){
  await catalogue.registerSource('authored-token',source,null,'Authored automatic origin policy');
  const grant={principal,active:true,sources:[source.id],roles:['ingest']};await worker.ref('workers',worker.actor).set(grant);
  const rows=async collection=>(await db.collection(`m0_${collection}`).get()).docs.map(value).filter(r=>r.sourceId===source.id);
- return{worker,catalogue,source,grant,uid,cases,state,page,link,corp,host,rows,advance:ms=>{now=new Date(Date.parse(now)+ms).toISOString();},
+ return{worker,catalogue,source,grant,uid,cases,state,page,link,corp,host,parent,rows,advance:ms=>{now=new Date(Date.parse(now)+ms).toISOString();},
   restart:()=>new RecentJobsWorker(db,principal,options),revoke:async()=>{const next={...parent,revision:parent.revision+1,state:'revoked'};await catalogue.registerEmployerRelationship('authored-token',next,parent.revision,'Authored parent revocation');parent=next;},
   recheck:async()=>{const id=hash(randomUUID());await worker.ref('worker_jobs',id).set(payload({id,sourceId:source.id,kind:'detail',url:cases[0].detailUrl,state:'pending',attempts:0,lease:null,nextAt:now}));return id;}};
 }
@@ -55,6 +56,41 @@ test('new ATS destinations are corroborated and reused for unseen notices withou
   assert.equal((await f.worker.ref('public',decision.recordId).get()).exists,false);
  }
  assert.deepEqual(value(await f.worker.ref('sources',f.source.id).get()),f.source);assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
+});
+test('name-only Microdata finds a reviewed corporate anchor, requires its backlink and reuses proof across notices',async()=>{
+ const issuer=`Authored Forge ${randomUUID()}`,f=await fixture({hint:'name',issuer,format:'microdata_literal'});
+ const result=await f.worker.run(f.source.id);assert.equal(result.results.filter(r=>r.recordId).length,2);
+ assert.equal(f.state.requests.filter(url=>url===f.page).length,1);assert.equal(f.state.extracted.length,2);
+ const receipt=(await f.rows('worker_origin_discoveries')).find(r=>r.resolution.outcome==='corroborated');
+ assert.deepEqual(receipt.issuerHint,{version:'issuer_hint_v2',method:'organization_name',issuer,host:null});
+ assert.equal((await f.rows('employer_delegations')).length,1);
+ for(const decision of await f.rows('worker_decisions')){
+  assert.equal(value(await f.worker.ref('drafts',decision.recordId).get()).publication.approved,false);
+  assert.equal((await f.worker.ref('public',decision.recordId).get()).exists,false);
+ }
+ assert.deepEqual(value(await f.worker.ref('sources',f.source.id).get()),f.source);
+});
+test('unknown name-only organizations cannot trigger corporate guesses, authority writes or model work',async()=>{
+ const f=await fixture({root:false,hint:'name',issuer:`Unreviewed Forge ${randomUUID()}`,count:1});await f.worker.run(f.source.id);
+ const receipt=(await f.rows('worker_origin_discoveries'))[0];assert.equal(receipt.resolution.reason,'CORPORATE_AUTHORITY_UNQUALIFIED');assert.equal(receipt.issuerHint.method,'organization_name');
+ assert.ok(!f.state.requests.some(url=>url.includes(f.corp)));assert.deepEqual(f.state.extracted,[]);assert.equal((await f.rows('employer_delegations')).length,0);
+});
+test('ambiguous reviewed names and invalid explicit URL claims cannot fall back to a preferred corporate root',async()=>{
+ const f=await fixture({hint:'name',issuer:`Ambiguous Forge ${randomUUID()}`,count:1});
+ const second={...f.parent,id:`another_${randomUUID()}`,route:{...f.parent.route,host:'other-corporate.example'},delegationPage:'https://other-corporate.example/careers/'};
+ await f.catalogue.registerEmployerRelationship('authored-token',second,null,'Authored ambiguous authority');
+ await f.worker.run(f.source.id);assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.reason,'CORPORATE_AUTHORITY_UNQUALIFIED');
+ assert.ok(!f.state.requests.some(url=>url.includes(f.corp)||url.includes('other-corporate.example')));assert.deepEqual(f.state.extracted,[]);
+ const g=await fixture({hint:'name',issuer:`Claimed Forge ${randomUUID()}`,count:1});g.cases[0].posting.hiringOrganization.sameAs='http://unreviewed.example/';
+ await g.worker.run(g.source.id);assert.equal((await g.rows('worker_origin_discoveries'))[0].resolution.reason,'ISSUER_HINT_UNSUPPORTED');
+ assert.ok(!g.state.requests.some(url=>url.includes(g.corp)));assert.deepEqual(g.state.extracted,[]);
+});
+test('name-only matching does not replace the corporate backlink or current parent fence',async()=>{
+ const f=await fixture({hint:'name',issuer:`Scoped Forge ${randomUUID()}`,count:1});f.state.page='<main><h1>Careers</h1><a href="https://unrelated.example/tenant/">Jobs</a></main>';
+ await f.worker.run(f.source.id);assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.reason,'DELEGATION_LINK_UNSUPPORTED');assert.deepEqual(f.state.extracted,[]);
+ const g=await fixture({hint:'name',issuer:`Revoked Forge ${randomUUID()}`,count:1});g.state.onRobots=async url=>{if(url.includes(g.corp))await g.revoke();};
+ const result=await g.worker.run(g.source.id);assert.ok(result.results.some(r=>r.reason==='ISSUER_TRUST_CHANGED'));assert.ok(!g.state.requests.includes(g.page));
+ assert.equal((await g.rows('employer_delegations')).length,0);assert.deepEqual(g.state.extracted,[]);
 });
 test('self-claimed corporate identities are held without fetching unreviewed corporate pages or spending AI',async()=>{
  const f=await fixture({root:false,count:1});await f.worker.run(f.source.id);

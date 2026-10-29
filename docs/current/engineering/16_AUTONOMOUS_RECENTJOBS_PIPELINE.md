@@ -196,6 +196,8 @@ Portal and labelled mailto application candidates are supported end to end. Emai
 
 ## Worker and feed operation
 
+29 October name-hint update: [reviewed corporate anchor lookup](../operations/203_NAME_ONLY_CORPORATE_AUTHORITY_2026-10-29.md) supports exact organization names/aliases when a JobPosting lacks a corporate URL. A bounded indexed lookup cannot qualify unknown authority or replace the reviewed careers backlink. Legacy authority fingerprints survive compatible metadata backfill; no live backfill or publication activation occurs.
+
 29 October deadline update: [pinned original deadline evidence](../operations/202_ORIGINAL_DEADLINE_EVIDENCE_2026-10-29.md) decodes supported explicit UTC/GMT and ISO instants, records both written and South African dates, and preserves conflicts and precise expiry through the shadow draft gate. The automatic/legacy gate retains its existing format rule. The measured portal's converted date disagrees with its publisher; its authority remains unqualified and no real draft results.
 
 29 October update: [shared Microdata JobPosting support](../operations/201_SHARED_MICRODATA_JOBPOSTING_2026-10-29.md) joins JSON-LD in the opt-in shadow original resolver. Scope-aware parsing preserves raw dates and references while retaining authority and exact-vacancy checks. The legacy validation/publication path still rejects Microdata; the measured real portal remains held without authority or agreed deadline evidence.

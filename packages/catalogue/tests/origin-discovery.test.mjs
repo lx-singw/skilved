@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { corporateLink, issuerHint, probeUrl, makeDelegation, delegationDocument, readDelegation } from '../src/origin-discovery.mjs';
 import { EmployerRelationship, Source } from '../src/schemas.mjs';
-import { relationshipBinding } from '../src/issuer-registry.mjs';
+import { relationshipBinding, issuerNameKey, relationshipKeys, legacyRelationshipKeys, relationshipDocument, readRelationship } from '../src/issuer-registry.mjs';
 import { originalFixture, originalHtml } from './fixtures/original-notices.mjs';
 const target = 'https://ats.example/tenant-a/job/123/';
 const page = 'https://corporate.example/careers/';
@@ -28,10 +28,24 @@ test('unsupported, hidden, navigation, footer, ambiguous and warning content can
 });
 test('a posting corporate hint is a bounded lookup hint, not trust or a URL to fetch',()=>{
   const f=originalFixture();
-  assert.equal(issuerHint(f.observation.text),null);
+  assert.deepEqual(issuerHint(f.observation.text),{issuer:'Fictional Workshop',host:null});
   assert.deepEqual(issuerHint(originalHtml({...f.posting,hiringOrganization:{name:'Fictional Workshop',sameAs:'https://corporate.example/about/'}})),{issuer:'Fictional Workshop',host:'corporate.example'});
-  for(const sameAs of [['https://corporate.example/','https://other.example/'],'http://corporate.example/','https://127.0.0.1/','https://corporate.example/?claim=official'])
+  for(const sameAs of [[],[[]],null,{},[['https://corporate.example/']],['https://corporate.example/','https://other.example/'],'http://corporate.example/','https://127.0.0.1/','https://corporate.example/?claim=official'])
     assert.equal(issuerHint(originalHtml({...f.posting,hiringOrganization:{name:'Fictional Workshop',sameAs}})),null);
+});
+test('reviewed corporate anchors index exact normalized names and aliases without changing authority bindings',()=>{
+  const r=anchor();r.route.aliases=['AUTHORED FORGE','Ｆｉｃｔｉｏｎａｌ Workshop'];
+  assert.equal(issuerNameKey('  FICTIONAL\nWorkshop '),issuerNameKey(r.route.name));
+  assert.equal(issuerNameKey(r.route.aliases[1]),issuerNameKey(r.route.name));
+  assert.notEqual(issuerNameKey('Fictional Workshop Group'),issuerNameKey(r.route.name));
+  assert.equal(issuerNameKey('x'.repeat(201)),null);
+  assert.ok(relationshipKeys(r).includes(issuerNameKey('authored forge')));
+  assert.equal(relationshipKeys(r).filter(k=>k.startsWith('issuer_name_index_v1:')).length,2);
+  const modern=relationshipDocument(r),legacy={...modern,routeKeys:legacyRelationshipKeys(r)};
+  const snapshot=data=>({exists:true,id:r.id,data:()=>data});
+  assert.deepEqual(relationshipBinding(readRelationship(snapshot(legacy))),relationshipBinding(readRelationship(snapshot(modern))));
+  assert.throws(()=>readRelationship(snapshot({...modern,routeKeys:[...modern.routeKeys,issuerNameKey('Other')]})),{code:'ISSUER_REGISTRY_INVALID'});
+  const {delegationPage,...atsOnly}=r;assert.deepEqual(relationshipKeys(atsOnly),legacyRelationshipKeys(atsOnly));
 });
 test('read probes reject intermediaries, private syntax and ambiguous encoded paths',()=>{
   for(const url of ['http://ats.example/tenant/','https://u:p@ats.example/tenant/','https://ats.example:444/tenant/','https://ats.example/tenant/#x',

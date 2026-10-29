@@ -8,6 +8,7 @@ import { DomainError } from './config.mjs';
 import { approvedUrl, retrieve } from './fetch.mjs';
 import { enforceAutomaticFreshness } from './worker-policy.mjs';
 import { importUndatedOrigin } from './undated-origin-import.mjs';
+import { IssuerIndexBatch, reindexIssuerNames } from './issuer-name-index.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -77,6 +78,11 @@ export class Catalogue {
     IdSchema.parse(review?.sourceId);
     return this.mutate(token, 'source', 'source.undated_origin_import', review.sourceId, reason,
       (tx, uid) => importUndatedOrigin(this, tx, review, uid));
+  }
+  async reindexEmployerRelationships(token, input, reason) {
+    const bindings = IssuerIndexBatch.parse(input);
+    return this.mutate(token, 'source', 'employer_relationship.reindex', hash(JSON.stringify(bindings)), reason,
+      tx => reindexIssuerNames(this, tx, bindings));
   }
   async queue(token, collection, after) {
     if (!['sources','employer_relationships','employer_delegations','worker_origin_discoveries','worker_issuer_resolutions','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',

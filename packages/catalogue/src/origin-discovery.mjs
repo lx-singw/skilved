@@ -4,7 +4,7 @@ import ipaddr from 'ipaddr.js';
 import { z } from 'zod';
 import { IdSchema, InstantSchema } from '@skilved/types/opportunities';
 import { IssuerRoute } from './schemas.mjs';
-import { readRelationship, relationshipBinding, validateIssuerBindings } from './issuer-registry.mjs';
+import { readRelationship, relationshipBinding, validateIssuerBindings, issuerNameKey } from './issuer-registry.mjs';
 import { inspectPrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { DomainError } from './config.mjs';
 
@@ -37,15 +37,22 @@ export function issuerHint(html) {
   let inspected;
   try { inspected = inspectPrimaryJobPosting(html); }
   catch (error) { if (error.code === 'PRIMARY_NOTICE_UNSUPPORTED') return null; throw error; }
+  if (!issuerNameKey(inspected.primary.issuer)) return null;
   const urls = inspected.issuerUrls.flat();
-  if (!urls.length || urls.length > 4) return null;
+  // A name is only a key into reviewed authority, never a guessed domain or
+  // permission to fetch an unreviewed corporate page. Supplied bad URL claims
+  // must not be discarded to fall back to this path.
+  if (!urls.length) return inspected.issuerUrls.length ? null : { issuer: inspected.primary.issuer, host: null };
+  if (urls.length > 4 || urls.some(url => typeof url !== 'string')) return null;
   const parsed = urls.map(probeUrl);
   if (parsed.some(url => !url || url.search)) return null;
   const origins = new Set(parsed.map(url => url.origin));
   return origins.size === 1 ? { issuer: inspected.primary.issuer, host: parsed[0].hostname } : null;
 }
 export async function corporateAnchor(tx, db, hint, now) {
-  const rows = await tx.get(db.collection('m0_employer_relationships').where('routeKeys','array-contains',`portal:${hint.host}`).limit(31));
+  const key = hint.host === null ? issuerNameKey(hint.issuer) : `portal:${hint.host}`;
+  if (!key) return null;
+  const rows = await tx.get(db.collection('m0_employer_relationships').where('routeKeys','array-contains',key).limit(31));
   if (rows.size > 30) fail('ISSUER_REGISTRY_CAPACITY');
   const anchors = rows.docs.map(readRelationship).filter(r => r.state === 'qualified' && r.reviewedAt <= now && now < r.expiresAt &&
     r.categories.includes('apprenticeship') && r.delegationPage && [r.route.name,...r.route.aliases].map(name).includes(name(hint.issuer)));
