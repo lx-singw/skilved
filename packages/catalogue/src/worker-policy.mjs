@@ -1,10 +1,12 @@
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
+import { isDeepStrictEqual } from 'node:util';
 import { DomainError } from './config.mjs';
 import { usesUndatedV2, undatedV2Window } from './undated-policy.mjs';
+import { dayInSA } from './south-african-time.mjs';
+import { parseOriginalDeadline } from './original-deadline.mjs';
+export { dayInSA } from './south-african-time.mjs';
 
 export const RECENTJOBS_INDEX = 'https://recentjobs.co.za/category/apprenticeships/';
-export const dayInSA = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg',
-  year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
 export const allFacts = o => [o.title, o.issuer, o.summary, o.intake, ...o.organisations, o.location,
   o.residence, o.experience, ...(o.entryStage ? [o.entryStage] : []), o.deadline, ...o.compensation, o.practicalConditions, o.applicationRoute,
   ...o.requirements.requirements.map(r => r.fact)];
@@ -118,7 +120,7 @@ export function assertMaterialFacts(record) {
       !record.requirements.requirements.length || JSON.stringify(record.requirements.expression).includes('"unknown"')) fail('MATERIAL_FACTS_UNRESOLVED');
 }
 
-export function publicationGate(source, candidate, record, primary, assessment, now) {
+export function publicationGate(source, candidate, record, primary, assessment, now, originalDeadline = null) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
   if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
   assertApprenticeshipSource(candidate);
@@ -130,8 +132,16 @@ export function publicationGate(source, candidate, record, primary, assessment, 
       candidateDeadline(candidate) !== deadline.localDate ||
       candidate.applicationCandidates.length !== 1) fail('NOTICE_PRECISION_UNSUPPORTED');
   if (source.automation.employerCrawl && record.applicationRoute.value.method === 'portal' && !primary) fail('PRIMARY_NOTICE_REQUIRED');
-  if (primary && (!primary.validThrough || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(primary.validThrough) ||
-      !DateSchema.safeParse(primary.validThrough.slice(0, 10)).success || primary.validThrough.slice(0, 10) !== deadline.localDate)) fail('PRIMARY_DEADLINE_UNRESOLVED');
+  if (primary) {
+    // Only the shadow original resolver supplies this pinned interpretation.
+    // Legacy/automatic callers retain their existing ISO-prefix contract.
+    if (source.automation.mode === 'shadow' && source.automation.originalVerification === 'shadow_v1' && originalDeadline !== null) {
+      const parsed = parseOriginalDeadline(primary.validThrough);
+      if (!parsed || !isDeepStrictEqual(parsed, originalDeadline) || parsed.localDate !== deadline.localDate ||
+          parsed.instant !== null && Date.parse(parsed.instant) <= Date.parse(now)) fail('PRIMARY_DEADLINE_UNRESOLVED');
+    } else if (!primary.validThrough || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(primary.validThrough) ||
+        !DateSchema.safeParse(primary.validThrough.slice(0, 10)).success || primary.validThrough.slice(0, 10) !== deadline.localDate) fail('PRIMARY_DEADLINE_UNRESOLVED');
+  }
   if (deadline.localDate <= dayInSA(now)) fail('NOTICE_NOT_OPEN');
   if (!assessment.supported || assessment.issues.length) fail('SEMANTIC_VALIDATION_FAILED');
   const deadlineBoundary = Date.parse(`${deadline.localDate}T00:00:00.000+02:00`);
@@ -139,10 +149,10 @@ export function publicationGate(source, candidate, record, primary, assessment, 
 }
 
 /** The undated exception is limited to a private, unapproved single-notice draft. */
-export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt, undatedOrigin) {
+export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt, undatedOrigin, originalDeadline = null) {
   const v2 = usesUndatedV2(source, candidate);
   if (!v2 && (candidate.deadlineCandidates.length || source.automation?.undatedNotices !== 'shadow_recent'))
-    return publicationGate(source, candidate, record, primary, assessment, now);
+    return publicationGate(source, candidate, record, primary, assessment, now, originalDeadline);
   preflightCandidate(source, candidate, now, sourceRetrievedAt, undatedOrigin);
   const window = v2 ? undatedV2Window(source, candidate, now, sourceRetrievedAt, undatedOrigin)
     : undatedReviewWindow(source, candidate, now, sourceRetrievedAt);

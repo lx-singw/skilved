@@ -1,5 +1,7 @@
 # Shared Microdata JobPosting support
 
+Follow-up: [explicit deadline evidence](202_ORIGINAL_DEADLINE_EVIDENCE_2026-10-29.md) subsequently decodes supported legacy UTC values and records South African day shifts. The frozen portal still lacks authority; its decoded date disagrees with the publisher. The earlier results below retain their original adapter/policy context.
+
 29 October 2026 (SAST). A shared, bounded Microdata adapter now reads the employer-page representation identified by the [first-ten RecentJobs assessment](200_REAL_RECENTJOBS_NATIVE_COVERAGE_2026-10-29.md). It contains no employer names, vacancy IDs, host-specific selectors or per-opportunity rules. Supported Microdata enters the existing exact-original resolver only in the opt-in shadow lane; the legacy validation/publication path retains its JSON-LD format boundary.
 
 ## Supported representation and controls

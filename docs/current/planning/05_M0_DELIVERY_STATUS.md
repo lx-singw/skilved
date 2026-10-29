@@ -1,8 +1,10 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 16 October 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 29 October 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+29 October original deadlines: [versioned explicit deadline evidence](../operations/202_ORIGINAL_DEADLINE_EVIDENCE_2026-10-29.md) carries raw and interpreted zoned timestamps through the shadow original resolver and draft gate, with exact expiry and preserved usage. Fictional same-day legacy originals reach private drafts; rollover conflicts and malformed weekdays are held before AI. The frozen real portal derives to a different South African day from the publisher date and still lacks authority; all ten remain held before AI. Automatic publication, hosting and live quota/cloud state stay unchanged.
 
 29 October shared Microdata support: [the bounded JobPosting adapter](../operations/201_SHARED_MICRODATA_JOBPOSTING_2026-10-29.md) parses the measured employer-page format in the shadow original resolver while retaining legacy publication boundaries. The same ten-notice cohort gains one supported representation but still yields no AI attempts or drafts in normal worker replay; employer authority and legacy-date agreement remain unresolved. Authored multi-issuer worker cases produce two private drafts without per-opportunity code. No live policy, provider quota or hosting state changes.
 

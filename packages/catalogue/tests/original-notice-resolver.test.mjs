@@ -67,7 +67,8 @@ test('deadline timestamps require an explicit interpretable timezone; closing-da
   assert.equal(resolve(f, { ...f.posting, validThrough: '2026-10-29' }, { candidate: { ...f.candidate, deadlineCandidates: [{ localDate: '2026-10-29' }] } }).reason, 'CLOSING_DAY_HOLD');
   assert.equal(resolve(f, { ...f.posting, validThrough: '2026-10-29T09:00:00Z' }).outcome, 'closed');
   assert.equal(resolve(f, { ...f.posting, validThrough: '2026-10-30T09:00:00+02:00' }).outcome, 'matched');
-  for (const expiry of ['2026-10-30T09:00:00', '2026-10-30T00:30:00+14:00', '2026-02-30', '2026-10-30T99:00:00Z'])
+  assert.equal(resolve(f, { ...f.posting, validThrough: '2026-10-30T00:30:00+14:00' }).reason, 'DEADLINE_CONFLICT');
+  for (const expiry of ['2026-10-30T09:00:00', '2026-02-30', '2026-10-30T99:00:00Z'])
     assert.equal(resolve(f, { ...f.posting, validThrough: expiry }).reason, 'DEADLINE_UNRESOLVED');
 });
 test('expiry is re-evaluated after model work, without relabelling the original observation', () => {

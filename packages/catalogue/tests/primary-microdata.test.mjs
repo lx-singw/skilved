@@ -11,7 +11,7 @@ test('shared Microdata parses distinct employers and corroborates the exact vaca
  for(const [issuer,host] of [['Authored Forge','jobs.example'],['Imaginary Works','careers.example'],['Fictional Tools','tenant.example']]){
   const f=originalFixture({issuer,host}),html=originalMicrodataHtml(f.posting),p=inspectPrimaryJobPosting(html),r=resolve(f,html);
   assert.equal(p.adapter,'jobposting_microdata_v1');assert.equal(p.primary.issuer,issuer);assert.equal(p.identifier.value,'AP-123');assert.match(p.descriptionText,/\nReference: AP-123$/);
-  assert.equal(r.outcome,'matched');assert.equal(r.adapter,p.adapter);assert.equal(r.version,'original_jobposting_v2');assert.deepEqual(r.primary,parsePrimaryJobPosting(html));
+  assert.equal(r.outcome,'matched');assert.equal(r.adapter,p.adapter);assert.equal(r.version,'original_jobposting_v3');assert.deepEqual(r.primary,parsePrimaryJobPosting(html));
   assert.throws(()=>parsePrimaryJobPosting(html,{allowMicrodata:false}),{code:'PRIMARY_NOTICE_UNSUPPORTED'});
  }
 });
@@ -51,10 +51,11 @@ test('all supplied bindings and recruitment references must still agree, includi
  const noUrl={...f.posting};delete noUrl.url;assert.equal(resolve(f,originalMicrodataHtml(noUrl,f.url)).outcome,'matched');
  const noRef=originalFixture({reference:null}),p={...noRef.posting};delete p.url;assert.equal(resolve(noRef,originalMicrodataHtml(p,noRef.url)).reason,'VACANCY_BINDING_MISSING');
 });
-test('raw date values survive parsing; legacy timestamps and South African day rollover stay unresolved',()=>{
+test('raw dates survive parsing; explicit day rollover conflicts while unzoned timestamps stay unresolved',()=>{
  const f=originalFixture();
  for(const date of ['Fri Oct 30 22:00:00 UTC 2026','2026-10-30T22:00:00Z','2026-10-30T09:00:00']){
-  const html=originalMicrodataHtml({...f.posting,validThrough:date});assert.equal(parsePrimaryJobPosting(html).validThrough,date);assert.equal(resolve(f,html).reason,'DEADLINE_UNRESOLVED');
+  const html=originalMicrodataHtml({...f.posting,validThrough:date});assert.equal(parsePrimaryJobPosting(html).validThrough,date);
+  assert.equal(resolve(f,html).reason,date.endsWith('09:00:00')?'DEADLINE_UNRESOLVED':'DEADLINE_CONFLICT');
  }
  assert.equal(resolve(f,originalMicrodataHtml({...f.posting,validThrough:'2026-10-30T09:00:00+02:00'})).outcome,'matched');
  assert.equal(resolve(f,originalMicrodataHtml({...f.posting,validThrough:'2026-10-20'})).outcome,'closed');

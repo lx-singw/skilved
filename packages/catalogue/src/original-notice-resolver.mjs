@@ -1,10 +1,12 @@
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
+import { isDeepStrictEqual } from 'node:util';
 import { inspectPrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { approvedRoute, dayInSA } from './worker-policy.mjs';
 import { noticeMetadataPolicy } from './ai/notice-metadata.mjs';
 import { DomainError } from './config.mjs';
+import { parseOriginalDeadline } from './original-deadline.mjs';
 
-export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v2';
+export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v3';
 const nameKey = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const words = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const outcome = (state, reason, extra = {}) => ({ version: ORIGINAL_RESOLVER_VERSION,
@@ -47,12 +49,10 @@ function boundUrl(input, target) {
 }
 
 function deadline(value, now) {
-  if (DateSchema.safeParse(value).success) return { date: value, elapsed: value < dayInSA(now), closingDay: value === dayInSA(now) };
-  // A timezone-less datetime cannot establish the South African deadline.
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) ||
-      !DateSchema.safeParse(value.slice(0, 10)).success || !Number.isFinite(Date.parse(value)) ||
-      dayInSA(new Date(value).toISOString()) !== value.slice(0, 10)) return null;
-  return { date: value.slice(0, 10), elapsed: Date.parse(value) <= Date.parse(now), closingDay: false };
+  const evidence = parseOriginalDeadline(value); if (!evidence) return null;
+  return { evidence, date: evidence.localDate,
+    elapsed: evidence.instant === null ? evidence.localDate < dayInSA(now) : Date.parse(evidence.instant) <= Date.parse(now),
+    closingDay: evidence.instant === null && evidence.localDate === dayInSA(now) };
 }
 
 /** Corroborates an exact linked portal notice under existing issuer trust.
@@ -101,6 +101,7 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
   basis.checks.push('vacancy_url');
   const expiry = deadline(primary.validThrough, now);
   if (!expiry) return result('unsupported', 'DEADLINE_UNRESOLVED');
+  basis.deadlineEvidence = expiry.evidence;
   // Classify closure only after matching this vacancy's identity, not a different
   // expired advert, transport failure, generic careers page or robots denial.
   if (expiry.elapsed) return result('closed', 'ORIGINAL_DEADLINE_ELAPSED');
@@ -116,9 +117,12 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
 export function refreshOriginalResolution(resolution, now) {
   if (!InstantSchema.safeParse(now).success) throw new DomainError('ORIGINAL_RESOLUTION_INPUT_INVALID');
   if (resolution.outcome !== 'matched') return resolution;
-  const expiry = deadline(resolution.identity.validThrough, now);
   const { primary, ...basis } = resolution;
+  if (resolution.version !== ORIGINAL_RESOLVER_VERSION) return { ...basis, outcome: 'unsupported', reason: 'RESOLVER_POLICY_CHANGED' };
+  const expiry = deadline(resolution.identity.validThrough, now);
   if (!expiry) return { ...basis, outcome: 'unsupported', reason: 'DEADLINE_UNRESOLVED' };
+  if (!isDeepStrictEqual(expiry.evidence, resolution.deadlineEvidence))
+    return { ...basis, outcome: 'unsupported', reason: 'DEADLINE_EVIDENCE_CHANGED' };
   if (expiry.elapsed) return { ...basis, outcome: 'closed', reason: 'ORIGINAL_DEADLINE_ELAPSED' };
   if (expiry.closingDay) return { ...basis, outcome: 'unsupported', reason: 'CLOSING_DAY_HOLD' };
   return resolution;

@@ -6,6 +6,25 @@ import { workerPrincipal } from '../src/worker-identity.mjs';
 import { approvedIssuer, enforceAutomaticFreshness, preflightCandidate, publicationGate } from '../src/worker-policy.mjs';
 import { makeRecord } from '../../types/tests/fixtures/opportunities.mjs';
 import { projectOpportunity } from '@skilved/types/opportunities/internal';
+import { parseOriginalDeadline } from '../src/original-deadline.mjs';
+
+test('pinned deadline evidence is limited to the shadow original lane and cannot change raw dates or bypass expiry', () => {
+  const record = makeRecord(), now = '2026-10-29T10:00:00.000Z';
+  const source = { automation: { mode: 'shadow', originalVerification: 'shadow_v1', employerCrawl: true, checkTtlHours: 6,
+    issuers: [{ name: record.issuer.value, host: 'issuer.example', pathPrefix: '/apply' }] } };
+  const candidate = { title: 'Authored apprenticeship', sourceText: 'An authored apprenticeship.', issues: [],
+    applicationCandidates: [record.applicationRoute.value], deadlineCandidates: [{ localDate: '2026-10-30' }] };
+  const primary = { issuer: record.issuer.value, validThrough: 'Fri Oct 30 09:00:00 UTC 2026' }, evidence = parseOriginalDeadline(primary.validThrough);
+  const gate = (s = source, p = primary, e = evidence, time = now) => publicationGate(s, candidate, record, p, { supported: true, issues: [] }, time, e);
+  assert.equal(gate().nextCheckAt, '2026-10-29T16:00:00.000Z');
+  assert.equal(primary.validThrough, 'Fri Oct 30 09:00:00 UTC 2026');
+  for (const mode of ['automatic','disabled']) assert.throws(() => gate({ ...source, automation: { ...source.automation, mode } }), /PRIMARY_DEADLINE_UNRESOLVED/);
+  assert.throws(() => gate({ ...source, automation: { ...source.automation, originalVerification: undefined } }), /PRIMARY_DEADLINE_UNRESOLVED/);
+  assert.throws(() => gate(source, primary, null), /PRIMARY_DEADLINE_UNRESOLVED/);
+  assert.throws(() => gate(source, primary, { ...evidence, localDate: '2026-10-31' }), /PRIMARY_DEADLINE_UNRESOLVED/);
+  assert.throws(() => gate(source, { ...primary, validThrough: 'Fri Oct 30 10:00:00 UTC 2026' }), /PRIMARY_DEADLINE_UNRESOLVED/);
+  assert.throws(() => gate(source, primary, evidence, '2026-10-30T09:00:00.000Z'), /PRIMARY_DEADLINE_UNRESOLVED/);
+});
 
 test('primary adapter accepts one inert JobPosting and rejects generic/multiple/oversized notices', () => {
   const job = { '@type': 'JobPosting', title: 'Fictional apprentice', hiringOrganization: { name: 'Fictional issuer' },

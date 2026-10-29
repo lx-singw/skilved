@@ -776,7 +776,7 @@ export class RecentJobsWorker {
       const current = refreshOriginalResolution(original.resolution, this.now());
       if (current.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${current.outcome.toUpperCase()}`);
     }
-    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin);
+    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin, original?.resolution.deadlineEvidence ?? null);
     const published = claim.source.automation.mode === 'automatic';
     return this.finish(claim, { recordId: captured.recordId, published, snapshotId: captured.snapshotId }, async (tx, source) => {
       await this.assertStoredUndatedOrigin(tx, source, candidate, undatedOrigin);
@@ -792,7 +792,7 @@ export class RecentJobsWorker {
         const current = refreshOriginalResolution(original.resolution, this.now());
         if (current.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${current.outcome.toUpperCase()}`);
       }
-      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin);
+      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin, original?.resolution.deadlineEvidence ?? null);
       record.revision = (old?.revision ?? 0) + 1; record.requirements.revision = record.revision;
       record.createdAt = captured.createdAt; record.updatedAt = this.now();
       if (primarySnapshotId) record.citations.push({ id: 'primary_notice', label: 'Employer application notice', url: destination, snapshotId: primarySnapshotId, approved: published });

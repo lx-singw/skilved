@@ -30,6 +30,8 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
     if (kind === 'wrong_ref') f.posting.description = '<p>Reference: AP-9999</p>';
     if (kind === 'closed') f.posting.validThrough = '2026-10-20';
     if (kind === 'microdata_legacy') f.posting.validThrough = 'Fri Oct 30 22:00:00 UTC 2026';
+    if (kind === 'legacy_utc_a' || kind === 'microdata_legacy_match_b') f.posting.validThrough = 'Fri Oct 30 09:00:00 UTC 2026';
+    if (kind === 'legacy_bad_weekday') f.posting.validThrough = 'Thu Oct 30 09:00:00 UTC 2026';
     f.primaryHtml = kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_') ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
     return { ...f, kind };
   });
@@ -114,15 +116,15 @@ test('one publisher batch corroborates two employers, isolates wrong vacancies a
   assert.deepEqual((await f.worker.ref('workers', f.worker.actor).get()).data(), f.grant);
   assert.deepEqual(value(await f.worker.ref('sources', f.sourceId).get()), f.source);
 });
-test('normal shadow worker admits corroborated Microdata for two issuers but holds unresolved dates before AI', async () => {
+test('normal shadow worker admits corroborated Microdata for two issuers but holds conflicting dates before AI', async () => {
   const f = await fixture(['microdata_a','microdata_b','microdata_legacy']);
   const result = await f.worker.run(f.sourceId);
   assert.equal(result.results.filter(r => r.recordId).length, 2);
   assert.equal(f.state.extracted.length, 2); assert.equal(f.state.validated.length, 2);
   const resolutions = await f.rows('worker_original_resolutions'); assert.equal(resolutions.length, 3);
-  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v2'));
+  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v3'));
   assert.equal(resolutions.filter(r => r.resolution.outcome === 'matched').length, 2);
-  assert.equal(resolutions.find(r => r.resolution.outcome === 'unsupported').resolution.reason, 'DEADLINE_UNRESOLVED');
+  assert.equal(resolutions.find(r => r.resolution.outcome === 'conflicting').resolution.reason, 'DEADLINE_CONFLICT');
   assert.equal((await f.rows('worker_decisions')).length, 2);
   assert.equal(value(await f.worker.ref('model_budgets', hash(`${f.sourceId}:2026-10-29`)).get()).calls, 4);
   for (const decision of await f.rows('worker_decisions')) {
@@ -130,6 +132,29 @@ test('normal shadow worker admits corroborated Microdata for two issuers but hol
     assert.equal((await f.worker.ref('public', decision.recordId).get()).exists, false);
   }
   assert.equal((await f.rows('worker_exceptions')).length, 1);
+});
+test('shared UTC deadline decoding admits same-day originals across formats and holds shifted or malformed dates before AI', async () => {
+  const f = await fixture(['legacy_utc_a','microdata_legacy_match_b','microdata_legacy','legacy_bad_weekday']);
+  const result = await f.worker.run(f.sourceId);
+  assert.equal(result.results.filter(r => r.recordId).length, 2);
+  assert.equal(f.state.extracted.length, 2); assert.equal(f.state.validated.length, 2);
+  const resolutions = await f.rows('worker_original_resolutions'); assert.equal(resolutions.length, 4);
+  const matched = resolutions.filter(r => r.resolution.outcome === 'matched'); assert.equal(matched.length, 2);
+  assert.deepEqual(new Set(matched.map(r => r.resolution.adapter)), new Set(['jobposting_jsonld_v1','jobposting_microdata_v1']));
+  for (const { resolution } of matched) {
+    assert.equal(resolution.deadlineEvidence.format, 'legacy_utc');
+    assert.equal(resolution.deadlineEvidence.localDate, '2026-10-30');
+    assert.equal(resolution.deadlineEvidence.instant, '2026-10-30T09:00:00.000Z');
+  }
+  const conflict = resolutions.find(r => r.resolution.reason === 'DEADLINE_CONFLICT').resolution;
+  assert.equal(conflict.deadlineEvidence.localDate, '2026-10-31'); assert.equal(conflict.deadlineEvidence.dayShift, true);
+  assert.equal(resolutions.filter(r => r.resolution.reason === 'DEADLINE_UNRESOLVED').length, 1);
+  assert.equal((await f.rows('worker_candidates')).length, 2); assert.equal((await f.rows('worker_decisions')).length, 2);
+  assert.equal(value(await f.worker.ref('model_budgets', hash(`${f.sourceId}:2026-10-29`)).get()).calls, 4);
+  for (const decision of await f.rows('worker_decisions')) {
+    assert.equal(value(await f.worker.ref('drafts', decision.recordId).get()).publication.approved, false);
+    assert.equal((await f.worker.ref('public', decision.recordId).get()).exists, false);
+  }
 });
 test('legacy validation lane does not inherit Microdata support without the shadow original resolver', async () => {
   const f = await fixture(['microdata_a']);
@@ -175,6 +200,22 @@ test('expiry during validation rejects drafting even after an affirmative model 
   assert.equal((await f.rows('worker_decisions')).length, 0);
   assert.equal((await f.rows('worker_original_resolutions'))[0].resolution.outcome, 'matched');
   assert.equal(f.state.extracted.length, 1); assert.equal(f.state.validated.length, 1);
+});
+test('legacy UTC expiry during validation blocks drafting and retains admitted usage and original evidence', async () => {
+  const f = await fixture(['matched_a']);
+  f.advance(43_170_000);
+  const raw = 'Thu Oct 29 22:00:00 UTC 2026';
+  f.cases[0].primaryHtml = originalMicrodataHtml({ ...f.cases[0].posting, validThrough: raw });
+  f.state.afterValidation = async () => f.advance(30_000);
+  const result = await f.worker.run(f.sourceId);
+  assert.ok(result.results.some(r => r.reason === 'ORIGINAL_NOTICE_CLOSED'));
+  assert.equal((await f.rows('worker_decisions')).length, 0);
+  const receipt = (await f.rows('worker_original_resolutions'))[0].resolution;
+  assert.equal(receipt.outcome, 'matched'); assert.equal(receipt.identity.validThrough, raw);
+  assert.equal(receipt.deadlineEvidence.instant, '2026-10-29T22:00:00.000Z');
+  assert.equal(receipt.deadlineEvidence.localDate, '2026-10-30');
+  assert.equal(f.state.extracted.length, 1); assert.equal(f.state.validated.length, 1);
+  assert.equal(value(await f.worker.ref('model_budgets', hash(`${f.sourceId}:2026-10-29`)).get()).calls, 2);
 });
 test('revocation during original acquisition propagates the authority fence without an unavailable receipt', async () => {
   const f = await fixture(['matched_a']);
