@@ -29,6 +29,7 @@ import { capturedNoticeJobs } from './undated-origin-import.mjs';
 import { discoveryChunk } from './recentjobs-discovery.mjs';
 import { ORIGINAL_RESOLVER_VERSION, originalNoticeTarget, originalRetrievalFailure,
   resolveOriginalNotice, refreshOriginalResolution } from './original-notice-resolver.mjs';
+import { ISSUER_REGISTRY_VERSION, lookupIssuerRelationships, validateIssuerBindings } from './issuer-registry.mjs';
 import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
@@ -101,11 +102,16 @@ export class RecentJobsWorker {
       return result;
     });
   }
-  async assertClaim(tx, source, claim) {
+  async assertClaim(tx, source, claim, { checkIssuerTrust = true } = {}) {
     const job = value(await tx.get(this.ref('worker_jobs', claim.id)));
     const lease = value(await tx.get(this.ref('worker_leases', source.id)));
     if (source.revision !== claim.sourceRevision) fail('SOURCE_CHANGED');
     if (!job || job.lease !== claim.lease || lease?.lease !== claim.lease || job.leaseUntil <= this.now()) fail('STALE_LEASE');
+    if (checkIssuerTrust && source.automation.issuerRegistry && claim.issuerTrust) {
+      if (JSON.stringify(job.issuerTrust) !== JSON.stringify(claim.issuerTrust)) fail('ISSUER_TRUST_CHANGED');
+      const issuers = await validateIssuerBindings(tx, this.db, claim.issuerTrust.bindings, 'apprenticeship', this.now());
+      source.issuerTrust = { issuers };
+    }
     return job;
   }
   async schedule(sourceId) {
@@ -158,7 +164,8 @@ export class RecentJobsWorker {
         return null;
       }
       const lease = randomUUID(), until = new Date(Date.parse(this.now()) + LEASE_MS).toISOString();
-      const claimed = { ...job, state: 'running', attempts: job.attempts + 1, lease, leaseUntil: until, sourceRevision: source.revision };
+      const claimed = { ...job, state: 'running', attempts: job.attempts + 1, lease, leaseUntil: until, sourceRevision: source.revision,
+        ...(source.automation.issuerRegistry || job.issuerTrust ? { issuerTrust: null } : {}) };
       tx.set(ref, payload(claimed)); tx.set(leaseRef, payload({ lease, until, nextRequestAt: previous?.nextRequestAt ?? this.now() }));
       return { ...claimed, source };
     });
@@ -273,7 +280,9 @@ export class RecentJobsWorker {
     if(daily)error.retryAfterMs=Math.max(Date.parse(nextGeminiQuotaReset(this.now()))-Date.parse(this.now()),error.retryAfterMs??0);
     // Source spending and shared quota reservations are not refunded on failure.
     await this.transaction(claim.sourceId, 'worker.model.result', async (tx, source) => {
-      const job = await this.assertClaim(tx, source, claim);
+      // Revoked issuer trust stops further use of an answer, not accounting for
+      // an already dispatched call. Machine/source/lease fences still apply.
+      const job = await this.assertClaim(tx, source, claim, { checkIssuerTrust: false });
       const budgetRef = this.ref('model_budgets', hash(`${source.id}:${dayInSA(this.now())}`));
       const budget = error?.code === 'AI_RATE_LIMITED' || unavailable ? value(await tx.get(budgetRef)) : null;
       const usage=this.provider==='gemini'?value(await tx.get(this.ref('model_usage',usageId))):null;
@@ -323,7 +332,7 @@ export class RecentJobsWorker {
     // A changed/paused source or revoked grant can prevent this write. Its lease expires;
     // the queue remains inspectable and can be recovered after policy is restored.
     return this.transaction(claim.sourceId, 'worker.failure', async (tx, source) => {
-      const job = await this.assertClaim(tx, source, claim);
+      const job = await this.assertClaim(tx, source, claim, { checkIssuerTrust: false });
       const ref = this.ref('worker_leases', source.id), lease = value(await tx.get(ref));
       const windowFailure = this.provider === 'gemini' && this.fallback && error.modelWindowFailed === true && geminiAvailabilityFailure(error);
       const windowRetry = windowFailure && (job.modelWindowRetries ?? 0) < GEMINI_MAX_MODEL_WINDOWS - 1;
@@ -353,6 +362,7 @@ export class RecentJobsWorker {
           reason: code, stage: job.stage ?? job.kind, url: job.url, snapshotId: job.snapshotId ?? null,
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
           ...(job.originalResolutionId ? { originalResolutionId: job.originalResolutionId } : {}),
+          ...(job.issuerTrust ? { issuerResolutionId: job.issuerTrust.receiptId } : {}),
           ...(job.discoverySnapshotId ? { discoverySnapshotId: job.discoverySnapshotId } : {}),
           programmePlanId:job.programmePlanId ?? null,
           ...(locationDiagnostic?{locationDiagnostic}:{}),
@@ -518,10 +528,29 @@ export class RecentJobsWorker {
         text: observation.text, retrievedAt: this.now() }));
       tx.create(this.ref('worker_original_resolutions', id), payload({ id, sourceId: source.id, sourceRevision: source.revision,
         jobId: claim.id, attempt: claim.attempts, sourceSnapshotId: captured.snapshotId,
+        ...(claim.issuerTrust ? { issuerResolutionId: claim.issuerTrust.receiptId } : {}),
         primarySnapshotId, resolution: receipt, at: this.now() }));
       tx.set(this.ref('worker_jobs', job.id), payload({ ...job, originalResolutionId: id, primarySnapshotId }));
     });
     return { id, resolution, primaryHash, primarySnapshotId };
+  }
+  async bindIssuerTrust(claim, candidate, captured) {
+    if (!claim.source.automation.issuerRegistry) return;
+    const receiptId = hash(`${claim.id}:issuer:${claim.attempts}`);
+    const result = await this.transaction(claim.sourceId, 'worker.issuer.resolve', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      const selected = await lookupIssuerRelationships(tx, this.db,
+        candidate.applicationCandidates.length === 1 ? candidate.applicationCandidates[0] : null, 'apprenticeship', this.now());
+      const { issuers, ...resolution } = selected;
+      const trust = { receiptId, bindings: selected.bindings };
+      tx.create(this.ref('worker_issuer_resolutions', receiptId), payload({ id: receiptId, version: ISSUER_REGISTRY_VERSION,
+        sourceId: source.id, sourceRevision: source.revision, jobId: claim.id, attempt: claim.attempts,
+        sourceSnapshotId: captured.snapshotId, resolution, at: this.now() }));
+      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, issuerTrust: trust }));
+      return { issuers, trust };
+    });
+    claim.issuerTrust = result.trust;
+    claim.source.issuerTrust = { issuers: result.issuers };
   }
   undatedOriginKeys(candidate) {
     return undatedOriginKeys(candidate);
@@ -596,6 +625,7 @@ export class RecentJobsWorker {
       });
       if (this.programmeExtraction) return this.programmes(claim,candidate,captured,plan);
     }
+    await this.bindIssuerTrust(claim, candidate, captured);
     const undatedOrigin = await this.bindUndatedOrigin(claim, candidate, captured.sourceRetrievedAt);
     let pendingRoute;
     try { pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt, undatedOrigin); }
@@ -610,7 +640,8 @@ export class RecentJobsWorker {
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
     const policy = this.provider === 'gemini' ? `:json_object:chain_v1:availability_v1:${GEMINI_UNAVAILABLE_MS}:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}` : '';
-    const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}${original ? `:${ORIGINAL_RESOLVER_VERSION}` : ''}`;
+    const trustKey = claim.issuerTrust ? `:${ISSUER_REGISTRY_VERSION}:${hash(JSON.stringify(claim.issuerTrust.bindings))}` : '';
+    const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}${original ? `:${ORIGINAL_RESOLVER_VERSION}` : ''}${trustKey}`;
     let extraction;
     if (this.extractionMode === 'split') {
       const metadata = await this.cache(claim,hash(`${keyBase}:metadata`),
@@ -699,6 +730,7 @@ export class RecentJobsWorker {
         decision: published ? 'published' : currentGate.deadlinePolicy ? 'undated_shadow_pass' : 'shadow_pass',
         validationBasis: primary ? 'discovery_and_primary' : 'discovery_notice',
         ...(original ? { originalResolutionId: original.id } : {}),
+        ...(claim.issuerTrust ? { issuerResolutionId: claim.issuerTrust.receiptId } : {}),
         ...currentGate, at: this.now() }));
       if (published) tx.set(this.ref('worker_watches', record.id), { sourceId: source.id, url: claim.url,
         nextCheckAt: currentGate.nextCheckAt, stopAt: new Date(Date.parse(`${record.deadline.value.localDate}T00:00:00.000+02:00`)).toISOString() });

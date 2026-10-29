@@ -1,5 +1,7 @@
 # Autonomous RecentJobs ingestion and feed publication
 
+29 October shared trust: [issuer relationship registry](../operations/198_SHARED_ISSUER_RELATIONSHIPS_2026-10-29.md) adds source-independent revisioned employer/ATS relationships, indexed tenant-scoped resolution, private attempt bindings and revocation/expiry fences. Publisher policies no longer need inline employers in this opt-in shadow lane. Actual authority discovery remains pending; no live records, migration, provider calls or publication are activated.
+
 29 October original evidence: [shared notice corroboration](../operations/197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md) adds deterministic portal identity/reference/deadline checks and fixed private outcomes before model work in an opt-in shadow lane. Unknown origins and disabled acquisition stop without employer fetches or AI. Existing issuer trust remains the input; automatic origin discovery and broader adapters are still pending. Hosting and publication remain inactive.
 
 29 October batch implementation: [resumable publisher discovery](../operations/196_RESUMABLE_PUBLISHER_DISCOVERY_2026-10-29.md) adds opt-in pagination, immutable parsed page observations and transactional progress under one persistent source/grant. Unseen detail URLs need no registration. Legacy policies retain their behavior; existing live sources are not migrated. Reusable employer/ATS resolution and unattended publication qualification remain ahead; hosting stays undeployed.

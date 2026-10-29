@@ -21,8 +21,11 @@ export function assertSourceTarget(url, kind = 'detail') {
 }
 
 export function approvedRoute(source, route) {
+  // Runtime context is supplied only after the worker reads current registry
+  // authority. Registry sources never fall back to an inline publisher list.
+  const issuers = source.automation.issuerRegistry ? source.issuerTrust?.issuers ?? [] : source.automation.issuers;
   if (route?.method === 'email') {
-    const matches = source.automation.issuers.filter(i => (i.emailAddresses ?? []).includes(route.destination));
+    const matches = issuers.filter(i => (i.emailAddresses ?? []).includes(route.destination));
     if (!matches.length) fail('ISSUER_RELATIONSHIP_UNQUALIFIED');
     return matches;
   }
@@ -30,7 +33,7 @@ export function approvedRoute(source, route) {
   let url; try { url = new URL(route.destination); } catch { fail('APPLICATION_UNRESOLVED'); }
   if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash) fail('APPLICATION_UNRESOLVED');
   if (/(?:^|\.)(?:recentjobs\.co\.za|studentroom\.co\.za|lnkd\.in|bit\.ly)$/.test(url.hostname)) fail('APPLICATION_UNRESOLVED');
-  const matches = source.automation.issuers.filter(i => i.host === url.hostname &&
+  const matches = issuers.filter(i => i.host === url.hostname &&
     (url.pathname === i.pathPrefix || url.pathname.startsWith(i.pathPrefix.endsWith('/') ? i.pathPrefix : `${i.pathPrefix}/`)));
   if (!matches.length) fail('ISSUER_RELATIONSHIP_UNQUALIFIED');
   return matches;

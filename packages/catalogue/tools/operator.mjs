@@ -9,7 +9,7 @@ import { executeSuggestionCleanup, suggestionCleanupConfiguration } from '../src
 // Tokens are read from a private file, never command arguments, output, or a public route.
 const help=`Usage: pnpm catalogue:operator <command.json>
 Set SKILVED_OPERATOR_TOKEN_FILE to a private file containing a current Firebase ID token.
-Commands: source, undated-origin-import, inspect, queue, save, publish, alias, report-triage, enqueue, run-job, schedule.
+Commands: source, employer-relationship, undated-origin-import, inspect, queue, save, publish, alias, report-triage, enqueue, run-job, schedule.
 publication-preview: read-only preview with id, expected and action; uses the current reviewer role.
 Preview never approves or publishes; execution repeats current source/role/revision checks.
 Suggestion commands: suggestion-queue; suggestion-review with a strict review object.
@@ -30,6 +30,7 @@ else {
     const runtime=await getRuntime(),{catalogue}=runtime;let result;
     switch(c.command) {
       case 'source':result=await catalogue.registerSource(token,c.source,c.expected,c.reason);break;
+      case 'employer-relationship':result=await catalogue.registerEmployerRelationship(token,c.relationship,c.expected,c.reason);break;
       case 'undated-origin-import':result=await catalogue.importUndatedOrigin(token,c.review,c.reason);break;
       case 'inspect':result=await catalogue.inspect(token,c.collection,c.id);break;
       case 'queue':result=await catalogue.queue(token,c.collection,c.after);break;

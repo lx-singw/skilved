@@ -32,9 +32,9 @@ Keep the current opportunity records/projections and immutable history. Migratin
 
 | Area | Existing implementation | Remaining delivery gap |
 | --- | --- | --- |
-| Discovery and jobs | `RecentJobsWorker.schedule/discover/run`, durable jobs, leases and watches | Production registrations/pilots are per notice; add a tested publisher-wide batch configuration, persistent discovery progress and source-independent issuer resolution |
+| Discovery and jobs | `RecentJobsWorker.schedule/discover/run`, durable jobs, leases/watches and opt-in bounded publisher pagination with saved page observations/cursors | Live publisher migration/qualification, general queue/watch scale and a recurring operational controller remain open |
 | Extraction and validation | Shared strict contracts, evidence reconstruction, independent validation, caches and private candidates | Demonstrate generalization on a fixed mixed batch and improve recurring failure classes rather than tuning one advert at a time |
-| Original-source verification | Registered issuer routes, optional employer fetching, one JSON-LD JobPosting adapter | Broader reusable employer/ATS resolution, exact intake matching and explicit verification outcomes for portals and other methods |
+| Original-source verification | Shared versioned issuer relationships plus legacy inline routes; optional acquisition and typed exact-notice JSON-LD corroboration in shadow mode | Automatic employer authority/delegation discovery, indirect original pages, broader ATS layouts and email/manual-method corroboration |
 | Storage and curation | Persistent Firestore, immutable versions, public projections and reviewed aliases | Automatic cross-origin identity/duplicate decisions and their uncertainty/review path; source-level budgets rather than per-advert pilot allowances |
 | Automatic publication | Generic automatic-mode machine writer, public automatic checks and freshness watches | Gemini, split extraction and programme extraction are explicitly shadow-only; qualify the chosen lane before changing those guards |
 | Operations | Durable per-attempt quotas, provider fallback/cooldowns, audit and packaged containers | A recurring controller with stage-aware budget admission, reset-aware deferred work, restart recovery, monitoring and an operational stop control |
@@ -42,6 +42,8 @@ Keep the current opportunity records/projections and immutable history. Migratin
 The current staging launcher explicitly admits one source/revision in shadow mode with employer crawling off and ingest-only access. Hosting and scheduling remain undeployed. A connected database, verified reviewer or individual private draft is not evidence that the unattended publishing service is operating.
 
 ## Implementation sequence and acceptance
+
+Trust-separation progress, 29 October: [shared issuer relationships](../operations/198_SHARED_ISSUER_RELATIONSHIPS_2026-10-29.md) separates versioned employer/ATS authority from publisher configuration. Registry-enabled shadow sources resolve current tenant-scoped relationships without employer IDs or inline lists, persist attempt bindings and enforce revocation/expiry while retaining spend/accounting. In-place migration is tested; no live policy changes occur. Automatic discovery/corroboration of new employer authority remains next rather than replacing the old per-notice pilots with an exhaustive manual registry.
 
 Original-evidence progress, 29 October: [shared original-notice corroboration](../operations/197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md) adds fixed outcomes and exact portal-notice identity/deadline checks before AI in an opt-in shadow lane, with private immutable receipts and fresh acquisition before cache reuse. It uses existing issuer trust and shared JSON-LD; automatic employer authority discovery, trust separation, indirect original-page discovery and broader ATS/method support remain open. No publication lane is enabled.
 

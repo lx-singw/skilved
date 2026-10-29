@@ -2,7 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 import { OpportunityRecordSchema, projectOpportunity } from '@skilved/types/opportunities/internal';
 import { IdSchema, parseReadQuery, decodeCursor, encodeCursor, matchesQuery, ListResponseSchema } from '@skilved/types/opportunities';
 import { AliasSchema, resolveAlias } from '@skilved/types/opportunities/storage';
-import { Source, Report, Reason, JobInput } from './schemas.mjs';
+import { Source, EmployerRelationship, Report, Reason, JobInput } from './schemas.mjs';
+import { readRelationship, relationshipDocument } from './issuer-registry.mjs';
 import { DomainError } from './config.mjs';
 import { approvedUrl, retrieve } from './fetch.mjs';
 import { enforceAutomaticFreshness } from './worker-policy.mjs';
@@ -52,12 +53,24 @@ export class Catalogue {
     });
   }
   async inspect(token, collection, id) {
-    if (!['sources','source_versions','drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
+    if (!['sources','source_versions','employer_relationships','employer_relationship_versions','worker_issuer_resolutions',
+      'drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
       'worker_decisions','worker_exceptions','worker_holds','worker_health','worker_discovery','worker_discovery_pages',
       'worker_original_resolutions',
       'worker_notice_origins','worker_origin_imports','model_calls','model_budgets','model_cache'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     return this.db.runTransaction(async tx => { await this.operator(tx, uid); return value(await tx.get(this.ref(collection, id))); });
+  }
+  async registerEmployerRelationship(token, input, expected, reason) {
+    const relationship = EmployerRelationship.parse(input);
+    if (relationship.reviewedAt > this.now() || relationship.state === 'qualified' && relationship.expiresAt <= this.now()) fail('ISSUER_TRUST_EXPIRED');
+    return this.mutate(token, 'source', 'employer_relationship.update', relationship.id, reason, async tx => {
+      const ref = this.ref('employer_relationships', relationship.id), old = readRelationship(await tx.get(ref));
+      if ((old?.revision ?? null) !== expected || relationship.revision !== (expected ?? 0) + 1) fail('CONFLICT');
+      tx.set(ref, relationshipDocument(relationship));
+      tx.create(this.ref('employer_relationship_versions', hash(`${relationship.id}:${relationship.revision}`)), payload(relationship));
+      return { revision: relationship.revision };
+    });
   }
   async importUndatedOrigin(token, review, reason) {
     IdSchema.parse(review?.sourceId);
@@ -65,7 +78,7 @@ export class Catalogue {
       (tx, uid) => importUndatedOrigin(this, tx, review, uid));
   }
   async queue(token, collection, after) {
-    if (!['sources','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
+    if (!['sources','employer_relationships','worker_issuer_resolutions','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
       'worker_exceptions','worker_holds','worker_health','worker_discovery','worker_original_resolutions','model_calls','model_budgets'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     if (after!==undefined) IdSchema.parse(after);

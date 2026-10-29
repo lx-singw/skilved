@@ -1,5 +1,16 @@
 import { z } from 'zod';
 import { CategorySchema, IdSchema, InstantSchema } from '@skilved/types/opportunities';
+export const IssuerRoute = z.object({ name: z.string().trim().min(1).max(200),
+  aliases: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
+  host: z.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*\.[a-z]{2,}$/),
+  pathPrefix: z.string().regex(/^\/[^?#]*$/).max(500),
+  emailAddresses: z.array(z.string().max(254).email()).max(30).default([]),
+  evidence: z.string().min(1).max(2000),
+}).strict();
+export const EmployerRelationship = z.object({ id: IdSchema, revision: z.number().int().positive(),
+  state: z.enum(['qualified','revoked']), categories: z.array(CategorySchema).min(1).max(6),
+  reviewedAt: InstantSchema, expiresAt: InstantSchema, route: IssuerRoute,
+}).strict().refine(r => r.expiresAt > r.reviewedAt, 'Relationship expiry must follow review');
 export const Source = z.object({ id: IdSchema, revision: z.number().int().positive(),
   name: z.string().min(1).max(200), urls: z.array(z.string().url().max(2048)).min(1).max(20),
   permission: z.object({ reference: z.string().min(1).max(2000), method: z.enum(['structured_json', 'recentjobs_html']),
@@ -14,15 +25,10 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
     originalVerification: z.literal('shadow_v1').optional(),
+    issuerRegistry: z.literal('shadow_v1').optional(),
     maxModelCallsPerDay: z.number().int().min(1).max(100),
     minRequestIntervalMs: z.number().int().min(2000).max(60000), checkTtlHours: z.number().int().min(1).max(24),
-    issuers: z.array(z.object({ name: z.string().trim().min(1).max(200),
-      aliases: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
-      host: z.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*\.[a-z]{2,}$/),
-      pathPrefix: z.string().regex(/^\/[^?#]*$/).max(500),
-      emailAddresses: z.array(z.string().max(254).email()).max(30).default([]),
-      evidence: z.string().min(1).max(2000),
-    }).strict()).max(30),
+    issuers: z.array(IssuerRoute).max(30),
   }).strict().optional(),
 }).strict().refine(source => source.automation?.mode !== 'automatic' ||
   (source.permission.method === 'recentjobs_html' && source.cadenceHours <= source.automation.checkTtlHours),
@@ -32,7 +38,10 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   (source.automation.checkTtlHours <= 6 && source.cadenceHours <= source.automation.checkTtlHours),
   'V2 undated shadow cadence and TTL must fit six hours').refine(source =>
   !source.automation?.originalVerification || source.automation.mode !== 'automatic',
-  'Original notice resolver cannot use automatic mode');
+  'Original notice resolver cannot use automatic mode').refine(source =>
+  !source.automation?.issuerRegistry || (source.automation.originalVerification === 'shadow_v1' &&
+    source.automation.issuers.length === 0 && source.automation.undatedNotices === 'reject'),
+  'Registry sources require original verification, no inline issuers and dated notices');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();
