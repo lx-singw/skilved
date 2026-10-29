@@ -1,5 +1,7 @@
 # Autonomous RecentJobs ingestion and feed publication
 
+29 October real coverage: [a fixed first-ten cohort](../operations/200_REAL_RECENTJOBS_NATIVE_COVERAGE_2026-10-29.md) yields ten parsed notices and zero native-ready candidates/drafts in normal frozen worker replay, without AI spend. The remaining dated portal uses microdata; two other dated methods are email. A reusable offline coverage CLI preserves denominators and reports these shared format/policy gaps without qualifying facts or widening publication. Hosting stays undeployed.
+
 29 October origin discovery: [automatic corporate-to-ATS corroboration](../operations/199_CORPORATE_ATS_DISCOVERY_2026-10-29.md) discovers and caches previously unregistered recruitment scopes when an explicitly reviewed corporate careers page links them. Native checks precede exact vacancy verification and AI; unknown corporate identities stay held. The workflow remains opt-in and shadow-only, with no live policy or hosting changes.
 
 29 October shared trust: [issuer relationship registry](../operations/198_SHARED_ISSUER_RELATIONSHIPS_2026-10-29.md) adds source-independent revisioned employer/ATS relationships, indexed tenant-scoped resolution, private attempt bindings and revocation/expiry fences. Publisher policies no longer need inline employers in this opt-in shadow lane. Actual authority discovery remains pending; no live records, migration, provider calls or publication are activated.

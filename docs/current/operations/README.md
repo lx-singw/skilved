@@ -195,6 +195,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Shared original-notice corroboration](197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md)
 - [Shared employer and recruitment-platform relationships](198_SHARED_ISSUER_RELATIONSHIPS_2026-10-29.md)
 - [Automatic corroboration of new ATS destinations](199_CORPORATE_ATS_DISCOVERY_2026-10-29.md)
+- [Fresh RecentJobs cohort: native coverage and shared format gaps](200_REAL_RECENTJOBS_NATIVE_COVERAGE_2026-10-29.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)

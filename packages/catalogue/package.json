@@ -20,6 +20,7 @@
     "checkpoint:shadow": "node tools/export-shadow-checkpoint.mjs",
     "evaluate:recentjobs": "node tools/evaluate-recentjobs.mjs",
     "inventory:source-exposure": "node tools/inventory-source-exposure.mjs",
+    "coverage:recentjobs": "node tools/assess-recentjobs-coverage.mjs",
     "operator": "node tools/operator.mjs"
   },
   "dependencies": {
