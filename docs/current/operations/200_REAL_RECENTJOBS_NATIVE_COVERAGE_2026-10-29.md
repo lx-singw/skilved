@@ -1,5 +1,7 @@
 # Fresh RecentJobs cohort: native coverage and shared format gaps
 
+Follow-up: [shared Microdata support](201_SHARED_MICRODATA_JOBPOSTING_2026-10-29.md) subsequently closes the measured representation gap, while authority and deadline holds remain. The results below describe the earlier adapter state and retain their original denominator.
+
 29 October 2026 (SAST). A fresh, fixed cohort of the first ten notices on the [RecentJobs apprenticeship listing](https://recentjobs.co.za/category/apprenticeships/) was collected and assessed without employer/title exclusions. All ten publisher details parsed. Three passed the cheap dated-notice checks: two email methods and one portal. All ten remained held under the current native verification lane; no extraction, validation, draft or publication resulted.
 
 This measures actual format/policy coverage after [corporate-to-ATS discovery](199_CORPORATE_ATS_DISCOVERY_2026-10-29.md), not national accuracy, employer legitimacy or a determination that all ten vacancies are unavailable. In particular, an undated notice is not necessarily closed, and a closing-day hold is not proof that its employer has stopped accepting applications.

@@ -28,7 +28,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
 Manifest: {version:1,observedAt,limit?,listing:{url,htmlPath},notices:[{url,htmlPath|error}],portals:[{url,htmlPath|error}]}.
 Selects the first notices in publisher order; missing observations remain in the denominator.
 Uses saved public-source HTML only. Paths must stay inside the manifest bundle, including symlinks.
-Does not fetch sites, call AI, initialize a database, grant authority or publish. Microdata detection is diagnostic only.
+Does not fetch sites, call AI, initialize a database, grant authority or publish. Supported structured formats still require authority and vacancy checks.
 Saves a private report under ignored .artifacts/shadow; prints counts, not source bodies. Build contracts first.`);
  else try{await assessCoverageCli(process.argv.slice(2));}catch(e){console.error(JSON.stringify({error:/^COVERAGE_[A-Z_]+$/.test(e.message??'')?e.message:'COVERAGE_ASSESSMENT_FAILED'}));process.exitCode=1;}
 }

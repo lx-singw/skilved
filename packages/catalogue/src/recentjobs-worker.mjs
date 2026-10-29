@@ -756,7 +756,9 @@ export class RecentJobsWorker {
       primarySnapshotId = original?.primarySnapshotId ?? null;
     if (crawlEmployer) {
       const primaryResponse = await this.request(claim, destination, 'html');
-      primary = parsePrimaryJobPosting(primaryResponse.text); primaryHash = hash(primaryResponse.text);
+      // The legacy validation/publishing lane retains its qualified JSON-LD subset.
+      // Microdata enters only through the opt-in shadow original resolver above.
+      primary = parsePrimaryJobPosting(primaryResponse.text, { allowMicrodata: false }); primaryHash = hash(primaryResponse.text);
       primarySnapshotId = hash(`${claim.sourceId}:${destination}:${primaryHash}`);
       await this.transaction(claim.sourceId, 'worker.primary_snapshot', async (tx, source) => {
         const job = await this.assertClaim(tx, source, claim);

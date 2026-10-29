@@ -196,6 +196,8 @@ Portal and labelled mailto application candidates are supported end to end. Emai
 
 ## Worker and feed operation
 
+29 October update: [shared Microdata JobPosting support](../operations/201_SHARED_MICRODATA_JOBPOSTING_2026-10-29.md) joins JSON-LD in the opt-in shadow original resolver. Scope-aware parsing preserves raw dates and references while retaining authority and exact-vacancy checks. The legacy validation/publication path still rejects Microdata; the measured real portal remains held without authority or agreed deadline evidence.
+
 Cloud execution verifies an ADC workload ID token and requires an active server-owned machine grant for the source with `ingest` and, for automatic publication, `publish`. No public endpoint bootstraps roles. Emulator identity is confined to demo projects and rejected in production. Deployed identity/IAM/egress controls remain unverified.
 
 Each source has a ten-minute lease, at most three attempts per job and at most 11 jobs per tick. Discovery reads the first category page and queues up to ten articles. Up to 50 published notices are maintained independently of their presence on that page. Scheduler frequency must drain discovery/maintenance work before check TTL expiry; source cadence cannot exceed the automatic TTL of at most 24 hours. No cloud scheduler has been provisioned.

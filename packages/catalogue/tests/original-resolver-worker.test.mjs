@@ -8,7 +8,7 @@ import { DomainError } from '../src/config.mjs';
 import { getRuntime } from '../src/runtime.mjs';
 import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
-import { originalFixture, originalHtml } from './fixtures/original-notices.mjs';
+import { originalFixture, originalHtml, originalMicrodataHtml } from './fixtures/original-notices.mjs';
 const value = snap => snap.exists ? JSON.parse(snap.data().json) : null;
 const payload = v => ({ json: JSON.stringify(v) });
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -23,13 +23,14 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
   let now = '2026-10-29T10:00:00.000Z';
   const sourceId = `publisher_${randomUUID()}`, principal = `${randomUUID()}@example.test`, uid = `operator_${randomUUID()}`;
   const cases = kinds.map((kind, index) => {
-    const f = originalFixture({ issuer: kind === 'matched_b' ? 'Imaginary Works' : 'Fictional Workshop',
-      host: kind === 'matched_b' ? 'second.example' : kind === 'unknown' ? 'unqualified.example' : 'careers.example',
+    const f = originalFixture({ issuer: kind.endsWith('_b') ? 'Imaginary Works' : 'Fictional Workshop',
+      host: kind.endsWith('_b') ? 'second.example' : kind === 'unknown' ? 'unqualified.example' : 'careers.example',
       path: `/tenant-a/job/${index + 100}/`, reference: `AP-${index + 100}`, slug: `authored-${kind.replaceAll('_','-')}` });
     if (kind === 'wrong_url') f.posting.url = 'https://careers.example/tenant-a/job/9999/';
     if (kind === 'wrong_ref') f.posting.description = '<p>Reference: AP-9999</p>';
     if (kind === 'closed') f.posting.validThrough = '2026-10-20';
-    f.primaryHtml = kind === 'unsupported' ? '<h1>Careers search</h1>' : originalHtml(f.posting);
+    if (kind === 'microdata_legacy') f.posting.validThrough = 'Fri Oct 30 22:00:00 UTC 2026';
+    f.primaryHtml = kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_') ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
     return { ...f, kind };
   });
   const source = Source.parse({ ...cases[0].source, id: sourceId,
@@ -112,6 +113,35 @@ test('one publisher batch corroborates two employers, isolates wrong vacancies a
   }
   assert.deepEqual((await f.worker.ref('workers', f.worker.actor).get()).data(), f.grant);
   assert.deepEqual(value(await f.worker.ref('sources', f.sourceId).get()), f.source);
+});
+test('normal shadow worker admits corroborated Microdata for two issuers but holds unresolved dates before AI', async () => {
+  const f = await fixture(['microdata_a','microdata_b','microdata_legacy']);
+  const result = await f.worker.run(f.sourceId);
+  assert.equal(result.results.filter(r => r.recordId).length, 2);
+  assert.equal(f.state.extracted.length, 2); assert.equal(f.state.validated.length, 2);
+  const resolutions = await f.rows('worker_original_resolutions'); assert.equal(resolutions.length, 3);
+  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v2'));
+  assert.equal(resolutions.filter(r => r.resolution.outcome === 'matched').length, 2);
+  assert.equal(resolutions.find(r => r.resolution.outcome === 'unsupported').resolution.reason, 'DEADLINE_UNRESOLVED');
+  assert.equal((await f.rows('worker_decisions')).length, 2);
+  assert.equal(value(await f.worker.ref('model_budgets', hash(`${f.sourceId}:2026-10-29`)).get()).calls, 4);
+  for (const decision of await f.rows('worker_decisions')) {
+    assert.equal(value(await f.worker.ref('drafts', decision.recordId).get()).publication.approved, false);
+    assert.equal((await f.worker.ref('public', decision.recordId).get()).exists, false);
+  }
+  assert.equal((await f.rows('worker_exceptions')).length, 1);
+});
+test('legacy validation lane does not inherit Microdata support without the shadow original resolver', async () => {
+  const f = await fixture(['microdata_a']);
+  const legacy = JSON.parse(JSON.stringify(f.source)); legacy.revision = 2;
+  delete legacy.automation.originalVerification;
+  await f.catalogue.registerSource('authored-token', legacy, 1, 'Authored legacy format boundary regression');
+  const result = await f.worker.run(f.sourceId);
+  assert.equal(result.results.filter(r => r.recordId).length, 0);
+  assert.equal(f.state.extracted.length, 1); assert.equal(f.state.validated.length, 0);
+  assert.equal((await f.rows('worker_original_resolutions')).length, 0);
+  assert.equal((await f.rows('worker_decisions')).length, 0);
+  assert.equal((await f.rows('worker_exceptions'))[0].reason, 'PRIMARY_NOTICE_UNSUPPORTED');
 });
 test('restart fetches fresh original evidence before reusing cached AI; later closure cannot reuse a prior match', async () => {
   const f = await fixture(['matched_a']); await f.worker.run(f.sourceId);

@@ -1,5 +1,6 @@
 import { parse } from 'parse5';
 import { DomainError } from '../config.mjs';
+import { readMicrodataJobPosting } from './primary-microdata.mjs';
 const fail = () => { throw new DomainError('PRIMARY_NOTICE_UNSUPPORTED'); };
 
 function walk(root, visit) {
@@ -39,8 +40,11 @@ function readJobPosting(html) {
       for (const v of Object.values(item)) if (typeof v === 'object' && v !== null) stack.push([v, depth + 1]);
     }
   });
-  if (postings.length !== 1) fail();
-  return { posting: postings[0], root };
+  const microdata = readMicrodataJobPosting(root);
+  // Separate representations need explicit reconciliation before they can agree
+  // on this vacancy. Never silently prefer one over a second posting.
+  if (postings.length + (microdata ? 1 : 0) !== 1) fail();
+  return { posting: microdata ?? postings[0], root, adapter: microdata ? 'jobposting_microdata_v1' : 'jobposting_jsonld_v1' };
 }
 function projectPosting(p) {
   const issuer = p.hiringOrganization?.name;
@@ -52,8 +56,10 @@ function projectPosting(p) {
   return { issuer: issuer.trim(), title: p.title.trim(), validThrough: typeof p.validThrough === 'string' ? p.validThrough : null, text };
 }
 
-export function parsePrimaryJobPosting(html) {
-  return projectPosting(readJobPosting(html).posting);
+export function parsePrimaryJobPosting(html, { allowMicrodata = true } = {}) {
+  const read = readJobPosting(html);
+  if (!allowMicrodata && read.adapter !== 'jobposting_jsonld_v1') fail();
+  return projectPosting(read.posting);
 }
 
 function descriptionLines(html) {
@@ -75,7 +81,7 @@ function descriptionLines(html) {
 
 /** Additional structured identity evidence; does not establish employer authority. */
 export function inspectPrimaryJobPosting(html) {
-  const { posting: p, root } = readJobPosting(html), primary = projectPosting(p);
+  const { posting: p, root, adapter } = readJobPosting(html), primary = projectPosting(p);
   const canonicals = [];
   walk(root, node => {
     const attribute = name => node.attrs?.find(a => a.name === name)?.value;
@@ -90,7 +96,9 @@ export function inspectPrimaryJobPosting(html) {
   const identifier = p.identifier === undefined ? null : typeof p.identifier === 'object' && p.identifier !== null && !Array.isArray(p.identifier)
     ? { value: scalar(p.identifier.value), name: scalar(p.identifier.name) }
     : { value: scalar(p.identifier), name: null };
-  return { primary, postingUrl: p.url ?? null, canonicalUrl: canonicals[0] ?? null,
+  return { primary, adapter, itemId: adapter === 'jobposting_microdata_v1' ? p['@id'] ?? null : null,
+    mainEntityLinkedUrl: adapter === 'jobposting_microdata_v1' ? p.mainEntityOfPage?.url ?? null : null,
+    postingUrl: p.url ?? null, canonicalUrl: canonicals[0] ?? null,
     mainEntityUrl: p.mainEntityOfPage?.['@id'] ?? p.mainEntityOfPage ?? null,
     identifier, issuerUrls: [p.hiringOrganization?.sameAs, p.hiringOrganization?.url].filter(v => v !== undefined),
     descriptionText: descriptionLines(p.description) };

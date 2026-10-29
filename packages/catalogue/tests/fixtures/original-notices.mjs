@@ -5,6 +5,18 @@ import { RECENTJOBS_INDEX } from '../../src/worker-policy.mjs';
 export const originalHtml = (posting, canonical = posting.url) => `<html><head>${canonical == null ? '' :
   `<link rel="canonical" href="${canonical}">`}<script type="application/ld+json">${JSON.stringify(posting).replaceAll('<', '\\u003c')}</script></head><body></body></html>`;
 
+const attribute = value => String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
+/** Authored standards-shaped Microdata, never captured employer HTML. */
+export const originalMicrodataHtml = (p, canonical = p.url) => `<html><head>${canonical == null ? '' :
+  `<link rel="canonical" href="${attribute(canonical)}">`}</head><body><section itemscope itemtype="https://schema.org/JobPosting"${p['@id'] === undefined ? '' : ` itemid="${attribute(p['@id'])}"`}>
+  <h1 itemprop="title">${attribute(p.title)}</h1>
+  ${p.url === undefined ? '' : `<link itemprop="url" href="${attribute(p.url)}">`}
+  <div itemprop="hiringOrganization" itemscope itemtype="https://schema.org/Organization"><meta itemprop="name" content="${attribute(p.hiringOrganization.name)}">
+  ${p.hiringOrganization.url === undefined ? '' : `<link itemprop="url" href="${attribute(p.hiringOrganization.url)}">`}</div>
+  ${p.identifier === undefined ? '' : `<div itemprop="identifier" itemscope itemtype="https://schema.org/PropertyValue"><meta itemprop="name" content="${attribute(p.identifier.name)}"><data itemprop="value" value="${attribute(p.identifier.value)}"></data></div>`}
+  <time itemprop="validThrough" datetime="${attribute(p.validThrough)}">Authored deadline display</time>
+  <div itemprop="description">${p.description}</div></section></body></html>`;
+
 export function originalFixture({ issuer = 'Fictional Workshop', host = 'careers.example', path = '/tenant-a/job/123/',
   reference = 'AP-123', slug = 'authored-apprentice', title = 'Fictional electrical apprentice' } = {}) {
   const url = `https://${host}${path}`;

@@ -4,7 +4,7 @@ import { approvedRoute, dayInSA } from './worker-policy.mjs';
 import { noticeMetadataPolicy } from './ai/notice-metadata.mjs';
 import { DomainError } from './config.mjs';
 
-export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v1';
+export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v2';
 const nameKey = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const words = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const outcome = (state, reason, extra = {}) => ({ version: ORIGINAL_RESOLVER_VERSION,
@@ -69,13 +69,13 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
     if (error.code === 'PRIMARY_NOTICE_UNSUPPORTED') return outcome('unsupported', 'LAYOUT_UNSUPPORTED');
     throw error;
   }
-  const { primary, postingUrl, canonicalUrl, mainEntityUrl, identifier, descriptionText } = inspected;
-  const basis = { adapter: 'jobposting_jsonld_v1', checks: [], identity: { url: target.url,
+  const { primary, adapter, itemId, mainEntityLinkedUrl, postingUrl, canonicalUrl, mainEntityUrl, identifier, descriptionText } = inspected;
+  const basis = { adapter, checks: [], identity: { url: target.url,
     issuer: primary.issuer, title: primary.title, identifier: identifier?.value ?? null, validThrough: primary.validThrough } };
   const result = (state, reason) => outcome(state, reason, basis);
   // Every supplied binding must agree. A canonical alone does not bind embedded
   // JobPosting data; it needs the posting URL/mainEntity or a corroborated reference too.
-  const bindings = [postingUrl, canonicalUrl, mainEntityUrl].filter(v => v !== null);
+  const bindings = [postingUrl, canonicalUrl, mainEntityUrl, itemId, mainEntityLinkedUrl].filter(v => v !== null);
   if (bindings.some(url => !boundUrl(url, target.url))) return result('conflicting', 'VACANCY_URL_CONFLICT');
   const issuers = approvedRoute(source, candidate.applicationCandidates[0]).filter(issuer =>
     [issuer.name, ...(issuer.aliases ?? [])].map(nameKey).includes(nameKey(primary.issuer)));

@@ -32,16 +32,16 @@ test('missing dates and missing routes are counted separately rather than collap
  const f=fixture();f.input.portals=[];f.input.notices[0].html=f.input.notices[0].html.replace(/<p>Closing date:.*?<\/p>/,'');f.input.notices[1].html=f.input.notices[1].html.replace(/<a href=.*?<\/a>/,'');
  const r=buildRecentJobsCoverage(f.input);assert.equal(r.summary.blockers.deadline_absent,1);assert.equal(r.summary.blockers.application_route_missing,1);
 });
-test('eligible email methods and unsupported portal representations hold independently',()=>{
+test('eligible email methods and supported microdata still need independent method/authority qualification',()=>{
  const f=fixture();f.input.notices[0].html=f.input.notices[0].html.replace(f.cases[0].url,'mailto:apply@authored.example');f.input.portals=[{url:f.cases[1].url,html:microdata}];
  const r=buildRecentJobsCoverage(f.input);assert.equal(r.summary.eligibleEmails,1);assert.equal(r.summary.eligiblePortals,1);assert.equal(r.summary.microdataDetected,1);
- assert.equal(r.rows[0].reason,'METHOD_UNSUPPORTED');assert.equal(r.rows[1].reason,'MICRODATA_ADAPTER_REQUIRED');
+ assert.equal(r.rows[0].reason,'METHOD_UNSUPPORTED');assert.equal(r.rows[1].reason,'AUTHORITY_NOT_ASSESSED');assert.equal(r.summary.microdataSupported,1);
 });
-test('microdata diagnostics respect item scopes and expose property names without decoding facts or widening the live adapter',()=>{
+test('microdata diagnostics expose property names without asserting authority and reject mixed representations',()=>{
  const r=primaryFormatDiagnostic(microdata);assert.equal(r.kind,'microdata_jobposting');assert.deepEqual(r.propertyMarkers,['description','hiringOrganization','jobLocation','title','validThrough']);
- assert.doesNotMatch(JSON.stringify(r),/DO_NOT_COPY_SOURCE_VALUES|Authored conditions/);assert.throws(()=>parsePrimaryJobPosting(microdata),{code:'PRIMARY_NOTICE_UNSUPPORTED'});
+ assert.doesNotMatch(JSON.stringify(r),/DO_NOT_COPY_SOURCE_VALUES|Authored conditions/);assert.equal(r.supported,true);assert.equal(parsePrimaryJobPosting(microdata).title,'Authored role');
  assert.equal(primaryFormatDiagnostic(microdata+microdata).kind,'multiple_microdata_postings');
- assert.equal(primaryFormatDiagnostic(fixture().cases[0].observation.text+microdata).kind,'jsonld_jobposting');
+ assert.equal(primaryFormatDiagnostic(fixture().cases[0].observation.text+microdata).supported,false);
  assert.equal(primaryFormatDiagnostic('x'.repeat(500001)).reason,'PRIMARY_BODY_LIMIT');
 });
 test('duplicate, out-of-cohort and unused portal inputs cannot alter the ordered cohort silently',()=>{
