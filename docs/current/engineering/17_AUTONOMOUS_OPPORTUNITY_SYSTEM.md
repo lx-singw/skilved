@@ -43,6 +43,8 @@ The current staging launcher explicitly admits one source/revision in shadow mod
 
 ## Implementation sequence and acceptance
 
+Implementation progress, 29 October: [resumable publisher discovery](../operations/196_RESUMABLE_PUBLISHER_DISCOVERY_2026-10-29.md) adds opt-in bounded pagination, immutable parsed page observations, atomic continuations and restart-safe progress under one publisher registration. Authored mixed-employer and large-batch cases exercise the workflow. Employer trust is still configured within the source; its separation and automatic original-source resolution remain next. This is part of A, not completion of A–D or a live publication qualification.
+
 **A. Publisher-wide batch ingestion.** Separate publisher policy, employer/ATS trust and vacancy data. Adapt the existing worker rather than adding another isolated runner. Demonstrate several employers and previously unseen detail URLs under one unchanged RecentJobs registration and machine grant, with duplicate/unchanged notices skipped and immutable provenance retained. First scope remains the intended apprenticeship audience; other categories require their own measured support.
 
 **B. Reusable original-source verification.** Produce typed outcomes for matched, unavailable, closed, conflicting and unsupported evidence. Cover JSON-LD plus a reusable supported ATS layout, and retain exact original emails/subjects where independently supported. Prove a matching domain with the wrong vacancy is rejected and a legitimate platform tenant is not confused with another employer. Robots and access restrictions remain enforced.

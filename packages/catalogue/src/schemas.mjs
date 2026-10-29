@@ -11,6 +11,8 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     employerCrawl: z.boolean().default(false),
     undatedNotices: z.enum(['reject', 'shadow_recent', 'shadow_recent_v2']).default('reject'),
     qualificationRef: z.string().min(1).max(2000), maxArticles: z.number().int().min(1).max(10),
+    // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
+    discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
     maxModelCallsPerDay: z.number().int().min(1).max(100),
     minRequestIntervalMs: z.number().int().min(2000).max(60000), checkTtlHours: z.number().int().min(1).max(24),
     issuers: z.array(z.object({ name: z.string().trim().min(1).max(200),

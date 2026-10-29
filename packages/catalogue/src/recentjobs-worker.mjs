@@ -26,6 +26,7 @@ import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,
 import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 import { usesUndatedV2, makeUndatedOrigin, undatedOriginKeys } from './undated-policy.mjs';
 import { capturedNoticeJobs } from './undated-origin-import.mjs';
+import { discoveryChunk } from './recentjobs-discovery.mjs';
 import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
@@ -109,6 +110,12 @@ export class RecentJobsWorker {
       const bucket = Math.floor(Date.parse(this.now()) / (source.cadenceHours * 3_600_000));
       const id = hash(`${sourceId}:discover:${bucket}`), ref = this.ref('worker_jobs', id);
       const previous = value(await tx.get(ref));
+      const discoveryRef = this.ref('worker_discovery', sourceId);
+      const discovery = source.automation.discovery ? value(await tx.get(discoveryRef)) : null;
+      const active = discovery?.state === 'pending'
+        ? value(await tx.get(this.ref('worker_jobs', discovery.currentJobId))) : null;
+      if (discovery?.state === 'pending' && (!active || active.discoveryCycle !== discovery.cycleId ||
+          active.sourceId !== sourceId || !['pending', 'running'].includes(active.state))) fail('DISCOVERY_STATE_INVALID');
       const watches = await tx.get(this.db.collection('m0_worker_watches').where('sourceId', '==', sourceId).limit(51));
       if (watches.size > 50) fail('SOURCE_WATCH_CAPACITY');
       const refreshes = watches.docs.map(d => d.data()).filter(w => w.stopAt > this.now()).map(w => ({
@@ -116,15 +123,18 @@ export class RecentJobsWorker {
         state: 'pending', attempts: 0, lease: null, nextAt: this.now(), priorityAt: w.nextCheckAt,
       }));
       const existing = await Promise.all(refreshes.map(j => tx.get(this.ref('worker_jobs', j.id))));
-      if (!previous) {
-        tx.create(ref, payload({ id, sourceId, kind: 'discover', url: RECENTJOBS_INDEX, bucket, state: 'pending', attempts: 0, nextAt: this.now(), lease: null }));
+      if (!previous && !active) {
+        tx.create(ref, payload({ id, sourceId, kind: 'discover', url: RECENTJOBS_INDEX, bucket, state: 'pending', attempts: 0, nextAt: this.now(), lease: null,
+          ...(source.automation.discovery ? { discoveryCycle: id, discoveryOffset: 0 } : {}) }));
         tx.set(this.ref('worker_queue', id), { sourceId });
+        if (source.automation.discovery) tx.set(discoveryRef, payload({ sourceId, cycleId: id, bucket,
+          currentJobId: id, state: 'pending', listed: 0, queued: 0, alreadyQueued: 0, updatedAt: this.now() }));
       }
       refreshes.forEach((job, i) => { if (!existing[i].exists) {
         tx.create(this.ref('worker_jobs', job.id), payload(job)); tx.set(this.ref('worker_queue', job.id), { sourceId });
       } });
       for (const watch of watches.docs) if (watch.data().stopAt <= this.now()) tx.delete(watch.ref);
-      return id;
+      return active?.id ?? id;
     });
   }
   async claim(sourceId, id) {
@@ -136,7 +146,10 @@ export class RecentJobsWorker {
       if (!Number.isInteger(job.modelWindowRetries ?? 0) || (job.modelWindowRetries ?? 0) < 0 ||
           (job.modelWindowRetries ?? 0) >= GEMINI_MAX_MODEL_WINDOWS || ordinaryAttempts(job) < 0) fail('JOB_UNAVAILABLE');
       if (ordinaryAttempts(job) >= 3) {
+        const discovery = job.discoveryCycle ? value(await tx.get(this.ref('worker_discovery', sourceId))) : null;
         tx.set(ref, payload({ ...job, state: 'exception', error: 'ATTEMPTS_EXHAUSTED', lease: null }));
+        if (discovery && discovery.cycleId === job.discoveryCycle && discovery.currentJobId === job.id)
+          tx.set(this.ref('worker_discovery', sourceId), payload({ ...discovery, state: 'exception', reason: 'ATTEMPTS_EXHAUSTED', updatedAt: this.now() }));
         tx.delete(this.ref('worker_queue', id));
         tx.set(this.ref('worker_exceptions', id), payload({ jobId: id, sourceId, reason: 'ATTEMPTS_EXHAUSTED', at: this.now() }));
         return null;
@@ -318,6 +331,7 @@ export class RecentJobsWorker {
       const recordId = hash(`${source.id}:${hash(job.url)}`);
       const old = job.kind === 'detail' ? value(await tx.get(this.ref('drafts', recordId))) : null;
       const catalogueState = value(await tx.get(this.ref('state', 'current'))) ?? { revision: 1 };
+      const discovery = job.discoveryCycle ? value(await tx.get(this.ref('worker_discovery', source.id))) : null;
       if (old?.lifecycle === 'published' && old.publication.approved) {
         old.revision++; old.updatedAt = this.now(); old.lifecycle = 'review'; old.publication.approved = false;
         old.publication.disposition = 'review_required'; old.publication.reviewedBy = null;
@@ -329,10 +343,13 @@ export class RecentJobsWorker {
         nextAt: new Date(Date.parse(this.now()) + Math.max(60_000 * ordinaryAttempts(job), error.retryAfterMs ?? 0)).toISOString(), lease: null, leaseUntil: null }));
       tx.set(ref, payload({ ...lease, lease: null, until: null }));
       if (!retry) {
+        if (discovery && discovery.cycleId === job.discoveryCycle && discovery.currentJobId === job.id)
+          tx.set(this.ref('worker_discovery', source.id), payload({ ...discovery, state: 'exception', reason: code, updatedAt: this.now() }));
         tx.delete(this.ref('worker_queue', claim.id));
         tx.set(this.ref('worker_exceptions', claim.id), payload({ jobId: claim.id, sourceId: source.id,
           reason: code, stage: job.stage ?? job.kind, url: job.url, snapshotId: job.snapshotId ?? null,
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
+          ...(job.discoverySnapshotId ? { discoverySnapshotId: job.discoverySnapshotId } : {}),
           programmePlanId:job.programmePlanId ?? null,
           ...(locationDiagnostic?{locationDiagnostic}:{}),
           attempts: job.attempts, modelWindowRetries:job.modelWindowRetries ?? 0, at: this.now() }));
@@ -349,6 +366,7 @@ export class RecentJobsWorker {
     });
   }
   async discover(claim) {
+    if (claim.discoveryCycle) return this.discoverPublisher(claim);
     assertSourceTarget(claim.url, 'index'); await this.robots(claim, claim.url);
     const response = await this.request(claim, claim.url, 'html');
     const list = parseRecentJobsList({ html: response.text, url: response.url });
@@ -364,6 +382,68 @@ export class RecentJobsWorker {
       jobs.forEach((job, index) => { if (!existing[index].exists) {
         tx.create(this.ref('worker_jobs', job.id), payload(job)); tx.set(this.ref('worker_queue', job.id), { sourceId: job.sourceId });
       } });
+    });
+  }
+  async discoveryPage(claim) {
+    const saved = await this.transaction(claim.sourceId, 'worker.discovery.read', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      if (!source.automation.discovery) fail('DISCOVERY_STATE_INVALID');
+      if (!job.discoverySnapshotId) return null;
+      const snapshot = value(await tx.get(this.ref('worker_discovery_pages', job.discoverySnapshotId)));
+      if (!snapshot || snapshot.sourceId !== source.id || snapshot.cycleId !== claim.discoveryCycle ||
+          snapshot.url !== claim.url || snapshot.hash !== hash(JSON.stringify(snapshot.list))) fail('DISCOVERY_STATE_INVALID');
+      return snapshot;
+    });
+    if (saved) return saved;
+    assertSourceTarget(claim.url, 'index');
+    // Apply the page bound before acquisition, including a reduced source policy.
+    const page = Number(new URL(claim.url).pathname.match(/\/page\/(\d+)\/$/)?.[1] ?? 1);
+    if (page > claim.source.automation.discovery.maxPages || claim.discoveryOffset !== 0) fail('DISCOVERY_STATE_INVALID');
+    await this.robots(claim, claim.url);
+    const response = await this.request(claim, claim.url, 'html');
+    const list = parseRecentJobsList({ html: response.text, url: response.url });
+    const digest = hash(JSON.stringify(list));
+    const id = hash(`${claim.sourceId}:${claim.discoveryCycle}:${claim.url}:${digest}`);
+    return this.transaction(claim.sourceId, 'worker.discovery.capture', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      const ref = this.ref('worker_discovery_pages', id), previous = value(await tx.get(ref));
+      const snapshot = previous ?? { id, sourceId: source.id, sourceRevision: source.revision,
+        cycleId: claim.discoveryCycle, url: claim.url, hash: digest, list, retrievedAt: this.now() };
+      if (!previous) tx.create(ref, payload(snapshot));
+      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, discoverySnapshotId: id }));
+      return snapshot;
+    });
+  }
+  async discoverPublisher(claim) {
+    const snapshot = await this.discoveryPage(claim);
+    const chunk = discoveryChunk(claim.source, claim, snapshot.list);
+    return this.finish(claim, { discovered: chunk.articles.length, discoverySnapshotId: snapshot.id,
+      continuationId: chunk.next?.id ?? null, discoveryStop: chunk.stop }, async (tx, source) => {
+      const cursorRef = this.ref('worker_discovery', source.id), cursor = value(await tx.get(cursorRef));
+      if (cursor?.cycleId !== claim.discoveryCycle || cursor.currentJobId !== claim.id || cursor.state !== 'pending') fail('DISCOVERY_STATE_INVALID');
+      const jobs = chunk.articles.map(article => {
+        assertSourceTarget(article.sourceUrl);
+        const id = hash(`${source.id}:${article.sourceUrl}:${claim.bucket}`);
+        return { id, sourceId: source.id, kind: 'detail', url: article.sourceUrl, bucket: claim.bucket,
+          state: 'pending', attempts: 0, lease: null, nextAt: this.now() };
+      });
+      const continuation = chunk.next ? { ...chunk.next, sourceId: source.id, kind: 'discover', bucket: claim.bucket,
+        state: 'pending', attempts: 0, lease: null, nextAt: this.now(),
+        ...(chunk.next.url === claim.url ? { discoverySnapshotId: snapshot.id } : {}) } : null;
+      const existing = await Promise.all(jobs.map(j => tx.get(this.ref('worker_jobs', j.id))));
+      const nextExists = continuation ? await tx.get(this.ref('worker_jobs', continuation.id)) : null;
+      let queued = 0;
+      jobs.forEach((job, index) => { if (!existing[index].exists) {
+        tx.create(this.ref('worker_jobs', job.id), payload(job)); tx.set(this.ref('worker_queue', job.id), { sourceId: source.id }); queued++;
+      } });
+      if (continuation && !nextExists.exists) {
+        tx.create(this.ref('worker_jobs', continuation.id), payload(continuation));
+        tx.set(this.ref('worker_queue', continuation.id), { sourceId: source.id });
+      }
+      tx.set(cursorRef, payload({ ...cursor, currentJobId: continuation?.id ?? claim.id,
+        state: continuation ? 'pending' : 'complete', stop: chunk.stop, updatedAt: this.now(),
+        listed: cursor.listed + jobs.length, queued: cursor.queued + queued,
+        alreadyQueued: cursor.alreadyQueued + jobs.length - queued }));
     });
   }
   async capture(claim, candidate, retrievedAt = this.now()) {
@@ -645,6 +725,14 @@ export class RecentJobsWorker {
       const queue = await this.db.collection('m0_worker_queue').where('sourceId', '==', sourceId).limit(50).get();
       const jobs = await Promise.all(queue.docs.map(d => this.ref('worker_jobs', d.id).get()));
       const eligible = jobs.map(value).filter(j => j && !attempted.has(j.id) && j.nextAt <= this.now() && !(j.leaseUntil > this.now()));
+      // Continuations are addressed directly so a full detail queue cannot hide
+      // the discovery cursor beyond the bounded queue query's first 50 rows.
+      const cursor = value(await this.ref('worker_discovery', sourceId).get());
+      if (cursor?.state === 'pending') {
+        const current = value(await this.ref('worker_jobs', cursor.currentJobId).get());
+        if (current && !attempted.has(current.id) && current.nextAt <= this.now() && !(current.leaseUntil > this.now()) &&
+            !eligible.some(j => j.id === current.id)) eligible.push(current);
+      }
       eligible.sort((a, b) => (a.kind === 'discover' ? -1 : 1) - (b.kind === 'discover' ? -1 : 1) || (a.priorityAt ?? a.nextAt).localeCompare(b.priorityAt ?? b.nextAt));
       const job = eligible[0]; if (!job) break;
       attempted.add(job.id); results.push(await this.runJob(sourceId, job.id));

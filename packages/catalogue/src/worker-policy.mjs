@@ -15,7 +15,8 @@ const issuerNames = issuer => [issuer.name,...(issuer.aliases ?? [])].map(nameKe
 export function assertSourceTarget(url, kind = 'detail') {
   let parsed; try { parsed = new URL(url); } catch { fail('UNSAFE_URL'); }
   if (parsed.origin !== 'https://recentjobs.co.za' || parsed.username || parsed.password || parsed.search || parsed.hash ||
-      (kind === 'index' ? parsed.href !== RECENTJOBS_INDEX : !/^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i.test(parsed.pathname))) fail('UNSAFE_URL');
+      (kind === 'index' ? !/^\/category\/apprenticeships\/(?:page\/(?:[2-9]|[1-9]\d+)\/)?$/.test(parsed.pathname)
+        : !/^\/\d{4}\/\d{2}\/\d{2}\/[a-z0-9-]+\/$/i.test(parsed.pathname))) fail('UNSAFE_URL');
   return parsed.href;
 }
 

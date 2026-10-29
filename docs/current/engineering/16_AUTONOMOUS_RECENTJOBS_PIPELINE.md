@@ -1,5 +1,7 @@
 # Autonomous RecentJobs ingestion and feed publication
 
+29 October batch implementation: [resumable publisher discovery](../operations/196_RESUMABLE_PUBLISHER_DISCOVERY_2026-10-29.md) adds opt-in pagination, immutable parsed page observations and transactional progress under one persistent source/grant. Unseen detail URLs need no registration. Legacy policies retain their behavior; existing live sources are not migrated. Reusable employer/ATS resolution and unattended publication qualification remain ahead; hosting stays undeployed.
+
 Current delivery direction, 29 October: [the autonomous opportunity system](17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md) makes publisher-wide batches, reusable original-source verification, durable orchestration and automatic publication the next milestones. The individual-notice pilots below are historical evaluation evidence. A routine new advert must flow through existing code and policy without a new script, source registration or manual grant.
 
 29 October practical contract: [span-only practical-instruction extraction](../operations/195_SPAN_ONLY_PRACTICAL_EXTRACTION_2026-10-29.md) makes ordinary, split and programme providers select state/span only; code reconstructs canonical text and rejects model-supplied values. Versions and cache keys advance, while canonical evidence, scope and coverage checks remain active. Explicit legacy decoding is offline only. This sprint makes no provider calls or cloud changes; the earlier Sasol failure remains held and publishing remains disabled.
