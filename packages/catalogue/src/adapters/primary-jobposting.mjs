@@ -92,5 +92,6 @@ export function inspectPrimaryJobPosting(html) {
     : { value: scalar(p.identifier), name: null };
   return { primary, postingUrl: p.url ?? null, canonicalUrl: canonicals[0] ?? null,
     mainEntityUrl: p.mainEntityOfPage?.['@id'] ?? p.mainEntityOfPage ?? null,
-    identifier, descriptionText: descriptionLines(p.description) };
+    identifier, issuerUrls: [p.hiringOrganization?.sameAs, p.hiringOrganization?.url].filter(v => v !== undefined),
+    descriptionText: descriptionLines(p.description) };
 }

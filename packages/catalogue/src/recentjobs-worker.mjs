@@ -29,7 +29,9 @@ import { capturedNoticeJobs } from './undated-origin-import.mjs';
 import { discoveryChunk } from './recentjobs-discovery.mjs';
 import { ORIGINAL_RESOLVER_VERSION, originalNoticeTarget, originalRetrievalFailure,
   resolveOriginalNotice, refreshOriginalResolution } from './original-notice-resolver.mjs';
-import { ISSUER_REGISTRY_VERSION, lookupIssuerRelationships, validateIssuerBindings } from './issuer-registry.mjs';
+import { ISSUER_REGISTRY_VERSION, lookupIssuerRelationships, validateIssuerBindings, relationshipBinding } from './issuer-registry.mjs';
+import { ORIGIN_DISCOVERY_VERSION, discoveryOutcome, probeUrl, issuerHint, corporateAnchor, corporateLink, makeDelegation,
+  delegationBinding, delegationDocument, readDelegation, lookupDelegations, validateDelegationBindings } from './origin-discovery.mjs';
 import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
@@ -107,9 +109,14 @@ export class RecentJobsWorker {
     const lease = value(await tx.get(this.ref('worker_leases', source.id)));
     if (source.revision !== claim.sourceRevision) fail('SOURCE_CHANGED');
     if (!job || job.lease !== claim.lease || lease?.lease !== claim.lease || job.leaseUntil <= this.now()) fail('STALE_LEASE');
+    if (checkIssuerTrust && claim.originAnchor) await validateIssuerBindings(tx, this.db, [claim.originAnchor], 'apprenticeship', this.now());
     if (checkIssuerTrust && source.automation.issuerRegistry && claim.issuerTrust) {
       if (JSON.stringify(job.issuerTrust) !== JSON.stringify(claim.issuerTrust)) fail('ISSUER_TRUST_CHANGED');
       const issuers = await validateIssuerBindings(tx, this.db, claim.issuerTrust.bindings, 'apprenticeship', this.now());
+      if (claim.issuerTrust.delegations?.length) {
+        if (!source.automation.originDiscovery) fail('SOURCE_POLICY_REQUIRED');
+        issuers.push(...await validateDelegationBindings(tx,this.db,claim.issuerTrust.delegations,this.now()));
+      }
       source.issuerTrust = { issuers };
     }
     return job;
@@ -165,7 +172,8 @@ export class RecentJobsWorker {
       }
       const lease = randomUUID(), until = new Date(Date.parse(this.now()) + LEASE_MS).toISOString();
       const claimed = { ...job, state: 'running', attempts: job.attempts + 1, lease, leaseUntil: until, sourceRevision: source.revision,
-        ...(source.automation.issuerRegistry || job.issuerTrust ? { issuerTrust: null } : {}) };
+        ...(source.automation.issuerRegistry || job.issuerTrust ? { issuerTrust: null } : {}),
+        ...(source.automation.originDiscovery || job.originDiscoveryId ? { originDiscoveryId: null } : {}) };
       tx.set(ref, payload(claimed)); tx.set(leaseRef, payload({ lease, until, nextRequestAt: previous?.nextRequestAt ?? this.now() }));
       return { ...claimed, source };
     });
@@ -363,6 +371,7 @@ export class RecentJobsWorker {
           primarySnapshotId: job.primarySnapshotId ?? null, recordId: job.recordId ?? null,
           ...(job.originalResolutionId ? { originalResolutionId: job.originalResolutionId } : {}),
           ...(job.issuerTrust ? { issuerResolutionId: job.issuerTrust.receiptId } : {}),
+          ...(job.originDiscoveryId ? { originDiscoveryId: job.originDiscoveryId } : {}),
           ...(job.discoverySnapshotId ? { discoverySnapshotId: job.discoverySnapshotId } : {}),
           programmePlanId:job.programmePlanId ?? null,
           ...(locationDiagnostic?{locationDiagnostic}:{}),
@@ -507,8 +516,8 @@ export class RecentJobsWorker {
     let observation = null, resolution = target.outcome ? target : null;
     if (!resolution) {
       try {
-        await this.robots(claim, target.url);
-        observation = await this.request(claim, target.url, 'html');
+        if (claim.originObservation?.url === target.url) observation = claim.originObservation;
+        else { await this.robots(claim, target.url); observation = await this.request(claim, target.url, 'html'); }
       } catch (error) {
         resolution = originalRetrievalFailure(error);
         if (!resolution) throw error;
@@ -529,6 +538,7 @@ export class RecentJobsWorker {
       tx.create(this.ref('worker_original_resolutions', id), payload({ id, sourceId: source.id, sourceRevision: source.revision,
         jobId: claim.id, attempt: claim.attempts, sourceSnapshotId: captured.snapshotId,
         ...(claim.issuerTrust ? { issuerResolutionId: claim.issuerTrust.receiptId } : {}),
+        ...(claim.originDiscoveryId ? { originDiscoveryId: claim.originDiscoveryId } : {}),
         primarySnapshotId, resolution: receipt, at: this.now() }));
       tx.set(this.ref('worker_jobs', job.id), payload({ ...job, originalResolutionId: id, primarySnapshotId }));
     });
@@ -537,20 +547,97 @@ export class RecentJobsWorker {
   async bindIssuerTrust(claim, candidate, captured) {
     if (!claim.source.automation.issuerRegistry) return;
     const receiptId = hash(`${claim.id}:issuer:${claim.attempts}`);
-    const result = await this.transaction(claim.sourceId, 'worker.issuer.resolve', async (tx, source) => {
-      const job = await this.assertClaim(tx, source, claim);
+    let selected = await this.transaction(claim.sourceId, 'worker.issuer.lookup', async (tx, source) => {
+      await this.assertClaim(tx, source, claim);
       const selected = await lookupIssuerRelationships(tx, this.db,
         candidate.applicationCandidates.length === 1 ? candidate.applicationCandidates[0] : null, 'apprenticeship', this.now());
+      if (!selected.issuers.length && source.automation.originDiscovery && candidate.applicationCandidates.length === 1) {
+        const found = await lookupDelegations(tx,this.db,candidate.applicationCandidates[0],this.now());
+        if (found.length) return { ...selected, outcome:'qualified', issuers:found.map(r=>r.route), delegations:found.map(delegationBinding) };
+      }
+      return selected;
+    });
+    let discovery = null;
+    if (!selected.issuers.length && claim.source.automation.originDiscovery) {
+      let eligible = false;
+      try { preflightCandidate(claim.source,candidate,this.now(),captured.sourceRetrievedAt); }
+      catch (error) { eligible = error.code === 'ISSUER_RELATIONSHIP_UNQUALIFIED'; }
+      if (eligible) {
+        discovery = await this.discoverOrigin(claim,candidate);
+        if (discovery.delegation) selected = { ...selected, outcome:'qualified', issuers:[discovery.delegation.route], delegations:[delegationBinding(discovery.delegation)] };
+      }
+    }
+    const result = await this.transaction(claim.sourceId, 'worker.issuer.resolve', async (tx, source) => {
+      const job = await this.assertClaim(tx, source, claim);
+      const currentIssuers = await validateIssuerBindings(tx,this.db,selected.bindings,'apprenticeship',this.now());
+      if (selected.delegations?.length) currentIssuers.push(...await validateDelegationBindings(tx,this.db,selected.delegations,this.now()));
       const { issuers, ...resolution } = selected;
-      const trust = { receiptId, bindings: selected.bindings };
+      const trust = { receiptId, bindings: selected.bindings, ...(selected.delegations ? { delegations:selected.delegations } : {}) };
+      const originId = discovery?.id ?? (selected.delegations?.length ? hash(`${claim.id}:origin:${claim.attempts}`) : null);
+      if (originId && !discovery) tx.create(this.ref('worker_origin_discoveries',originId),payload({ id:originId, sourceId:source.id,
+        sourceRevision:source.revision, jobId:claim.id, at:this.now(), resolution:discoveryOutcome('cached','CURRENT_CORPORATE_DELEGATION'), delegations:selected.delegations }));
       tx.create(this.ref('worker_issuer_resolutions', receiptId), payload({ id: receiptId, version: ISSUER_REGISTRY_VERSION,
         sourceId: source.id, sourceRevision: source.revision, jobId: claim.id, attempt: claim.attempts,
-        sourceSnapshotId: captured.snapshotId, resolution, at: this.now() }));
-      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, issuerTrust: trust }));
-      return { issuers, trust };
+        sourceSnapshotId: captured.snapshotId, resolution, ...(originId?{originDiscoveryId:originId}:{}), at: this.now() }));
+      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, issuerTrust: trust, ...(originId?{originDiscoveryId:originId}:{}) }));
+      return { issuers:currentIssuers, trust, originId };
     });
     claim.issuerTrust = result.trust;
     claim.source.issuerTrust = { issuers: result.issuers };
+    claim.originDiscoveryId = result.originId;
+    if (discovery?.resolution.outcome === 'unavailable') fail('ORIGIN_DISCOVERY_UNAVAILABLE');
+  }
+  async discoverOrigin(claim, candidate) {
+    const id = hash(`${claim.id}:origin:${claim.attempts}`), route = candidate.applicationCandidates[0];
+    let resolution = discoveryOutcome('unsupported','ACQUISITION_DISABLED'), anchor = null, primary = null, corporate = null, link = null;
+    if (claim.source.automation.employerCrawl && route?.method === 'portal' && probeUrl(route.destination)) {
+      try {
+        await this.robots(claim,route.destination); primary = await this.request(claim,route.destination,'html');
+        const hint = issuerHint(primary.text);
+        if (!hint) resolution = discoveryOutcome('unsupported','ISSUER_HINT_UNSUPPORTED');
+        else {
+          anchor = await this.transaction(claim.sourceId,'worker.origin.anchor',async(tx,source)=>{
+            await this.assertClaim(tx,source,claim); return corporateAnchor(tx,this.db,hint,this.now());
+          });
+          if (!anchor) resolution = discoveryOutcome('unsupported','CORPORATE_AUTHORITY_UNQUALIFIED');
+          else {
+            claim.originAnchor = relationshipBinding(anchor);
+            await this.robots(claim,anchor.delegationPage); corporate = await this.request(claim,anchor.delegationPage,'html');
+            link = corporateLink(corporate.text,anchor.delegationPage,route.destination);
+            resolution = link ? discoveryOutcome('corroborated','CORPORATE_CAREERS_LINK') : discoveryOutcome('unsupported','DELEGATION_LINK_UNSUPPORTED');
+          }
+        }
+      } catch (error) {
+        const unavailable = originalRetrievalFailure(error); if (!unavailable) { delete claim.originAnchor; throw error; }
+        resolution = discoveryOutcome('unavailable',unavailable.reason);
+      }
+    } else if (claim.source.automation.employerCrawl) resolution = discoveryOutcome('unsupported','PROBE_TARGET_UNSUPPORTED');
+    const observations = [primary,corporate].filter(Boolean).map(o=>({ ...o, hash:hash(o.text), id:hash(`${claim.sourceId}:${o.url}:${hash(o.text)}`) }));
+    const proposed = link ? makeDelegation(anchor,link,{now:this.now(),snapshotId:observations.at(-1).id,sourceId:claim.sourceId,sourceRevision:claim.sourceRevision}) : null;
+    let delegation;
+    try {
+      delegation = await this.transaction(claim.sourceId,'worker.origin.observe',async(tx,source)=>{
+        const job = await this.assertClaim(tx,source,claim);
+        const previous = await Promise.all(observations.map(o=>tx.get(this.ref('snapshots',o.id))));
+        let chosen = proposed, versionExists = null;
+        if (proposed) {
+          const current = readDelegation(await tx.get(this.ref('employer_delegations',proposed.id)));
+          if (current && JSON.stringify(current.parent)===JSON.stringify(proposed.parent) && current.observedAt<=this.now() && this.now()<current.expiresAt) {
+            await validateDelegationBindings(tx,this.db,[delegationBinding(current)],this.now()); chosen=current;
+          } else versionExists = await tx.get(this.ref('employer_delegation_versions',delegationBinding(proposed).hash));
+        }
+        observations.forEach((o,i)=>{if(!previous[i].exists)tx.create(this.ref('snapshots',o.id),payload({id:o.id,sourceId:source.id,sourceRevision:source.revision,url:o.url,hash:o.hash,text:o.text,retrievedAt:this.now()}));});
+        if (chosen && chosen===proposed) {
+          tx.set(this.ref('employer_delegations',chosen.id),delegationDocument(chosen));
+          if (!versionExists.exists) tx.create(this.ref('employer_delegation_versions',delegationBinding(chosen).hash),payload(chosen));
+        }
+        tx.create(this.ref('worker_origin_discoveries',id),payload({id,sourceId:source.id,sourceRevision:source.revision,jobId:claim.id,at:this.now(),
+          resolution, snapshots:observations.map(o=>o.id), ...(chosen?{delegations:[delegationBinding(chosen)]}:{})}));
+        tx.set(this.ref('worker_jobs',job.id),payload({...job,originDiscoveryId:id})); return chosen;
+      });
+    } finally { delete claim.originAnchor; }
+    if (delegation) claim.originObservation=primary;
+    return {id,resolution,delegation};
   }
   undatedOriginKeys(candidate) {
     return undatedOriginKeys(candidate);
@@ -640,7 +727,8 @@ export class RecentJobsWorker {
     if (crawlEmployer) await this.robots(claim, pendingRoute.destination);
     const version = this.extractionMode === 'split' ? `split:${METADATA_VERSION}:${REQUIREMENTS_VERSION}` : GROQ_EXTRACTION_VERSION;
     const policy = this.provider === 'gemini' ? `:json_object:chain_v1:availability_v1:${GEMINI_UNAVAILABLE_MS}:${this.fallback}:${GEMINI_MODEL_CHAIN.join(',')}` : '';
-    const trustKey = claim.issuerTrust ? `:${ISSUER_REGISTRY_VERSION}:${hash(JSON.stringify(claim.issuerTrust.bindings))}` : '';
+    const trustKey = claim.issuerTrust ? `:${ISSUER_REGISTRY_VERSION}:${hash(JSON.stringify(claim.issuerTrust.delegations
+      ? {bindings:claim.issuerTrust.bindings,delegations:claim.issuerTrust.delegations} : claim.issuerTrust.bindings))}` : '';
     const keyBase = `${claim.sourceId}:${claim.sourceRevision}:${candidate.contentHash}:${this.provider}:${this.model}${policy}:${this.thinking}:${version}${original ? `:${ORIGINAL_RESOLVER_VERSION}` : ''}${trustKey}`;
     let extraction;
     if (this.extractionMode === 'split') {

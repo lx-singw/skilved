@@ -1,5 +1,7 @@
 # Autonomous RecentJobs ingestion and feed publication
 
+29 October origin discovery: [automatic corporate-to-ATS corroboration](../operations/199_CORPORATE_ATS_DISCOVERY_2026-10-29.md) discovers and caches previously unregistered recruitment scopes when an explicitly reviewed corporate careers page links them. Native checks precede exact vacancy verification and AI; unknown corporate identities stay held. The workflow remains opt-in and shadow-only, with no live policy or hosting changes.
+
 29 October shared trust: [issuer relationship registry](../operations/198_SHARED_ISSUER_RELATIONSHIPS_2026-10-29.md) adds source-independent revisioned employer/ATS relationships, indexed tenant-scoped resolution, private attempt bindings and revocation/expiry fences. Publisher policies no longer need inline employers in this opt-in shadow lane. Actual authority discovery remains pending; no live records, migration, provider calls or publication are activated.
 
 29 October original evidence: [shared notice corroboration](../operations/197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md) adds deterministic portal identity/reference/deadline checks and fixed private outcomes before model work in an opt-in shadow lane. Unknown origins and disabled acquisition stop without employer fetches or AI. Existing issuer trust remains the input; automatic origin discovery and broader adapters are still pending. Hosting and publication remain inactive.

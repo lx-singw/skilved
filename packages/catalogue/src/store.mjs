@@ -54,6 +54,7 @@ export class Catalogue {
   }
   async inspect(token, collection, id) {
     if (!['sources','source_versions','employer_relationships','employer_relationship_versions','worker_issuer_resolutions',
+      'employer_delegations','employer_delegation_versions','worker_origin_discoveries',
       'drafts','reports','jobs','snapshots','versions','worker_jobs','worker_candidates',
       'worker_decisions','worker_exceptions','worker_holds','worker_health','worker_discovery','worker_discovery_pages',
       'worker_original_resolutions',
@@ -78,7 +79,7 @@ export class Catalogue {
       (tx, uid) => importUndatedOrigin(this, tx, review, uid));
   }
   async queue(token, collection, after) {
-    if (!['sources','employer_relationships','worker_issuer_resolutions','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
+    if (!['sources','employer_relationships','employer_delegations','worker_origin_discoveries','worker_issuer_resolutions','drafts','reports','jobs','outbox','audit','worker_jobs','worker_candidates','worker_decisions',
       'worker_exceptions','worker_holds','worker_health','worker_discovery','worker_original_resolutions','model_calls','model_budgets'].includes(collection)) fail('INVALID_COMMAND');
     const uid = await this.identity(token);
     if (after!==undefined) IdSchema.parse(after);

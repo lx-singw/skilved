@@ -1,0 +1,130 @@
+import { test,before,after } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID,createHash } from 'node:crypto';
+import { Catalogue } from '../src/store.mjs';
+import { RecentJobsWorker } from '../src/recentjobs-worker.mjs';
+import { Source,EmployerRelationship } from '../src/schemas.mjs';
+import { DomainError } from '../src/config.mjs';
+import { getRuntime } from '../src/runtime.mjs';
+import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
+import { originalFixture,originalHtml } from './fixtures/original-notices.mjs';
+import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
+const hash=s=>createHash('sha256').update(s).digest('hex'),payload=v=>({json:JSON.stringify(v)}),value=s=>s.exists?JSON.parse(s.data().json):null;
+let db;
+before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-origins';db=(await getRuntime()).db;});
+after(async()=>db?.terminate());
+async function fixture({root=true,count=2}={}){
+ const id=randomUUID(),host=`ats-${id}.example`,corp=`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/tenant-a/`;
+ let now='2026-10-29T10:00:00.000Z';
+ const cases=Array.from({length:count},(_,i)=>originalFixture({host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
+ cases.forEach(c=>{c.posting.hiringOrganization.sameAs=`https://${corp}/`;});
+ const source=Source.parse({...cases[0].source,id:`publisher_${id}`,automation:{...cases[0].source.automation,issuerRegistry:'shadow_v1',originDiscovery:'shadow_v1',issuers:[]}});
+ let parent=EmployerRelationship.parse({id:`corporate_${id}`,revision:1,state:'qualified',categories:['apprenticeship'],reviewedAt:now,expiresAt:'2026-11-01T10:00:00.000Z',
+  route:{name:'Fictional Workshop',host:corp,pathPrefix:'/careers/',evidence:'Authored corporate authority'},delegationPage:page});
+ const state={requests:[],extracted:[],validated:[],page:`<main><h1>Careers</h1><a href="${link}">View jobs</a></main>`,onValidate:null,onRobots:null,failProbe:false};
+ const options={now:()=>now,sleep:async()=>{},fetcher:async(_source,url)=>{
+  state.requests.push(url);
+  if(url.endsWith('/robots.txt')){await state.onRobots?.(url);return{url,text:'User-agent: *\nAllow: /'};}
+  if(url===RECENTJOBS_INDEX)return{url,text:`<div class="articles-wrap">${cases.map(c=>`<article class="type-post"><h2 class="entry-title"><a href="${c.detailUrl}">${c.candidate.title}</a></h2></article>`).join('')}</div>`};
+  if(url===page)return{url,text:state.page};const c=cases.find(c=>c.url===url||c.detailUrl===url);assert.ok(c,`Unexpected URL ${url}`);
+  if(url===c.url&&state.failProbe)throw new DomainError('FETCH_TIMEOUT');
+  return{url,text:url===c.url?originalHtml(c.posting):c.detailHtml};
+ },extractor:async candidate=>{state.extracted.push(candidate.sourceUrl);const x=syntheticExtraction(),r=candidate.sourceText.match(/^Reference: (.+)$/m);x.intake={state:'stated',value:r[1],quote:r[0]};
+  return{extraction:x,provenance:{usage:{inputTokens:10,totalTokens:20}}};},validator:async({primary})=>{state.validated.push(primary.issuer);await state.onValidate?.();
+  return{supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'},{source:'primary',quote:primary.issuer}],provenance:{usage:{inputTokens:10,totalTokens:20}}};}};
+ const principal=`${id}@example.test`,uid=`operator_${id}`,worker=new RecentJobsWorker(db,principal,options);
+ const catalogue=new Catalogue(db,{verifyIdToken:async token=>{if(token!=='authored-token')throw Error();return{uid};}},options.now);
+ await worker.ref('operators',uid).set({active:true,roles:['source','reviewer']});
+ if(root)await catalogue.registerEmployerRelationship('authored-token',parent,null,'Authored corporate careers authority');
+ await catalogue.registerSource('authored-token',source,null,'Authored automatic origin policy');
+ const grant={principal,active:true,sources:[source.id],roles:['ingest']};await worker.ref('workers',worker.actor).set(grant);
+ const rows=async collection=>(await db.collection(`m0_${collection}`).get()).docs.map(value).filter(r=>r.sourceId===source.id);
+ return{worker,catalogue,source,grant,uid,cases,state,page,link,corp,host,rows,advance:ms=>{now=new Date(Date.parse(now)+ms).toISOString();},
+  restart:()=>new RecentJobsWorker(db,principal,options),revoke:async()=>{const next={...parent,revision:parent.revision+1,state:'revoked'};await catalogue.registerEmployerRelationship('authored-token',next,parent.revision,'Authored parent revocation');parent=next;},
+  recheck:async()=>{const id=hash(randomUUID());await worker.ref('worker_jobs',id).set(payload({id,sourceId:source.id,kind:'detail',url:cases[0].detailUrl,state:'pending',attempts:0,lease:null,nextAt:now}));return id;}};
+}
+test('new ATS destinations are corroborated and reused for unseen notices without a reviewed ATS registration',async()=>{
+ const f=await fixture(),result=await f.worker.run(f.source.id);assert.equal(result.results.filter(r=>r.recordId).length,2);
+ assert.equal(f.state.extracted.length,2);assert.equal(f.state.requests.filter(url=>url===f.page).length,1);
+ for(const c of f.cases)assert.equal(f.state.requests.filter(url=>url===c.url).length,1,'Probe observation is reused for original verification');
+ const records=await f.rows('employer_delegations');assert.equal(records.length,1);assert.equal(records[0].route.pathPrefix,'/tenant-a/');
+ const receipts=await f.rows('worker_origin_discoveries');assert.deepEqual(new Set(receipts.map(r=>r.resolution.outcome)),new Set(['corroborated','cached']));
+ assert.equal((await f.rows('employer_delegation_versions')).length,1);
+ for(const decision of await f.rows('worker_decisions')){
+  const issuer=await f.catalogue.inspect('authored-token','worker_issuer_resolutions',decision.issuerResolutionId);assert.equal(issuer.resolution.delegations.length,1);assert.ok(issuer.originDiscoveryId);
+  assert.equal((await f.worker.ref('public',decision.recordId).get()).exists,false);
+ }
+ assert.deepEqual(value(await f.worker.ref('sources',f.source.id).get()),f.source);assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
+});
+test('self-claimed corporate identities are held without fetching unreviewed corporate pages or spending AI',async()=>{
+ const f=await fixture({root:false,count:1});await f.worker.run(f.source.id);
+ assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.reason,'CORPORATE_AUTHORITY_UNQUALIFIED');
+ assert.ok(!f.state.requests.some(url=>url.includes(f.corp)));assert.deepEqual(f.state.extracted,[]);assert.equal((await f.rows('employer_delegations')).length,0);
+});
+test('an unrelated tenant or footer link does not establish corporate delegation',async()=>{
+ const f=await fixture({count:1});f.state.page=`<main><h1>Careers</h1><a href="https://${f.host}/other-tenant/">Jobs</a></main><footer><a href="${f.link}">Jobs</a></footer>`;
+ await f.worker.run(f.source.id);assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.reason,'DELEGATION_LINK_UNSUPPORTED');
+ assert.deepEqual(f.state.extracted,[]);assert.equal((await f.rows('employer_delegations')).length,0);
+});
+test('optional acquisition and discovery opt-in remain explicit and stop employer probes',async()=>{
+ const f=await fixture({count:1});f.source.automation.employerCrawl=false;await f.worker.ref('sources',f.source.id).set(payload(f.source));
+ await f.worker.run(f.source.id);assert.ok(f.state.requests.every(url=>url.startsWith('https://recentjobs.co.za/')));assert.deepEqual(f.state.extracted,[]);
+ assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.reason,'ACQUISITION_DISABLED');
+ const g=await fixture({count:1});delete g.source.automation.originDiscovery;await g.worker.ref('sources',g.source.id).set(payload(g.source));
+ await g.worker.run(g.source.id);assert.ok(g.state.requests.every(url=>url.startsWith('https://recentjobs.co.za/')));assert.equal((await g.rows('worker_origin_discoveries')).length,0);
+});
+test('cached delegation never outlives parent revocation and does not reset spending',async()=>{
+ const f=await fixture({count:1});await f.worker.run(f.source.id);const proof=(await f.rows('employer_delegations'))[0];await f.revoke();
+ const result=await f.restart().runJob(f.source.id,await f.recheck());assert.equal(result.reason,'ORIGINAL_NOTICE_UNSUPPORTED');
+ assert.equal(f.state.extracted.length,1);assert.equal(f.state.requests.filter(url=>url===f.page).length,1);
+ assert.deepEqual(value(await f.worker.ref('employer_delegation_versions',hash(JSON.stringify(proof))).get()),proof);
+ assert.equal(value(await f.worker.ref('model_budgets',hash(`${f.source.id}:2026-10-29`)).get()).calls,2);
+});
+test('parent revocation during model work preserves usage and blocks cache use and drafting',async()=>{
+ const f=await fixture({count:1});f.state.onValidate=()=>f.revoke();
+ const result=await f.worker.run(f.source.id);assert.ok(result.results.some(r=>r.reason==='ISSUER_TRUST_CHANGED'));
+ assert.equal((await f.rows('model_calls')).length,2);assert.equal((await f.rows('worker_decisions')).length,0);
+ assert.ok((await f.rows('model_calls')).every(r=>r.state==='received'&&r.usage.totalTokens===20));
+});
+test('parent revocation during corporate acquisition fences the page request',async()=>{
+ const f=await fixture({count:1});f.state.onRobots=async url=>{if(url.includes(f.corp))await f.revoke();};
+ const result=await f.worker.run(f.source.id);assert.ok(result.results.some(r=>r.reason==='ISSUER_TRUST_CHANGED'));
+ assert.ok(!f.state.requests.includes(f.page));assert.equal((await f.rows('employer_delegations')).length,0);assert.deepEqual(f.state.extracted,[]);
+});
+test('six-hour expiry requires fresh corporate corroboration and preserves prior proof versions',async()=>{
+ const f=await fixture({count:1});await f.worker.run(f.source.id);const old=(await f.rows('employer_delegations'))[0];f.advance(6*3_600_000+1);
+ assert.ok((await f.restart().runJob(f.source.id,await f.recheck())).recordId);
+ assert.equal(f.state.requests.filter(url=>url===f.page).length,2);assert.equal((await f.rows('employer_delegation_versions')).length,2);
+ assert.deepEqual(value(await f.worker.ref('employer_delegation_versions',hash(JSON.stringify(old))).get()),old);
+});
+test('corroborated tenant authority cannot override a different vacancy; proof diagnostics remain private',async()=>{
+ const f=await fixture({count:1});f.cases[0].posting.url=`https://${f.host}/tenant-a/job/9999/`;
+ const result=await f.worker.run(f.source.id);assert.ok(result.results.some(r=>r.reason==='ORIGINAL_NOTICE_CONFLICTING'));assert.deepEqual(f.state.extracted,[]);
+ const receipt=(await f.rows('worker_origin_discoveries'))[0];assert.equal(receipt.resolution.outcome,'corroborated');
+ assert.equal((await f.catalogue.inspect('authored-token','worker_origin_discoveries',receipt.id)).id,receipt.id);
+ await f.worker.ref('operators',f.uid).set({active:false,roles:['reviewer']});
+ await assert.rejects(f.catalogue.queue('authored-token','employer_delegations'),{code:'FORBIDDEN'});
+});
+test('probe failure remains an unavailable check, not a closure or unqualified employer assertion',async()=>{
+ const f=await fixture({count:1});f.state.failProbe=true;const result=await f.worker.run(f.source.id);
+ assert.ok(result.results.some(r=>r.reason==='ORIGIN_DISCOVERY_UNAVAILABLE'));
+ const receipt=(await f.rows('worker_origin_discoveries'))[0];assert.equal(receipt.resolution.outcome,'unavailable');
+ assert.equal((await f.rows('worker_exceptions'))[0].originDiscoveryId,receipt.id);assert.deepEqual(f.state.extracted,[]);
+ assert.equal((await f.rows('employer_delegations')).length,0);assert.ok(!f.state.requests.includes(f.page));
+});
+test('closed publisher notices fail cheap checks without probing employer origins',async()=>{
+ const f=await fixture({count:1});f.cases[0].detailHtml=f.cases[0].detailHtml.replace('30 October 2026','20 October 2026');
+ const result=await f.worker.run(f.source.id);assert.ok(result.results.some(r=>r.reason==='NOTICE_NOT_OPEN'));
+ assert.ok(f.state.requests.every(url=>url.startsWith('https://recentjobs.co.za/')));assert.equal((await f.rows('worker_origin_discoveries')).length,0);
+});
+test('concurrent publisher discoveries converge on one current delegation and preserve one authority version',async()=>{
+ const f=await fixture({count:1}),sibling={...f.source,id:`publisher_${randomUUID()}`};
+ await f.catalogue.registerSource('authored-token',sibling,null,'Authored concurrent publisher policy');
+ await f.worker.ref('workers',f.worker.actor).set({...f.grant,sources:[f.source.id,sibling.id]});
+ const results=await Promise.all([f.worker.run(f.source.id),f.restart().run(sibling.id)]);
+ assert.ok(results.every(r=>r.results.some(job=>job.recordId)));
+ const docs=await db.collection('m0_employer_delegations').where('routeKeys','array-contains',`portal:${f.host}`).get();assert.equal(docs.size,1);
+ const current=value(docs.docs[0]);
+ const versions=(await db.collection('m0_employer_delegation_versions').get()).docs.map(value).filter(r=>r.id===current.id);assert.equal(versions.length,1);
+ assert.ok(f.state.requests.filter(url=>url===f.page).length<=2);assert.equal(f.state.extracted.length,2);
+});

@@ -10,7 +10,14 @@ export const IssuerRoute = z.object({ name: z.string().trim().min(1).max(200),
 export const EmployerRelationship = z.object({ id: IdSchema, revision: z.number().int().positive(),
   state: z.enum(['qualified','revoked']), categories: z.array(CategorySchema).min(1).max(6),
   reviewedAt: InstantSchema, expiresAt: InstantSchema, route: IssuerRoute,
-}).strict().refine(r => r.expiresAt > r.reviewedAt, 'Relationship expiry must follow review');
+  delegationPage: z.string().url().max(2048).optional(),
+}).strict().refine(r => r.expiresAt > r.reviewedAt, 'Relationship expiry must follow review').refine(r => {
+  if (!r.delegationPage) return true;
+  try { const url = new URL(r.delegationPage), prefix = r.route.pathPrefix;
+    return url.protocol === 'https:' && !url.username && !url.password && !url.port && !url.search && !url.hash &&
+      url.hostname === r.route.host && (url.pathname === prefix || url.pathname.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`));
+  } catch { return false; }
+}, 'Delegation evidence must be a fixed page within the reviewed corporate route');
 export const Source = z.object({ id: IdSchema, revision: z.number().int().positive(),
   name: z.string().min(1).max(200), urls: z.array(z.string().url().max(2048)).min(1).max(20),
   permission: z.object({ reference: z.string().min(1).max(2000), method: z.enum(['structured_json', 'recentjobs_html']),
@@ -26,6 +33,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
     originalVerification: z.literal('shadow_v1').optional(),
     issuerRegistry: z.literal('shadow_v1').optional(),
+    originDiscovery: z.literal('shadow_v1').optional(),
     maxModelCallsPerDay: z.number().int().min(1).max(100),
     minRequestIntervalMs: z.number().int().min(2000).max(60000), checkTtlHours: z.number().int().min(1).max(24),
     issuers: z.array(IssuerRoute).max(30),
@@ -41,7 +49,9 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   'Original notice resolver cannot use automatic mode').refine(source =>
   !source.automation?.issuerRegistry || (source.automation.originalVerification === 'shadow_v1' &&
     source.automation.issuers.length === 0 && source.automation.undatedNotices === 'reject'),
-  'Registry sources require original verification, no inline issuers and dated notices');
+  'Registry sources require original verification, no inline issuers and dated notices').refine(source =>
+  !source.automation?.originDiscovery || source.automation.issuerRegistry === 'shadow_v1',
+  'Origin discovery requires the shadow issuer registry');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();

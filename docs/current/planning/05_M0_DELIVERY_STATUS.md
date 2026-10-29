@@ -4,6 +4,8 @@ Updated: 16 October 2026. This is the current implementation-status record for t
 
 ## 1. Current position
 
+29 October automatic recruitment-origin corroboration: [corporate-to-ATS discovery](../operations/199_CORPORATE_ATS_DISCOVERY_2026-10-29.md) can establish a new linked recruitment scope from a reviewed corporate careers page and reuse bounded parent-dependent proof for future notices. Authored cases retain exact-vacancy checks, revocation, expiry, spend history and optional acquisition. Wholly unknown corporate authority, broader formats and production publication qualification remain pending. No provider calls, cloud writes or hosting changes occur.
+
 29 October reusable issuer authority: [shared relationships](../operations/198_SHARED_ISSUER_RELATIONSHIPS_2026-10-29.md) separates employer/ATS trust from publisher policy and binds worker attempts to current revisioned authority, with expiry/revocation checks and preserved in-flight usage accounting. Authored tests cover reuse and migration with existing IDs/history/spend. Automatic corroboration of new employer origins and publication qualification remain ahead. No live source, registry, grant, quota or hosting is changed.
 
 29 October original-notice checks: [shared corroboration](../operations/197_ORIGINAL_NOTICE_CORROBORATION_2026-10-29.md) adds an opt-in shadow resolver before AI, fixed identity/availability outcomes, private attempt receipts and fresh original evidence before cache reuse. Authored mixed-employer cases retain two private drafts and isolate six held outcomes without per-vacancy registrations. Automatic employer authority discovery, trust separation, wider methods/ATS support and publication qualification remain open; no live policy, source budget or hosting is activated.
