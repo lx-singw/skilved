@@ -6,6 +6,7 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- **Current ingestion priority, 29 October:** [autonomous opportunity delivery](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md) — publisher-wide batches, reusable original-source verification, durable orchestration and qualified automatic publication. Individual-notice pilots are supporting evaluations.
 - **Start building:** [Chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
 - **Check progress:** [Current M0 delivery status and blockers](05_M0_DELIVERY_STATUS.md)
 - **Continue autonomously:** [Sequential sprint loop and quota policy](08_AUTONOMOUS_SPRINT_LOOP.md), with the [durable handoff](09_SPRINT_LOOP_HANDOFF.md).

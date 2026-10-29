@@ -6,6 +6,7 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Autonomous opportunity system and next delivery priorities](17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md)
 - [Developer workflow and repository guide](01_DEVELOPER_WORKFLOW_AND_REPOSITORY.md)
 - [Integration, compatibility and migration policy](02_INTEGRATION_AND_MIGRATION_POLICY.md)
 - [ATS adapters and application-route strategy](03_ATS_ADAPTER_STRATEGY.md)
