@@ -188,6 +188,7 @@ Status: current planning specifications. Implemented controls, customer results 
 - [Staging provenance audit and snapshot history restoration](190_STAGING_PROVENANCE_AUDIT_2026-10-28.md)
 - [Current decision history and dated-notice assessment](191_DECISION_HISTORY_AND_DATED_NOTICE_ASSESSMENT_2026-10-28.md)
 - [Private location diagnostics and reviewer readiness](192_PRIVATE_LOCATION_DIAGNOSTICS_AND_REVIEWER_READINESS_2026-10-28.md)
+- [Verified staging reviewer](193_VERIFIED_STAGING_REVIEWER_2026-10-29.md)
 - [Signed-ticket HTTP and runtime](149_SIGNED_TICKET_HTTP_AND_RUNTIME_2026-10-23.md)
 - [Suggestion recovery epoch fences](150_SUGGESTION_RECOVERY_EPOCH_FENCES_2026-10-23.md)
 - [Suggestion receipt retention cleanup](151_SUGGESTION_RECEIPT_RETENTION_CLEANUP_2026-10-23.md)
