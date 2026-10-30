@@ -65,4 +65,6 @@ The missing-binding barrier is resolved for this supported shape. The remaining 
 
 Original email/intake acquisition/corroboration remains a separate shared delivery gap, as assessed in [the prior sprint](206_SHARED_CAREERS_DELEGATION_2026-10-30.md). Corporate-domain ownership must not become recipient/intake authority. Unattended new-company qualification, reset-aware orchestration, publication-lane qualification and hosting remain open.
 
+Follow-up: [the fresh twenty-notice batch](208_BROADER_CURRENT_BATCH_AND_EMAIL_DISCOVERY_2026-10-30.md) retains all twenty holds and corrects two generic email discovery misses. A separate missing-date format screen finds a future structured expiry with unqualified authority/URL/provenance; no date or publication guard is bypassed.
+
 Private source inspection, test/build/image logs and replay receipts remain ignored under `.artifacts/groq/vacancy-binding-2026-10-30/`; original bodies remain in the prior private collection. No raw snapshots, provider responses or credentials are committed. Hosting/scheduling remain undeployed, employer crawling optional/off in the launcher and automatic publication disabled.

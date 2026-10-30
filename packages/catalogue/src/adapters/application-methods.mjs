@@ -3,10 +3,24 @@ import { z } from 'zod';
 const email = z.string().max(254).email();
 const address = /(?<![A-Za-z0-9_.@-])[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}(?![A-Za-z0-9_@-]|\.[^\s])/g;
 const application = /\bapply\s*(?::|(?:by|via)\s+e-?mail\b|(?:to|at)\b)|\b(?:e-?mail|submit|send)\b[^\n]{0,160}\b(?:applications?|cv|curriculum vitae)\b|\bapplications?\b[^\n]{0,160}\b(?:to|e-?mail)\b/i;
-const recipient = /(?:\bto(?:\s+(?:e-?mail|address))?\s*:?[ \t]*|\b(?:by|via)\s+e-?mail\s*:?[ \t]*|\be-?mail(?:\s+address)?\s*:[ \t]*|\b(?:apply|applications?)\s*:[ \t]*)$/i;
+const recipient = /(?:\bto(?:\s+(?:e-?mail|address))?\s*[:;]?[ \t]*|\b(?:by|via)\s+e-?mail\s*:?[ \t]*|\be-?mail(?:\s+address)?\s*:[ \t]*|\b(?:apply|applications?)\s*:[ \t]*)$/i;
 const excluded = /\b(?:enquir\w*|inquir\w*|queries|contact|request|forms?|do not|must not|cannot|not accepted|not be accepted|not permitted|not allowed|will not|no e-?mail|unsolicited)\b/i;
 const mailBelow = /^(?:if you are interested in this (?:position|role),\s*)?(?:please\s+)?(?:mail|e-?mail)\s+the\s+(?:below|following)\s+to\s*[:–—-]?\s*$/i;
 const firstCv = /^1[.)]\s+(?:an?\s+)?(?:cv|curriculum vitae)\b/i;
+const referenceContacts=/\b(?:references?|referees?|contactable)\b[^\n]{0,60}\b(?:e-?mail|addresses?)\b/i;
+function emailUnits(line){
+ if(/https?:\/\//i.test(line)||referenceContacts.test(line))return[];
+ if(!excluded.test(line))return[line];
+ // A requirement sentence can contain "do not" without prohibiting a later
+ // explicit application sentence. Preserve the full paragraph as the quote;
+ // never override enquiry/form context or a paragraph-wide email prohibition.
+ const context=line.replace(address,'[recipient]');
+ if(/\b(?:enquir\w*|inquir\w*|queries|contact|request|forms?|examples?|samples?|templates?)\b/i.test(context))return[];
+ const sentences=line.split(/(?<=[.!?])\s+/);if(sentences.length<2)return[];
+ const prohibition=/\b(?:do not|must not|may not|cannot|will not|not accepted|not be accepted|not permitted|not allowed|no)\b[^\n]{0,1000}\b(?:e-?mail|apply|applications?|send|submit|cv|curriculum vitae)\b|\b(?:e-?mail|applications?|cv|curriculum vitae)\b[^\n]{0,1000}\b(?:not accepted|not be accepted|not permitted|not allowed|will not|must not|cannot)\b|\bdo not\s+(?:do (?:so|this)|use (?:it|this|that))\b/i;
+ if(sentences.some(s=>prohibition.test(s)))return[];
+ return sentences.filter(s=>/^(?:please\s+)?(?:e-?mail|send|submit)\b/i.test(s)&&!excluded.test(s));
+}
 
 /** Conservative discovery only: no recipient probes, inferred programme scope or approvals. */
 export function applicationMethods(sourceText) {
@@ -39,19 +53,20 @@ export function applicationMethods(sourceText) {
       instructions.push({ methods, originalText:line, check:'pending' });
       continue;
     }
-    if (excluded.test(line) || /\b(?:references?|referees?|contactable)\b[^\n]{0,60}\b(?:e-?mail|addresses?)\b/i.test(line) || /https?:\/\//i.test(line)) continue;
-    const matches = [...line.matchAll(address)];
-    const prefix = matches.length ? line.slice(0, matches[0].index) : '';
+    for(const unit of emailUnits(line)){
+    const matches = [...unit.matchAll(address)];
+    const prefix = matches.length ? unit.slice(0, matches[0].index) : '';
     // "Mail the below to – address" is an application instruction only with
     // its immediate numbered CV list. Never harvest a bare contact or infer
     // additional recipients from an ambiguous/mixed continuation.
-    const belowApplication = matches.length === 1 && mailBelow.test(prefix.trim()) &&
+    const belowApplication = unit===line&&matches.length === 1 && mailBelow.test(prefix.trim()) &&
       firstCv.test(lines[index+1]?.trim() ?? '') &&
-      /^[\s.]*$/.test(line.slice(matches[0].index + matches[0][0].length));
+      /^[\s.]*$/.test(unit.slice(matches[0].index + matches[0][0].length));
     if (!matches.length || !(application.test(prefix) && recipient.test(prefix) || belowApplication)) continue;
     for (const match of matches) {
       const destination = match[0].replace(/\.+$/, '');
       if (email.safeParse(destination).success) candidates.push({method:'email',destination,originalText:line,check:'pending'});
+    }
     }
   }
   return { candidates, instructions };

@@ -97,6 +97,25 @@ test('programme emails stay separate while form-request addresses and unlabelled
   assert.ok(result.issues.includes('multiple_application_routes'));
   assert.notEqual(result.applicationCandidates[0].originalText,result.applicationCandidates[1].originalText);
 });
+test('semicolon recipient punctuation preserves an explicit application instruction without granting recipient authority',()=>{
+ for(const separator of [';', '; ', ' ; ']){
+  const originalText=`Email your applications to${separator}Applications@employer.example`,r=parseDetail(`<p>${originalText}</p>`);
+  assert.deepEqual(r.applicationCandidates,[{method:'email',destination:'Applications@employer.example',originalText,check:'pending'}]);
+ }
+ for(const line of ['For enquiries email your applications to;jobs@employer.example','Do not email your applications to;jobs@employer.example','Email on the poster: jobs@employer.example'])assert.deepEqual(parseDetail(`<p>${line}</p>`).applicationCandidates,[]);
+});
+test('a later explicit email sentence survives unrelated experience negation but preserves its entire source paragraph',()=>{
+ const originalText='You do not need years of experience. Training is provided. Email your CV to Applications@employer.example.';
+ const r=parseDetail(`<p>${originalText}</p>`);assert.deepEqual(r.applicationCandidates,[{method:'email',destination:'Applications@employer.example',originalText,check:'pending'}]);assert.ok(r.sourceText.includes(r.applicationCandidates[0].originalText));
+ for(const text of ['Do not apply by email. Email your CV to jobs@employer.example.',
+  'Applications by email are not accepted. Email your CV to jobs@employer.example.',
+  'Do not do so. Email your CV to jobs@employer.example.',
+  'For enquiries, no experience is required. Email your CV to jobs@employer.example.',
+  'You do not need experience. Request an application form. Email your CV to jobs@employer.example.',
+  'You do not need experience. Example: Email your CV to jobs@employer.example.',
+  'You do not need experience. Send references email addresses to jobs@employer.example.',
+  'You do not need experience. Email on the poster: jobs@employer.example.' ])assert.deepEqual(parseDetail(`<p>${text}</p>`).applicationCandidates,[],text);
+});
 
 test('mail-the-below recipients require an immediate numbered CV list and keep exact source evidence',()=>{
   for(const prefix of ['If you are interested in this position, mail the below to – ',
