@@ -31,6 +31,7 @@
     "ipaddr.js": "^2.2.0",
     "parse5": "8.0.0",
     "robots-parser": "3.0.1",
+    "tldts": "7.4.19",
     "zod": "^3.22.4",
     "zod-to-json-schema": "3.25.2"
   }

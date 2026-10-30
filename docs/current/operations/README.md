@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Shared careers layouts and corporate recruitment delegation — 30 October 2026](206_SHARED_CAREERS_DELEGATION_2026-10-30.md)
+
 - [Bounded document identity, directory onboarding and fresh mixed batch — 29 October 2026](205_DOCUMENT_IDENTITY_AND_FRESH_BATCH_2026-10-29.md)
 
 - [Source checks, corrections and community contributions](03_SOURCE_CHECKS_AND_COMMUNITY_CONTRIBUTIONS.md)

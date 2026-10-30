@@ -9,12 +9,13 @@ import { getRuntime } from '../src/runtime.mjs';
 import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
 import { originalFixture,originalHtml,originalMicrodataHtml } from './fixtures/original-notices.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
+import {makeDelegation,delegationDocument,delegationBinding} from '../src/origin-discovery.mjs';
 const hash=s=>createHash('sha256').update(s).digest('hex'),payload=v=>({json:JSON.stringify(v)}),value=s=>s.exists?JSON.parse(s.data().json):null;
 let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-origins';db=(await getRuntime()).db;});
 after(async()=>db?.terminate());
-async function fixture({root=true,count=2,hint='url',issuer='Fictional Workshop',format='jsonld'}={}){
- const id=randomUUID(),host=`ats-${id}.example`,corp=`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/tenant-a/`;
+async function fixture({root=true,count=2,hint='url',issuer='Fictional Workshop',format='jsonld',dedicatedHost=false}={}){
+ const id=randomUUID(),host=dedicatedHost?`jobs.authored-${id}.co.za`:`ats-${id}.example`,corp=dedicatedHost?`www.authored-${id}.co.za`:`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/${dedicatedHost?'':'tenant-a/'}`;
  let now='2026-10-29T10:00:00.000Z';
  const cases=Array.from({length:count},(_,i)=>originalFixture({issuer,host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
  if(hint==='url')cases.forEach(c=>{c.posting.hiringOrganization.sameAs=`https://${corp}/`;});
@@ -56,6 +57,30 @@ test('new ATS destinations are corroborated and reused for unseen notices withou
   assert.equal((await f.worker.ref('public',decision.recordId).get()).exists,false);
  }
  assert.deepEqual(value(await f.worker.ref('sources',f.source.id).get()),f.source);assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
+});
+test('dedicated recruitment roots reuse parent-bound proofs across notices, then stop on revocation without resetting usage',async()=>{
+ const f=await fixture({dedicatedHost:true,hint:'name',format:'microdata_literal',issuer:`Authored Dedicated ${randomUUID()}`});
+ f.state.page=`<div><h1>Careers</h1><div><h1>CAREERS</h1><p>Our process does not require advance payments. Candidates can apply for vacancies through our <a href="${f.link}">career website</a>.</p><h1>Join our team</h1></div></div>`;
+ const run=await f.worker.run(f.source.id);assert.equal(run.results.filter(r=>r.recordId).length,2,JSON.stringify({run,origins:await f.rows('worker_origin_discoveries'),originals:await f.rows('worker_original_resolutions')}));
+ const proof=(await f.rows('employer_delegations'))[0];assert.equal(proof.version,'corporate_delegation_v2');assert.equal(proof.scopeKind,'corporate_subdomain');assert.equal(proof.route.pathPrefix,'/');assert.deepEqual(proof.route.emailAddresses,[]);
+ assert.equal(f.state.requests.filter(u=>u===f.page).length,1);assert.equal((await f.rows('employer_delegation_versions')).length,1);
+ assert.deepEqual(new Set((await f.rows('worker_origin_discoveries')).map(r=>r.resolution.outcome)),new Set(['corroborated','cached']));
+ for(const result of run.results.filter(r=>r.recordId)){assert.equal(value(await f.worker.ref('drafts',result.recordId).get()).publication.approved,false);assert.equal((await f.worker.ref('public',result.recordId).get()).exists,false);}
+ await f.revoke();await f.restart().runJob(f.source.id,await f.recheck());assert.equal(f.state.extracted.length,2);assert.equal(value(await f.worker.ref('model_budgets',hash(`${f.source.id}:2026-10-29`)).get()).calls,4);
+ assert.deepEqual(value(await f.worker.ref('employer_delegation_versions',delegationBinding(proof).hash).get()),proof);
+ assert.deepEqual(value(await f.worker.ref('sources',f.source.id).get()),f.source);assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
+});
+test('a V2 dedicated host proof cannot override an exact vacancy URL conflict',async()=>{
+ const f=await fixture({dedicatedHost:true,count:1});f.cases[0].posting.url=`https://${f.host}/other-vacancy/`;
+ const run=await f.worker.run(f.source.id);assert.ok(run.results.some(r=>r.reason==='ORIGINAL_NOTICE_CONFLICTING'));assert.deepEqual(f.state.extracted,[]);
+ assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.outcome,'corroborated');assert.equal((await f.rows('model_calls')).length,0);
+});
+test('unexpired legacy V1 path proofs are reused unchanged under the new reader without new authority or reset spend',async()=>{
+ const f=await fixture({count:1}),v2=makeDelegation(f.parent,f.link,{now:f.parent.reviewedAt,snapshotId:'authored_legacy_snapshot',sourceId:f.source.id,sourceRevision:1}),{scopeKind,...legacy}=v2;
+ legacy.version='corporate_delegation_v1';await f.worker.ref('employer_delegations',legacy.id).set(delegationDocument(legacy));await f.worker.ref('employer_delegation_versions',delegationBinding(legacy).hash).set(payload(legacy));
+ const run=await f.worker.run(f.source.id);assert.equal(run.results.filter(r=>r.recordId).length,1);assert.ok(!f.state.requests.includes(f.page));
+ assert.deepEqual(value(await f.worker.ref('employer_delegations',legacy.id).get()),legacy);assert.equal((await f.rows('employer_delegation_versions')).length,1);
+ assert.equal((await f.rows('worker_origin_discoveries'))[0].resolution.outcome,'cached');
 });
 test('name-only Microdata finds a reviewed corporate anchor, requires its backlink and reuses proof across notices',async()=>{
  const issuer=`Authored Forge ${randomUUID()}`,f=await fixture({hint:'name',issuer,format:'microdata_literal'});

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { corporateLink, issuerHint, probeUrl, makeDelegation, delegationDocument, readDelegation } from '../src/origin-discovery.mjs';
+import { corporateLink, corporateRecruitmentRoot, issuerHint, probeUrl, makeDelegation, delegationDocument, readDelegation } from '../src/origin-discovery.mjs';
 import { EmployerRelationship, Source } from '../src/schemas.mjs';
 import { relationshipBinding, issuerNameKey, relationshipKeys, legacyRelationshipKeys, relationshipDocument, readRelationship } from '../src/issuer-registry.mjs';
 import { originalFixture, originalHtml } from './fixtures/original-notices.mjs';
@@ -17,6 +17,47 @@ test('corporate links establish the explicitly linked tenant scope, selecting th
   assert.equal(corporateLink(careers(`<a href="${link}">View jobs</a>`),page,target),link);
   assert.equal(corporateLink(html,page,'https://ats.example/tenant-a-other/job/123/'),null);
 });
+test('semantic and prose careers layouts accept identical repeated headings but exclude page chrome and conflicting content',()=>{
+ const a=`<a href="${link}">View jobs</a>`;
+ for(const html of [`<main><header class="page-header"><h1>Careers</h1></header>${a}</main>`,`<div role="main"><h1>Careers</h1>${a}</div>`,`<div><h1>Careers</h1><div><h1>CAREERS</h1><p>${a}</p><h1>Join our team</h1></div></div>`,
+  `<div role="navigation"><h1>Other careers</h1>${a}</div><div><h1>Careers</h1><p>${a}</p></div>`,
+  `<div class="header-wrapper"><h1>Other careers</h1>${a}</div><div><h1>Careers</h1><p>${a}</p></div>`])assert.equal(corporateLink(html,page,target),link);
+ for(const html of [`<h1>Careers</h1><p>${a}</p>`,`<div><h1>Careers</h1>${a}</div>`,`<div><h1>Careers</h1><h1>Other careers</h1><p>${a}</p></div>`,
+  `<div><h1>Careers</h1><div class="footer-wrapper"><p>${a}</p></div></div>`,careers(`<div role="navigation">${a}</div>`),
+  `<div role="main"><h1>Careers</h1>${a}</div><main><h1>Careers</h1>${a}</main>`,`<base href="https://other.example/">${careers(a)}`,
+  careers(`<div hidden><base href="https://other.example/"></div>${a}`)])assert.equal(corporateLink(html,page,target),null);
+});
+test('remote disclaimers cannot hide warnings about the link or contradict an explicit application endorsement',()=>{
+ const a=`<a href="${link}">career website</a>`,html=s=>`<div><h1>Careers</h1><p>${s}</p></div>`;
+ assert.equal(corporateLink(html(`Our process does not require advance payments. Candidates can apply for a vacancy through our ${a}.`),page,target),link);
+ for(const s of [`Do not apply through our ${a}.`,`Never use this portal. Apply through our ${a}.`,`This website is not official. Apply through our ${a}.`,
+  `The portal is not recommended. Apply through our ${a}.`,`We do not request payments. Our ${a}.`,`Beware of fake offers. Apply through our ${a}.`,
+  `This link is not authorised. Apply through our ${a}.`,`This site is not authentic. Apply through our ${a}.`,`This service is not trusted. Apply through our ${a}.`])assert.equal(corporateLink(html(s),page,target),null);
+ const root='https://ats.example/';assert.equal(corporateLink(careers(`<p><a href="${link}">View jobs</a></p><p>Never use <a href="${root}">this portal</a></p>`),page,target),null);
+ assert.equal(corporateLink(careers(`<p><a href="${link}">View jobs</a></p><p><a href="${target}">Fake job</a></p>`),page,target),null);
+});
+test('root recruitment scopes require an explicitly linked subdomain of the reviewed apex/www corporate domain',()=>{
+ for(const [corp,root]of [['https://www.authored-forge.co.za/careers/','https://jobs.authored-forge.co.za/'],['https://authored-forge.com/careers/','https://careers.authored-forge.com/']]){
+  assert.equal(corporateRecruitmentRoot(corp,root),true);assert.equal(corporateLink(careers(`<a href="${root}">View jobs</a>`),corp,root+'job/123/'),root);
+ }
+ for(const [corp,root]of [['https://www.co.za/careers/','https://jobs.attacker.co.za/'],['https://www.authored-forge.co.za/careers/','https://jobs.other.co.za/'],
+  ['https://team.authored-forge.com/careers/','https://jobs.authored-forge.com/'],['https://www.authored-forge.com/careers/','https://ats.example/'],
+  ['https://www.authored-forge.com/careers/','https://jobs.authored-forge.com.evil.net/'],['https://www.authored-forge.com/careers/','https://www.authored-forge.com/'],
+  ['https://www.github.io/careers/','https://jobs.other.github.io/'],['https://tenant.github.io/careers/','https://jobs.tenant.github.io/'],
+  ['https://www.authored-forge.unknownsuffix/careers/','https://jobs.authored-forge.unknownsuffix/']]){
+  assert.equal(corporateRecruitmentRoot(corp,root),false);assert.equal(corporateLink(careers(`<a href="${root}">View jobs</a>`),corp,root+'job/123/'),null);
+ }
+});
+test('V2 root proofs are bounded and parent-linked; old path proofs preserve their exact JSON and binding',()=>{
+ const a=anchor(),old=makeDelegation(a,link,{now:a.reviewedAt,snapshotId:'authored_snapshot',sourceId:'authored_publisher',sourceRevision:1});
+ const {scopeKind,...legacy}=old;legacy.version='corporate_delegation_v1';assert.deepEqual(readDelegation({exists:true,id:legacy.id,data:()=>delegationDocument(legacy)}),legacy);
+ const corp=EmployerRelationship.parse({...a,route:{...a.route,host:'www.authored-forge.co.za',pathPrefix:'/'},delegationPage:'https://www.authored-forge.co.za/careers/'}),root='https://jobs.authored-forge.co.za/';
+ const r=makeDelegation(corp,root,{now:corp.reviewedAt,snapshotId:'authored_snapshot',sourceId:'authored_publisher',sourceRevision:1});assert.equal(r.scopeKind,'corporate_subdomain');assert.equal(r.route.pathPrefix,'/');
+ assert.deepEqual(readDelegation({exists:true,id:r.id,data:()=>delegationDocument(r)}),r);
+ for(const forged of [{...r,scopeKind:'linked_path'},{...r,version:'corporate_delegation_v1',scopeKind:undefined},{...r,corporateUrl:'https://www.other.co.za/careers/'}])
+  assert.throws(()=>readDelegation({exists:true,id:r.id,data:()=>delegationDocument(forged)}),{code:'ORIGIN_PROOF_INVALID'});
+ assert.throws(()=>makeDelegation(a,'https://ats.example/',{now:a.reviewedAt,snapshotId:'authored_snapshot',sourceId:'authored_publisher',sourceRevision:1}),{code:'ORIGIN_PROOF_INVALID'});
+});
 test('unsupported, hidden, navigation, footer, ambiguous and warning content cannot qualify delegation',()=>{
   const a=`<a href="${link}">View jobs</a>`;
   for(const html of [a,`<main><h1>Careers</h1></main><footer>${a}</footer>`,careers(`<nav>${a}</nav>`),careers(`<aside>${a}</aside>`),
@@ -24,7 +65,8 @@ test('unsupported, hidden, navigation, footer, ambiguous and warning content can
     careers(`<a href="${link}">Avoid these fake jobs</a>`),careers(`<a href="https://ats.example/">Jobs</a>`),
     careers(`<p>Beware of this portal: ${a}</p>`),careers(`<p>${a}</p><p>Never use ${a}</p>`),
     careers(`<a href="${link}?tenant=other">Jobs</a>`),careers(`<a href="https://ats.example/tenant-b/">Jobs</a>`),
-    careers(a)+careers(a),careers(a+'<h1>More careers</h1>'),'x'.repeat(500001)]) assert.equal(corporateLink(html,page,target),null);
+    careers(a)+careers(a),careers(a+'<h1>More careers</h1>'),careers('<div>'.repeat(110)+a+'</div>'.repeat(110)),
+    careers('<div hidden>'+'<i></i>'.repeat(21000)+'</div>'+a),'x'.repeat(500001)]) assert.equal(corporateLink(html,page,target),null);
 });
 test('a posting corporate hint is a bounded lookup hint, not trust or a URL to fetch',()=>{
   const f=originalFixture();

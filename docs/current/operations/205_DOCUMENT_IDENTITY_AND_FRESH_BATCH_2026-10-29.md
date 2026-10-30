@@ -86,3 +86,5 @@ Both staging images are built locally with native WSL Buildx. Build-time host ne
 Private plans, source captures, probes, bundles, replay receipts and image/test logs remain ignored under `.artifacts/groq/pdf-identity-2026-10-29/` and `.artifacts/shadow/`. No raw source snapshot, document bytes, credential or provider response is committed.
 
 Next priority is a shared corporate-careers layout/delegation improvement and exact original email/intake corroboration, followed by another fixed mixed-batch acceptance run. A positive real original-to-extraction-to-draft result is still required. Unattended unknown-company qualification, reset-aware orchestration, publication-lane qualification, closure/change handling and hosting remain open.
+
+Follow-up: [shared careers delegation, 30 October](206_SHARED_CAREERS_DELEGATION_2026-10-30.md) replays this frozen cohort offline, clearing the portal's corporate delegation barrier while preserving its exact vacancy-binding hold and both email holds. No new live acceptance or publication follows.

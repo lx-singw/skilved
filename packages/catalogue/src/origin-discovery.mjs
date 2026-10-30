@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { parse } from 'parse5';
+import { parse as parseDomain } from 'tldts';
 import ipaddr from 'ipaddr.js';
 import { z } from 'zod';
 import { IdSchema, InstantSchema } from '@skilved/types/opportunities';
@@ -8,12 +9,13 @@ import { readRelationship, relationshipBinding, validateIssuerBindings, issuerNa
 import { inspectPrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { DomainError } from './config.mjs';
 
-export const ORIGIN_DISCOVERY_VERSION = 'corporate_delegation_v1';
+export const ORIGIN_DISCOVERY_VERSION = 'corporate_delegation_v2';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const fail = code => { throw new DomainError(code); };
 const name = value => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const Binding = z.object({ id: IdSchema, revision: z.number().int().positive(), hash: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-const Delegation = z.object({ id: IdSchema, version: z.literal(ORIGIN_DISCOVERY_VERSION), parent: Binding,
+const Delegation = z.object({ id: IdSchema, version: z.enum(['corporate_delegation_v1',ORIGIN_DISCOVERY_VERSION]), parent: Binding,
+  scopeKind: z.enum(['linked_path','corporate_subdomain']).optional(),
   route: IssuerRoute, corporateUrl: z.string().url().max(2048), linkUrl: z.string().url().max(2048),
   observedAt: InstantSchema, expiresAt: InstantSchema, snapshotId: IdSchema, sourceId: IdSchema,
   sourceRevision: z.number().int().positive() }).strict();
@@ -59,57 +61,102 @@ export async function corporateAnchor(tx, db, hint, now) {
   return anchors.length === 1 ? anchors[0] : null;
 }
 
-/** Only visible careers links in one main region; never menus, footers, scripts or guessed URLs. */
+/** An explicitly linked recruitment root is limited to a subdomain of a reviewed
+ * apex/www corporate site, with ICANN and private suffix boundaries preserved.
+ * This classifies a supplied link; it never constructs a recruitment hostname.
+ */
+export function corporateRecruitmentRoot(corporateUrl,linkUrl){
+ const corporate=probeUrl(corporateUrl),link=probeUrl(linkUrl);if(!corporate||!link||corporate.search||link.search||link.pathname!=='/')return false;
+ const c=parseDomain(corporate.hostname,{allowPrivateDomains:true}),l=parseDomain(link.hostname,{allowPrivateDomains:true});
+ return c.isIcann===true&&!c.isPrivate&&l.isIcann===true&&!l.isPrivate&&!!c.domain&&c.domain===l.domain&&
+  [c.domain,`www.${c.domain}`].includes(corporate.hostname)&&link.hostname.endsWith(`.${c.domain}`)&&link.hostname!==`www.${c.domain}`;
+}
+function scopeSupported(corporateUrl,link,rootAllowed){return link&&!link.search&&link.pathname.length<=500&&link.pathname.endsWith('/')&&
+ (link.pathname!=='/'||rootAllowed&&corporateRecruitmentRoot(corporateUrl,link.href));}
+const marker='\uE000';
+function linkWarning(context,label){
+ const warning=/\b(?:not|never|avoid|beware|fake|scams?|fraud(?:ulent)?|unauthori[sz]ed|example|privacy|cookies|share|whatsapp)\b/i;
+ if(warning.test(label)||context.split(marker).length!==2)return true;
+ if(!warning.test(context))return false;
+ // A paragraph may first disclaim unsolicited offers/fees, then explicitly say
+ // applications go through the linked website. Only that affirmative sentence
+ // can resolve a remote "not"; directives, portal warnings and contradictions
+ // elsewhere in the paragraph remain a hold.
+ const sentences=context.split(/(?<=[.!?])\s+/),local=sentences.find(s=>s.includes(marker));
+ if(!local||warning.test(local)||/\b(?:never|avoid|beware|fake|scams?|fraud(?:ulent)?|unauthori[sz]ed|privacy|cookies|share|whatsapp|example)\b|\b(?:do|must|should|shall)\s+not\b|\bnot\s+(?:safe|official|authentic|legitimate|trusted|affiliated|recommended|authori[sz]ed)\b/i.test(context))return true;
+ if(sentences.some(s=>!s.includes(marker)&&warning.test(s)&&/\b(?:portals?|websites?|sites?|links?|addresses?|destinations?|services?|platforms?|channels?|jobs)\b/i.test(s)))return true;
+ return !/\b(?:apply|applied|applications?|vacanc(?:y|ies))\b[^.!?]{0,160}\b(?:through|via|using|on|at)\b[^.!?]{0,80}\uE000/i.test(local);
+}
+
+/** Visible careers content in one main/role-main, or a heading-associated content
+ * container. Repeated identical careers headings are allowed; conflicting titles,
+ * menus, footers, warnings, base URLs and unbounded layouts remain unsupported.
+ */
 export function corporateLink(html, corporateUrl, destination) {
   if (typeof html !== 'string' || Buffer.byteLength(html) > 500_000) return null;
-  const target = probeUrl(destination); if (!target) return null;
-  const root = parse(html), mains = [], headings = [], links = [];
-  const stack = [[root,0,false]]; let count = 0;
-  const ignored = node => ['script','style','iframe','template','noscript','form','nav','aside','footer'].includes(node.tagName) ||
+  const target = probeUrl(destination); if (!target||!probeUrl(corporateUrl)||new URL(corporateUrl).search) return null;
+  const root = parse(html), mains = [], headings = [], links = [],visible=new WeakSet(),insideMain=new WeakSet();
+  const role=node=>node.attrs?.find(a=>a.name==='role')?.value.trim().toLowerCase()??'';
+  const chrome=/\b(?:footer|nav|navigation|menu|mainmenu|megamenu|sidebar|breadcrumbs?|cookie|consent)\b/i;
+  const chromeNames=node=>(node.attrs??[]).filter(a=>['id','class'].includes(a.name)).map(a=>a.value.replace(/[_-]/g,' ')).join(' ');
+  const stack = [[root,0,false,false]]; let count = 0,work=0,exhausted=false;
+  const ignored = (node,inMain) => ['script','style','iframe','template','noscript','form','nav','aside','footer','menu'].includes(node.tagName) ||
+    !inMain&&node.tagName==='header'||/\b(?:navigation|banner|contentinfo|complementary|dialog)\b/.test(role(node))||
+    chrome.test(chromeNames(node))||!inMain&&/\bheader\b/i.test(chromeNames(node))||
     node.attrs?.some(a => a.name === 'hidden' || a.name === 'aria-hidden' && a.value === 'true' ||
       a.name === 'style' && /(?:display\s*:\s*none|visibility\s*:\s*hidden)/i.test(a.value));
-  const text = node => {
-    const parts = [], pending = [[node,0]]; let count = 0;
+  const text = (node,marked=null) => {
+    const parts = [], pending = [[node,0]];
     while (pending.length) {
-      const [n,depth] = pending.pop(); if (++count>20_000 || depth>100) return '';
-      if (ignored(n)) continue;
+      const [n,depth] = pending.pop(); if (++work>200_000 || depth>100) {exhausted=true;return '';}
+      if (!visible.has(n)) continue;
+      if(n===marked){parts.push(marker);continue;}
       if (n.nodeName === '#text') parts.push(n.value);
       pending.push(...(n.childNodes ?? []).slice().reverse().map(child => [child,depth+1]));
     }
     return parts.join(' ').replace(/\s+/g,' ').trim();
   };
   while (stack.length) {
-    const [node,depth,inMain] = stack.pop();
+    const [node,depth,inMain,hidden] = stack.pop();
     if (++count > 20_000 || depth > 100) return null;
     const attr = key => node.attrs?.find(a => a.name === key)?.value;
-    if (ignored(node)) continue;
-    if (node.tagName === 'main') mains.push(node);
-    const within = inMain || node.tagName === 'main';
-    if (within && node.tagName === 'h1') headings.push(node);
-    if (within && node.tagName === 'a' && attr('href')) links.push(node);
-    for (const child of (node.childNodes ?? []).slice().reverse()) stack.push([child,depth+1,within]);
+    if(node.tagName==='base'&&attr('href')!==undefined)return null;
+    const excluded=hidden||ignored(node,inMain),isMain=node.tagName==='main'||role(node)==='main',within=inMain||isMain;
+    if(!excluded){visible.add(node);if(within)insideMain.add(node);if(isMain)mains.push(node);
+      if(node.tagName==='h1')headings.push(node);if(node.tagName==='a'&&attr('href'))links.push(node);}
+    for (const child of (node.childNodes ?? []).slice().reverse()) stack.push([child,depth+1,within,excluded]);
   }
-  if (mains.length !== 1 || headings.length !== 1 || !/\b(?:careers|jobs|vacancies)\b/i.test(text(headings[0]))) return null;
+  if(mains.length>1)return null;
+  const titles=headings.filter(n=>(!mains.length||insideMain.has(n))&&/\b(?:careers|jobs|vacancies)\b/i.test(text(n)));
+  if(!titles.length||new Set(titles.map(n=>name(text(n)))).size!==1||exhausted)return null;
+  const regions=new WeakSet();for(const h of titles)for(let n=h.parentNode;n;n=n.parentNode)if(['div','section','article','main'].includes(n.tagName)||role(n)==='main')regions.add(n);
   const matches = new Map(), denied = new Set();
-  const warning = /\b(?:not|never|avoid|beware|fake|scams?|fraud(?:ulent)?|unauthori[sz]ed|example|privacy|cookies|share|whatsapp)\b/i;
   for (const node of links) {
+    if(mains.length&&!insideMain.has(node))continue;
+    // Without semantic main markup, require an actual prose link associated with
+    // a careers heading, rather than promoting a page-wide collection of anchors.
+    if(!mains.length){let p=node.parentNode;while(p&&!['p','body'].includes(p.tagName))p=p.parentNode;
+      if(p?.tagName!=='p')continue;let region=p.parentNode;while(region&&!regions.has(region))region=region.parentNode;if(!region)continue;}
     const label = text(node);
     let url; try { url = probeUrl(new URL(node.attrs.find(a => a.name === 'href').value,corporateUrl).href); } catch { continue; }
-    if (!url || url.search || url.hostname !== target.hostname || url.pathname === '/' || url.pathname.length > 500 || !url.pathname.endsWith('/') ||
-        !target.pathname.startsWith(url.pathname)) continue;
+    if (!url || url.search || url.hostname !== target.hostname ||
+        !(target.pathname===url.pathname||target.pathname.startsWith(url.pathname.endsWith('/')?url.pathname:url.pathname+'/'))) continue;
     let context = node.parentNode;
     while (context && !['main','p','li','section','div','article'].includes(context.tagName)) context = context.parentNode;
-    if (warning.test(label) || context && warning.test(text(context))) { denied.add(url.href); continue; }
-    if (label.length > 200 || !/\b(?:careers|jobs|vacancies|open positions)\b/i.test(label)) continue;
+    if (linkWarning(text(context??node.parentNode,node),label)) { denied.add(url.href); continue; }
+    if(!scopeSupported(corporateUrl,url,true))continue;
+    if (label.length > 200 || !/\b(?:careers?|jobs|vacancies|open positions)\b/i.test(label)) continue;
     matches.set(url.href, url);
   }
   // Prefer the smallest explicitly linked scope; never infer a tenant from a job ID.
-  return [...matches.values()].filter(url=>!denied.has(url.href)).sort((a,b) => b.pathname.length-a.pathname.length)[0]?.href ?? null;
+  if(exhausted||denied.size)return null;
+  return [...matches.values()].sort((a,b) => b.pathname.length-a.pathname.length)[0]?.href ?? null;
 }
 export function makeDelegation(anchor, linkUrl, { now, snapshotId, sourceId, sourceRevision }) {
   const link = probeUrl(linkUrl);
-  if (!link || link.search || link.pathname === '/' || link.pathname.length > 500 || !link.pathname.endsWith('/') || !anchor.delegationPage) fail('ORIGIN_PROOF_INVALID');
+  if (!anchor.delegationPage || !scopeSupported(anchor.delegationPage,link,true)) fail('ORIGIN_PROOF_INVALID');
   return Delegation.parse({ id: idFor(anchor.id,link.href), version: ORIGIN_DISCOVERY_VERSION, parent: relationshipBinding(anchor),
+    scopeKind:link.pathname==='/'?'corporate_subdomain':'linked_path',
     route: { name: anchor.route.name, aliases: anchor.route.aliases, host: link.hostname, pathPrefix: link.pathname,
       emailAddresses: [], evidence: `Corporate careers delegation: parent ${anchor.id} revision ${anchor.revision}; snapshot ${snapshotId}` },
     corporateUrl: anchor.delegationPage, linkUrl: link.href, observedAt: now,
@@ -121,7 +168,9 @@ export function readDelegation(snapshot) {
   try {
     const raw = snapshot.data(), r = Delegation.parse(JSON.parse(raw.json)), url = probeUrl(r.linkUrl);
     if (Object.keys(raw).sort().join(',') !== 'json,routeKeys' || snapshot.id !== r.id || r.id !== idFor(r.parent.id,r.linkUrl) ||
-        JSON.stringify(raw.routeKeys) !== JSON.stringify([`portal:${r.route.host}`]) || !url || url.search || url.pathname === '/' ||
+        JSON.stringify(raw.routeKeys) !== JSON.stringify([`portal:${r.route.host}`]) || !url || url.href!==r.linkUrl ||
+        !scopeSupported(r.corporateUrl,url,r.version===ORIGIN_DISCOVERY_VERSION)||
+        (r.version==='corporate_delegation_v1'?r.scopeKind!==undefined:r.scopeKind!==(url.pathname==='/'?'corporate_subdomain':'linked_path'))||
         !url.pathname.endsWith('/') || url.hostname !== r.route.host || url.pathname !== r.route.pathPrefix || r.route.emailAddresses.length ||
         r.observedAt >= r.expiresAt || Date.parse(r.expiresAt)-Date.parse(r.observedAt)>6*3_600_000) fail('ORIGIN_PROOF_INVALID');
     return r;
