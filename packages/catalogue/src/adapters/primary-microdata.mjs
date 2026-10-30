@@ -11,7 +11,7 @@ const excluded = node => ['script','style','iframe','template','noscript','form'
 /** A bounded, local descendant subset of HTML Microdata. No itemref resolution,
  * resource loads, DOM execution, inferred properties or cross-item field merging.
  */
-export function readMicrodataJobPosting(root) {
+export function readMicrodataJobPosting(root,{includeRoot=false}={}) {
   const roots = [], stack = [[root, 0, false]]; let nodes = 0, hasBase = false;
   while (stack.length) {
     const [node, depth, hidden] = stack.pop(); if (++nodes > 20_000 || depth > 100) fail();
@@ -92,5 +92,5 @@ export function readMicrodataJobPosting(root) {
   if (typeof posting.hiringOrganization === 'string') posting.hiringOrganization = { name: posting.hiringOrganization };
   for (const key of ['title','description','hiringOrganization','validThrough','url','mainEntityOfPage','identifier'])
     if (Array.isArray(posting[key])) fail();
-  return posting;
+  return includeRoot?{posting,rootNode:roots[0]}:posting;
 }

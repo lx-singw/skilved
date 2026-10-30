@@ -11,7 +11,7 @@ test('shared Microdata parses distinct employers and corroborates the exact vaca
  for(const [issuer,host] of [['Authored Forge','jobs.example'],['Imaginary Works','careers.example'],['Fictional Tools','tenant.example']]){
   const f=originalFixture({issuer,host}),html=originalMicrodataHtml(f.posting),p=inspectPrimaryJobPosting(html),r=resolve(f,html);
   assert.equal(p.adapter,'jobposting_microdata_v1');assert.equal(p.primary.issuer,issuer);assert.equal(p.identifier.value,'AP-123');assert.match(p.descriptionText,/\nReference: AP-123$/);
-  assert.equal(r.outcome,'matched');assert.equal(r.adapter,p.adapter);assert.equal(r.version,'original_jobposting_v3');assert.deepEqual(r.primary,parsePrimaryJobPosting(html));
+  assert.equal(r.outcome,'matched');assert.equal(r.adapter,p.adapter);assert.equal(r.version,'original_jobposting_v4');assert.deepEqual(r.primary,parsePrimaryJobPosting(html));
   assert.throws(()=>parsePrimaryJobPosting(html,{allowMicrodata:false}),{code:'PRIMARY_NOTICE_UNSUPPORTED'});
  }
 });

@@ -9,6 +9,7 @@ import { getRuntime } from '../src/runtime.mjs';
 import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
 import { originalFixture, originalHtml, originalMicrodataHtml } from './fixtures/original-notices.mjs';
+import {recruitingHtml} from './fixtures/recruiting-marketing.mjs';
 const value = snap => snap.exists ? JSON.parse(snap.data().json) : null;
 const payload = v => ({ json: JSON.stringify(v) });
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -25,20 +26,23 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
   const cases = kinds.map((kind, index) => {
     const f = originalFixture({ issuer: kind.endsWith('_b') ? 'Imaginary Works' : 'Fictional Workshop',
       host: kind.endsWith('_b') ? 'second.example' : kind === 'unknown' ? 'unqualified.example' : 'careers.example',
-      path: `/tenant-a/job/${index + 100}/`, reference: `AP-${index + 100}`, slug: `authored-${kind.replaceAll('_','-')}` });
+      path:kind.startsWith('rmk_')?`/job/Authored-apprentice/${index+100}/`:`/tenant-a/job/${index + 100}/`, reference:kind.startsWith('rmk_')?null:`AP-${index + 100}`, slug: `authored-${kind.replaceAll('_','-')}` });
     if (kind === 'wrong_url') f.posting.url = 'https://careers.example/tenant-a/job/9999/';
     if (kind === 'wrong_ref') f.posting.description = '<p>Reference: AP-9999</p>';
     if (kind === 'closed') f.posting.validThrough = '2026-10-20';
     if (kind === 'microdata_legacy') f.posting.validThrough = 'Fri Oct 30 22:00:00 UTC 2026';
     if (kind === 'legacy_utc_a' || kind === 'microdata_legacy_match_b') f.posting.validThrough = 'Fri Oct 30 09:00:00 UTC 2026';
     if (kind === 'legacy_bad_weekday') f.posting.validThrough = 'Thu Oct 30 09:00:00 UTC 2026';
-    f.primaryHtml = kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_') ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
+    if(kind.startsWith('rmk_')){delete f.posting.url;delete f.posting.identifier;f.action=`https://${new URL(f.url).hostname}/talentcommunity/apply/${kind==='rmk_wrong_action'?'999999':index+100}/?locale=en_US`;}
+    if(kind==='rmk_rollover')f.posting.validThrough='Fri Oct 30 22:00:00 UTC 2026';
+    f.primaryHtml = kind.startsWith('rmk_')?recruitingHtml(f):kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_') ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
     return { ...f, kind };
   });
   const source = Source.parse({ ...cases[0].source, id: sourceId,
     automation: { ...cases[0].source.automation, issuers: [
       ...originalFixture().source.automation.issuers,
       ...originalFixture({ issuer: 'Imaginary Works', host: 'second.example' }).source.automation.issuers,
+      ...['careers.example','second.example'].map((host,i)=>({...originalFixture({issuer:i?'Imaginary Works':'Fictional Workshop',host}).source.automation.issuers[0],pathPrefix:'/job/'})),
     ] } });
   const state = { requests: [], extracted: [], validated: [], afterValidation: null, afterRobots: null };
   const options = { now: () => now, sleep: async () => {},
@@ -62,7 +66,7 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
       const c = cases.find(c => c.detailUrl === candidate.sourceUrl);
       const x = JSON.parse(JSON.stringify(syntheticExtraction()).replaceAll('Fictional Workshop', c.posting.hiringOrganization.name));
       const reference = c.candidate.sourceText.match(/^Reference: (.+)$/m);
-      x.intake = { state: 'stated', value: reference[1], quote: reference[0] };
+      if(reference)x.intake = { state: 'stated', value: reference[1], quote: reference[0] };
       return { extraction: x, provenance: { usage: { totalTokens: 20 } } };
     },
     validator: async ({ primary }) => {
@@ -122,7 +126,7 @@ test('normal shadow worker admits corroborated Microdata for two issuers but hol
   assert.equal(result.results.filter(r => r.recordId).length, 2);
   assert.equal(f.state.extracted.length, 2); assert.equal(f.state.validated.length, 2);
   const resolutions = await f.rows('worker_original_resolutions'); assert.equal(resolutions.length, 3);
-  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v3'));
+  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v4'));
   assert.equal(resolutions.filter(r => r.resolution.outcome === 'matched').length, 2);
   assert.equal(resolutions.find(r => r.resolution.outcome === 'conflicting').resolution.reason, 'DEADLINE_CONFLICT');
   assert.equal((await f.rows('worker_decisions')).length, 2);
@@ -132,6 +136,16 @@ test('normal shadow worker admits corroborated Microdata for two issuers but hol
     assert.equal((await f.worker.ref('public', decision.recordId).get()).exists, false);
   }
   assert.equal((await f.rows('worker_exceptions')).length, 1);
+});
+test('shared RMK action binding reaches private drafts for two issuers but wrong actions and day rollover stay held before AI',async()=>{
+ const f=await fixture(['rmk_a','rmk_b','rmk_wrong_action','rmk_rollover']),run=await f.worker.run(f.sourceId);
+ assert.equal(run.results.filter(r=>r.recordId).length,2,JSON.stringify(run));assert.equal(f.state.extracted.length,2);assert.equal(f.state.validated.length,2);
+ const resolutions=await f.rows('worker_original_resolutions'),matched=resolutions.filter(r=>r.resolution.outcome==='matched');assert.equal(matched.length,2);
+ for(const r of matched){assert.equal(r.resolution.version,'original_jobposting_v4');assert.equal(r.resolution.vacancyBinding.kind,'rmk_apply_action');}
+ assert.deepEqual(new Set(resolutions.filter(r=>r.resolution.outcome==='conflicting').map(r=>r.resolution.reason)),new Set(['VACANCY_ACTION_CONFLICT','DEADLINE_CONFLICT']));
+ assert.equal(value(await f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-10-29`)).get()).calls,4);
+ for(const r of run.results.filter(r=>r.recordId)){assert.equal(value(await f.worker.ref('drafts',r.recordId).get()).publication.approved,false);assert.equal((await f.worker.ref('public',r.recordId).get()).exists,false);}
+ assert.deepEqual(value(await f.worker.ref('sources',f.sourceId).get()),f.source);assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
 });
 test('shared UTC deadline decoding admits same-day originals across formats and holds shifted or malformed dates before AI', async () => {
   const f = await fixture(['legacy_utc_a','microdata_legacy_match_b','microdata_legacy','legacy_bad_weekday']);

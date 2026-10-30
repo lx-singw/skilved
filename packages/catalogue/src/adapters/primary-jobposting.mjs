@@ -1,6 +1,7 @@
 import { parse } from 'parse5';
 import { DomainError } from '../config.mjs';
 import { readMicrodataJobPosting } from './primary-microdata.mjs';
+import { inspectRecruitingMarketingBinding } from './recruiting-marketing-binding.mjs';
 const fail = () => { throw new DomainError('PRIMARY_NOTICE_UNSUPPORTED'); };
 
 function walk(root, visit) {
@@ -40,11 +41,11 @@ function readJobPosting(html) {
       for (const v of Object.values(item)) if (typeof v === 'object' && v !== null) stack.push([v, depth + 1]);
     }
   });
-  const microdata = readMicrodataJobPosting(root);
+  const microdata = readMicrodataJobPosting(root,{includeRoot:true});
   // Separate representations need explicit reconciliation before they can agree
   // on this vacancy. Never silently prefer one over a second posting.
   if (postings.length + (microdata ? 1 : 0) !== 1) fail();
-  return { posting: microdata ?? postings[0], root, adapter: microdata ? 'jobposting_microdata_v1' : 'jobposting_jsonld_v1' };
+  return { posting: microdata?.posting ?? postings[0], root, postingRoot:microdata?.rootNode, adapter: microdata ? 'jobposting_microdata_v1' : 'jobposting_jsonld_v1' };
 }
 function projectPosting(p) {
   const issuer = p.hiringOrganization?.name;
@@ -81,7 +82,7 @@ function descriptionLines(html) {
 
 /** Additional structured identity evidence; does not establish employer authority. */
 export function inspectPrimaryJobPosting(html) {
-  const { posting: p, root, adapter } = readJobPosting(html), primary = projectPosting(p);
+  const { posting: p, root, postingRoot, adapter } = readJobPosting(html), primary = projectPosting(p);
   const canonicals = [];
   walk(root, node => {
     const attribute = name => node.attrs?.find(a => a.name === name)?.value;
@@ -101,5 +102,6 @@ export function inspectPrimaryJobPosting(html) {
     postingUrl: p.url ?? null, canonicalUrl: canonicals[0] ?? null,
     mainEntityUrl: p.mainEntityOfPage?.['@id'] ?? p.mainEntityOfPage ?? null,
     identifier, issuerUrls: [p.hiringOrganization?.sameAs, p.hiringOrganization?.url].filter(v => v !== undefined),
-    descriptionText: descriptionLines(p.description) };
+    descriptionText: descriptionLines(p.description),
+    actionBinding:postingRoot?inspectRecruitingMarketingBinding(postingRoot,canonicals[0]??null):null };
 }

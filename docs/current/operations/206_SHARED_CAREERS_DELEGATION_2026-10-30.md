@@ -63,6 +63,8 @@ Email support therefore remains a delivery gap. Its acquisition step needs an ex
 
 Next priorities are shared exact vacancy binding for supported ATS layouts and original advert acquisition/corroboration for email intakes, followed by another fixed mixed-batch acceptance run. Unattended unknown-company qualification, quota/reset orchestration, publication-lane qualification and deployment remain open.
 
+Follow-up: [scoped application controls and original resolver V4](207_SCOPED_APPLICATION_VACANCY_BINDING_2026-10-30.md) clear the frozen portal's missing-binding barrier and expose the unchanged original/publisher deadline conflict. No real candidate passes to AI or publication; fresh mixed-batch acceptance and original email evidence remain open.
+
 ## Verification
 
 **308 distinct affected tests pass:** 118 transport/document/collector/parser/resolver/policy/coverage/staging cases and 190 emulator onboarding/registry/origin/worker/undated cases. The complete origin worker file is rerun after correcting the new fixture's ambiguous name; the parser file is rerun after final warning/header/resource checks. Contract typechecking passes. The full catalogue suite is not rerun; the previously reported intermittent suggestion-route failure remains open.

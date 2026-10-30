@@ -5,10 +5,13 @@ import { approvedRoute, dayInSA } from './worker-policy.mjs';
 import { noticeMetadataPolicy } from './ai/notice-metadata.mjs';
 import { DomainError } from './config.mjs';
 import { parseOriginalDeadline } from './original-deadline.mjs';
+import {validRecruitingMarketingBinding} from './adapters/recruiting-marketing-binding.mjs';
 
-export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v3';
+export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v4';
 const nameKey = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
 const words = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+const platformIdentifier=id=>['rmkid','rmkjobid','rmkspecificid','recruitingmarketingid','recruitingmarketingjobid','recruitingmarketingspecificid']
+  .includes((id?.name??'').normalize('NFKC').toLowerCase().replace(/[^a-z0-9]/g,''));
 const outcome = (state, reason, extra = {}) => ({ version: ORIGINAL_RESOLVER_VERSION,
   outcome: state, reason, adapter: null, checks: [], identity: null, ...extra });
 
@@ -69,7 +72,7 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
     if (error.code === 'PRIMARY_NOTICE_UNSUPPORTED') return outcome('unsupported', 'LAYOUT_UNSUPPORTED');
     throw error;
   }
-  const { primary, adapter, itemId, mainEntityLinkedUrl, postingUrl, canonicalUrl, mainEntityUrl, identifier, descriptionText } = inspected;
+  const { primary, adapter, itemId, mainEntityLinkedUrl, postingUrl, canonicalUrl, mainEntityUrl, identifier, descriptionText, actionBinding } = inspected;
   const basis = { adapter, checks: [], identity: { url: target.url,
     issuer: primary.issuer, title: primary.title, identifier: identifier?.value ?? null, validThrough: primary.validThrough } };
   const result = (state, reason) => outcome(state, reason, basis);
@@ -77,6 +80,8 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
   // JobPosting data; it needs the posting URL/mainEntity or a corroborated reference too.
   const bindings = [postingUrl, canonicalUrl, mainEntityUrl, itemId, mainEntityLinkedUrl].filter(v => v !== null);
   if (bindings.some(url => !boundUrl(url, target.url))) return result('conflicting', 'VACANCY_URL_CONFLICT');
+  if(actionBinding?.outcome==='conflicting')return result('conflicting','VACANCY_ACTION_CONFLICT');
+  if(actionBinding?.outcome==='unsupported')return result('unsupported','VACANCY_ACTION_UNSUPPORTED');
   const issuers = approvedRoute(source, candidate.applicationCandidates[0]).filter(issuer =>
     [issuer.name, ...(issuer.aliases ?? [])].map(nameKey).includes(nameKey(primary.issuer)));
   if (issuers.length !== 1) return result('conflicting', 'ISSUER_CONFLICT');
@@ -89,15 +94,17 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
   if (sourceRefs.length > 1 || primaryRefs.length > 1) return result('unsupported', 'REFERENCE_AMBIGUOUS');
   if (sourceRefs.length) {
     if (primaryRefs.length && primaryRefs[0] !== sourceRefs[0]) return result('conflicting', 'REFERENCE_CONFLICT');
-    if (!primaryRefs.length && identifier?.value !== sourceRefs[0]) {
+    if (!primaryRefs.length && (identifier?.value !== sourceRefs[0] || platformIdentifier(identifier))) {
       // An ATS URL/RMK ID and a recruitment reference can be different namespaces.
       // A mismatching opaque identifier cannot be relabelled as the employer reference.
       return result('unsupported', 'REFERENCE_UNCORROBORATED');
     }
     basis.checks.push('reference');
   }
-  if (postingUrl === null && mainEntityUrl === null && !(canonicalUrl !== null && sourceRefs.length && basis.checks.includes('reference')))
-    return result('unsupported', 'VACANCY_BINDING_MISSING');
+  if(postingUrl!==null||mainEntityUrl!==null)basis.vacancyBinding={kind:'structured_url'};
+  else if(canonicalUrl!==null&&sourceRefs.length&&basis.checks.includes('reference'))basis.vacancyBinding={kind:'canonical_reference'};
+  else if(actionBinding?.outcome==='supported'&&validRecruitingMarketingBinding(actionBinding.binding,target.url))basis.vacancyBinding={kind:'rmk_apply_action',evidence:actionBinding.binding};
+  else return result('unsupported', 'VACANCY_BINDING_MISSING');
   basis.checks.push('vacancy_url');
   const expiry = deadline(primary.validThrough, now);
   if (!expiry) return result('unsupported', 'DEADLINE_UNRESOLVED');
@@ -119,6 +126,9 @@ export function refreshOriginalResolution(resolution, now) {
   if (resolution.outcome !== 'matched') return resolution;
   const { primary, ...basis } = resolution;
   if (resolution.version !== ORIGINAL_RESOLVER_VERSION) return { ...basis, outcome: 'unsupported', reason: 'RESOLVER_POLICY_CHANGED' };
+  if(!['structured_url','canonical_reference','rmk_apply_action'].includes(resolution.vacancyBinding?.kind)||
+    resolution.vacancyBinding.kind==='rmk_apply_action'&&!validRecruitingMarketingBinding(resolution.vacancyBinding.evidence,resolution.identity.url))
+    return{...basis,outcome:'unsupported',reason:'VACANCY_BINDING_CHANGED'};
   const expiry = deadline(resolution.identity.validThrough, now);
   if (!expiry) return { ...basis, outcome: 'unsupported', reason: 'DEADLINE_UNRESOLVED' };
   if (!isDeepStrictEqual(expiry.evidence, resolution.deadlineEvidence))
