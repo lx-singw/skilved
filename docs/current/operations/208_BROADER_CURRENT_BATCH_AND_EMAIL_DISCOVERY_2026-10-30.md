@@ -58,6 +58,8 @@ The supported Teraoka/PNet representation is diagnostic evidence only. Employer/
 
 The next useful work is bounded acquisition of qualified original evidence when publishers omit dates, with explicit fact provenance and URL/tenant identity checks, initially in shadow mode. Existing missing-date and publication guards must stay in place until that separate lane is implemented and qualified. Exact original email/intake acquisition remains open. This evidence does not justify more isolated extraction retries or changing provider quality claims.
 
+Follow-up: [missing-date original evidence collection](209_MISSING_DATE_ORIGINAL_EVIDENCE_2026-10-30.md) implements an explicit normal-worker shadow step with private provenance and retained preflight holds. It does not qualify missing-date admission or enable staging crawling.
+
 ## Verification and retained limits
 
 **317 affected tests pass:** 126 transport/document/parser/binding/resolver/policy/coverage/staging cases and 191 emulator onboarding/registry/origin/worker/undated cases. Contract typechecking and changed-document links/whitespace pass. The full catalogue suite is not rerun; the earlier intermittent suggestion-route failure remains open.

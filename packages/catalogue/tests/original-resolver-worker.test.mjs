@@ -20,12 +20,12 @@ before(async () => {
 });
 after(async () => { await db?.terminate(); });
 
-async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref','closed','unavailable','unknown','unsupported']) {
+async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref','closed','unavailable','unknown','unsupported'], automation = {}) {
   let now = '2026-10-29T10:00:00.000Z';
   const sourceId = `publisher_${randomUUID()}`, principal = `${randomUUID()}@example.test`, uid = `operator_${randomUUID()}`;
   const cases = kinds.map((kind, index) => {
     const f = originalFixture({ issuer: kind.endsWith('_b') ? 'Imaginary Works' : 'Fictional Workshop',
-      host: kind.endsWith('_b') ? 'second.example' : kind === 'unknown' ? 'unqualified.example' : 'careers.example',
+      host: kind.endsWith('_b') ? 'second.example' : kind.endsWith('unknown') ? 'unqualified.example' : 'careers.example',
       path:kind.startsWith('rmk_')?`/job/Authored-apprentice/${index+100}/`:`/tenant-a/job/${index + 100}/`, reference:kind.startsWith('rmk_')?null:`AP-${index + 100}`, slug: `authored-${kind.replaceAll('_','-')}` });
     if (kind === 'wrong_url') f.posting.url = 'https://careers.example/tenant-a/job/9999/';
     if (kind === 'wrong_ref') f.posting.description = '<p>Reference: AP-9999</p>';
@@ -35,6 +35,12 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
     if (kind === 'legacy_bad_weekday') f.posting.validThrough = 'Thu Oct 30 09:00:00 UTC 2026';
     if(kind.startsWith('rmk_')){delete f.posting.url;delete f.posting.identifier;f.action=`https://${new URL(f.url).hostname}/talentcommunity/apply/${kind==='rmk_wrong_action'?'999999':index+100}/?locale=en_US`;}
     if(kind==='rmk_rollover')f.posting.validThrough='Fri Oct 30 22:00:00 UTC 2026';
+    if(kind.startsWith('missing_')){
+      f.detailHtml=f.detailHtml.replace('<p>Closing date: 30 October 2026</p>',kind==='missing_unspecified_b'?'<p>Closing date: Not specified</p>':kind==='missing_ambiguous'?'<p>Closing date: soon</p>':'');
+      if(kind==='missing_query'){const old=f.url;f.url+='?tracking=1';f.detailHtml=f.detailHtml.replace(old,f.url);}
+      if(kind==='missing_wrong_issuer')f.posting.hiringOrganization.name='Another Company';
+      if(kind==='missing_closed')f.posting.validThrough='2026-10-20';
+    }
     f.primaryHtml = kind.startsWith('rmk_')?recruitingHtml(f):kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_') ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
     return { ...f, kind };
   });
@@ -43,7 +49,7 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
       ...originalFixture().source.automation.issuers,
       ...originalFixture({ issuer: 'Imaginary Works', host: 'second.example' }).source.automation.issuers,
       ...['careers.example','second.example'].map((host,i)=>({...originalFixture({issuer:i?'Imaginary Works':'Fictional Workshop',host}).source.automation.issuers[0],pathPrefix:'/job/'})),
-    ] } });
+    ], ...automation } });
   const state = { requests: [], extracted: [], validated: [], afterValidation: null, afterRobots: null };
   const options = { now: () => now, sleep: async () => {},
     fetcher: async (_source, url) => {
@@ -58,7 +64,7 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
       if (detail) return { url, text: detail.detailHtml };
       const primary = cases.find(c => c.url === url);
       assert.ok(primary, `Unexpected acquisition: ${url}`);
-      if (primary.kind === 'unavailable') throw new DomainError('UNSUPPORTED_RESPONSE');
+      if (primary.kind.endsWith('unavailable')) throw new DomainError('UNSUPPORTED_RESPONSE');
       return { url, text: primary.primaryHtml };
     },
     extractor: async candidate => {
@@ -256,4 +262,49 @@ test('resolver results remain private, role-checked and forbidden from automatic
   await assert.rejects(f.catalogue.inspect('invalid', 'worker_original_resolutions', row.id), { code: 'UNAUTHORIZED' });
   await f.worker.ref('operators', f.uid).set({ active: false, roles: ['reviewer'] });
   await assert.rejects(f.catalogue.queue('authored-token', 'worker_original_resolutions'), { code: 'FORBIDDEN' });
+});
+
+test('missing publisher dates collect qualified exact originals with provenance but retain every source hold and zero AI',async()=>{
+ const f=await fixture(['missing_a','missing_unspecified_b','missing_unknown','missing_query','missing_wrong_issuer','missing_closed','missing_unavailable','missing_ambiguous'],{missingDateEvidence:'shadow_v1'});
+ const run=await f.worker.run(f.sourceId),receipts=await f.rows('worker_original_resolutions'),exceptions=await f.rows('worker_exceptions');
+ assert.equal(exceptions.length,8);assert.ok(exceptions.every(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'&&r.stage==='preflight'));
+ assert.ok(!run.results.some(r=>r.recordId));assert.equal(receipts.length,7);
+ assert.deepEqual(receipts.map(r=>r.resolution.reason).sort(),['SOURCE_DEADLINE_UNRESOLVED','SOURCE_DEADLINE_UNRESOLVED','ORIGIN_UNQUALIFIED','VACANCY_URL_CONFLICT','ISSUER_CONFLICT','ORIGINAL_DEADLINE_ELAPSED','RETRIEVAL_FAILED'].sort());
+ for(const r of receipts){
+  assert.equal(r.assessment.version,'missing_publisher_date_v1');assert.equal(r.assessment.availability,'unverified');
+  assert.equal(r.assessment.admission,'held');assert.equal(r.assessment.publication,false);assert.equal(r.assessment.field,'JobPosting.validThrough');
+  const job=value(await f.worker.ref('worker_jobs',r.jobId).get());assert.equal(r.assessment.candidateHash,job.contentHash);
+  const sourceSnapshot=value(await f.worker.ref('snapshots',r.sourceSnapshotId).get());assert.equal(sourceSnapshot.contentHash,r.assessment.candidateHash);
+  assert.equal(exceptions.find(e=>e.jobId===r.jobId).originalResolutionId,r.id);
+  if(r.primarySnapshotId){const snapshot=value(await f.worker.ref('snapshots',r.primarySnapshotId).get());
+   assert.equal(r.assessment.bodyHash,hash(snapshot.text));assert.equal(r.assessment.observationUrl,snapshot.url);assert.equal(r.assessment.observedAt,snapshot.retrievedAt);
+  }else{assert.equal(r.assessment.bodyHash,null);assert.equal(r.assessment.observationUrl,null);assert.equal(r.assessment.observedAt,null);}
+ }
+ const qualified=receipts.filter(r=>r.resolution.reason==='SOURCE_DEADLINE_UNRESOLVED');
+ assert.deepEqual(new Set(qualified.map(r=>r.assessment.sourceTiming.state)),new Set(['absent','explicitly_unspecified']));
+ assert.ok(qualified.every(r=>r.resolution.deadlineEvidence.localDate==='2026-10-30'&&!r.resolution.primary));
+ assert.ok(!f.state.requests.some(u=>u.includes('unqualified.example')));assert.ok(!f.state.requests.includes(f.cases.at(-1).url));
+ for(const name of ['worker_candidates','worker_decisions','drafts','public'])assert.equal((await f.rows(name)).length,0);
+ assert.equal(value(await f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-10-29`)).get()),null);
+ assert.deepEqual(f.state.extracted,[]);assert.deepEqual(f.state.validated,[]);
+ assert.deepEqual(value(await f.worker.ref('sources',f.sourceId).get()),f.source);
+ assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
+ // A restarted held job does not repeatedly acquire an exhausted/unknown source.
+ const first=f.cases[0],requests=f.state.requests.length,id=hash(randomUUID());
+ await f.worker.ref('worker_jobs',id).set(payload({id,sourceId:f.sourceId,kind:'detail',url:first.detailUrl,state:'pending',attempts:0,lease:null,nextAt:'2026-10-29T10:00:00.000Z'}));
+ const held=await f.restart().runJob(f.sourceId,id);assert.equal(held.sourceHeld,true);assert.equal(f.state.requests.length,requests);
+ assert.equal((await f.rows('worker_original_resolutions')).length,7);
+});
+test('the existing missing-date default makes no original requests or assessment receipts',async()=>{
+ const f=await fixture(['missing_a']);await f.worker.run(f.sourceId);
+ assert.equal((await f.rows('worker_original_resolutions')).length,0);
+ assert.ok(f.state.requests.every(u=>u.startsWith('https://recentjobs.co.za/')));
+ assert.equal((await f.rows('worker_exceptions'))[0].reason,'NOTICE_PRECISION_UNSUPPORTED');
+});
+test('missing-date collection cannot swallow grant revocation during original acquisition',async()=>{
+ const f=await fixture(['missing_a'],{missingDateEvidence:'shadow_v1'});
+ f.state.afterRobots=async url=>{if(url.startsWith('https://careers.example/'))await f.worker.ref('workers',f.worker.actor).set({...f.grant,active:false});};
+ await assert.rejects(f.worker.run(f.sourceId),{code:'WORKER_FORBIDDEN'});
+ assert.equal((await f.rows('worker_original_resolutions')).length,0);
+ assert.ok(!f.state.requests.includes(f.cases[0].url));assert.deepEqual(f.state.extracted,[]);
 });

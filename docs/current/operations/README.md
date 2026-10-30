@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Original evidence collection for missing publisher dates — 30 October 2026](209_MISSING_DATE_ORIGINAL_EVIDENCE_2026-10-30.md)
+
 - [Broader current RecentJobs batch and explicit email discovery — 30 October 2026](208_BROADER_CURRENT_BATCH_AND_EMAIL_DISCOVERY_2026-10-30.md)
 
 - [Scoped Recruiting Marketing application evidence and vacancy binding — 30 October 2026](207_SCOPED_APPLICATION_VACANCY_BINDING_2026-10-30.md)

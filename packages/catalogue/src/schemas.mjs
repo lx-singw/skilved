@@ -32,6 +32,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
     originalVerification: z.literal('shadow_v1').optional(),
+    missingDateEvidence: z.literal('shadow_v1').optional(),
     issuerRegistry: z.literal('shadow_v1').optional(),
     originDiscovery: z.literal('shadow_v1').optional(),
     maxModelCallsPerDay: z.number().int().min(1).max(100),
@@ -47,6 +48,10 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   'V2 undated shadow cadence and TTL must fit six hours').refine(source =>
   !source.automation?.originalVerification || source.automation.mode !== 'automatic',
   'Original notice resolver cannot use automatic mode').refine(source =>
+  !source.automation?.missingDateEvidence || (source.automation.mode === 'shadow' &&
+    source.automation.originalVerification === 'shadow_v1' && source.automation.employerCrawl &&
+    source.automation.undatedNotices === 'reject'),
+  'Missing-date evidence requires shadow original verification, explicit crawling and rejected undated admission').refine(source =>
   !source.automation?.issuerRegistry || (source.automation.originalVerification === 'shadow_v1' &&
     source.automation.issuers.length === 0 && source.automation.undatedNotices === 'reject'),
   'Registry sources require original verification, no inline issuers and dated notices').refine(source =>

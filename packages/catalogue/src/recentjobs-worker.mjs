@@ -23,7 +23,7 @@ import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
 import { extractRequirements, REQUIREMENTS_VERSION } from './ai/requirements.mjs';
 import { validateExtraction, validateAssessment, validationPayload, VALIDATION_VERSION } from './ai/validation.mjs';
 import { geminiQuotaScope,geminiQuotaLimits,geminiQuotaDay,nextGeminiQuotaReset,recentGeminiUsage,mergeGeminiMinuteUsage,geminiUsageDelay } from './ai/gemini-quota.mjs';
-import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
+import { RECENTJOBS_INDEX, assertSourceTarget, approvedRoute, approvedIssuer, preflightCandidate, missingDateEvidenceTiming, publicationGate, draftGate, assertMaterialFacts, dayInSA, allFacts } from './worker-policy.mjs';
 import { usesUndatedV2, makeUndatedOrigin, undatedOriginKeys } from './undated-policy.mjs';
 import { capturedNoticeJobs } from './undated-origin-import.mjs';
 import { discoveryChunk } from './recentjobs-discovery.mjs';
@@ -508,7 +508,7 @@ export class RecentJobsWorker {
     });
     return result;
   }
-  async originalNotice(claim, candidate, captured) {
+  async originalNotice(claim, candidate, captured, sourceTiming = null) {
     await this.transaction(claim.sourceId, 'worker.original.begin', async (tx, source) => {
       const job = await this.assertClaim(tx, source, claim);
       tx.set(this.ref('worker_jobs', job.id), payload({ ...job, stage: 'original_resolution' }));
@@ -540,8 +540,14 @@ export class RecentJobsWorker {
         jobId: claim.id, attempt: claim.attempts, sourceSnapshotId: captured.snapshotId,
         ...(claim.issuerTrust ? { issuerResolutionId: claim.issuerTrust.receiptId } : {}),
         ...(claim.originDiscoveryId ? { originDiscoveryId: claim.originDiscoveryId } : {}),
-        primarySnapshotId, resolution: receipt, at: this.now() }));
-      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, originalResolutionId: id, primarySnapshotId }));
+        primarySnapshotId, resolution: receipt,
+        ...(sourceTiming ? { assessment: { version: 'missing_publisher_date_v1', sourceTiming,
+          candidateHash: candidate.contentHash, availability: 'unverified', admission: 'held', publication: false,
+          factKind: 'structured_valid_through_only', field: 'JobPosting.validThrough',
+          observationUrl: observation?.url ?? null, bodyHash: primaryHash,
+          observedAt: observation ? this.now() : null } } : {}), at: this.now() }));
+      tx.set(this.ref('worker_jobs', job.id), payload({ ...job, originalResolutionId: id, primarySnapshotId,
+        ...(sourceTiming ? { stage: 'preflight' } : {}) }));
     });
     return { id, resolution, primaryHash, primarySnapshotId };
   }
@@ -723,6 +729,13 @@ export class RecentJobsWorker {
     let pendingRoute;
     try { pendingRoute = preflightCandidate(claim.source, candidate, this.now(), captured.sourceRetrievedAt, undatedOrigin); }
     catch (error) {
+      const sourceTiming = missingDateEvidenceTiming(claim.source, candidate, error.code);
+      if (sourceTiming) {
+        await this.originalNotice(claim, candidate, captured, sourceTiming);
+        // Preserve the publisher hold, exception, cooldown and zero model spend.
+        // A structured expiry is not a replacement application deadline.
+        throw error;
+      }
       if (!claim.source.automation.originalVerification || error.code !== 'ISSUER_RELATIONSHIP_UNQUALIFIED') throw error;
       // Record an unknown origin as an explicit private outcome without fetching it.
       pendingRoute = candidate.applicationCandidates[0];

@@ -1,7 +1,7 @@
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
 import { isDeepStrictEqual } from 'node:util';
 import { DomainError } from './config.mjs';
-import { usesUndatedV2, undatedV2Window } from './undated-policy.mjs';
+import { usesUndatedV2, undatedV2Window, undatedTimingEvidence } from './undated-policy.mjs';
 import { dayInSA } from './south-african-time.mjs';
 import { parseOriginalDeadline } from './original-deadline.mjs';
 export { dayInSA } from './south-african-time.mjs';
@@ -55,6 +55,24 @@ export function preflightCandidate(source, candidate, now, sourceRetrievedAt, un
   if (usesUndatedV2(source, candidate) && (issuers.length !== 1 ||
       nameKey(issuers[0].name) !== undatedOrigin.issuer)) fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
   return route;
+}
+
+/** Opt-in collection on a failed preflight, never a replacement publisher date.
+ * Unknown route authority is handled by originalNoticeTarget without fetching.
+ */
+export function missingDateEvidenceTiming(source, candidate, errorCode) {
+  const a = source.automation;
+  if (errorCode !== 'NOTICE_PRECISION_UNSUPPORTED' || a?.mode !== 'shadow' ||
+      a.missingDateEvidence !== 'shadow_v1' || a.originalVerification !== 'shadow_v1' ||
+      !a.employerCrawl || a.undatedNotices !== 'reject' ||
+      candidate.applicationCandidates.length !== 1 || candidate.applicationCandidates[0].method !== 'portal' ||
+      candidate.applicationInstructions?.length || candidate.issues?.includes('programme_subject_scope_review_required') ||
+      candidate.deadlineCandidates.some(d => d.localDate != null)) return null;
+  try { assertApprenticeshipSource(candidate); return undatedTimingEvidence(candidate); }
+  catch (error) {
+    if (['NOTICE_NOT_OPEN','NOTICE_PRECISION_UNSUPPORTED','NOTICE_CATEGORY_CONFLICT','NOTICE_CATEGORY_REVIEW_REQUIRED'].includes(error.code)) return null;
+    throw error;
+  }
 }
 
 /** Source recency permits private assessment, never a claim that applications are open. */
