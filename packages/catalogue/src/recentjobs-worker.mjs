@@ -541,7 +541,8 @@ export class RecentJobsWorker {
         ...(claim.issuerTrust ? { issuerResolutionId: claim.issuerTrust.receiptId } : {}),
         ...(claim.originDiscoveryId ? { originDiscoveryId: claim.originDiscoveryId } : {}),
         primarySnapshotId, resolution: receipt,
-        ...(sourceTiming ? { assessment: { version: 'missing_publisher_date_v1', sourceTiming,
+        ...(sourceTiming ? { assessment: { version: source.automation.missingDateEvidence === 'shadow_v2'
+          ? 'missing_publisher_date_v2' : 'missing_publisher_date_v1', sourceTiming,
           candidateHash: candidate.contentHash, availability: 'unverified', admission: 'held', publication: false,
           factKind: 'structured_valid_through_only', field: 'JobPosting.validThrough',
           observationUrl: observation?.url ?? null, bodyHash: primaryHash,
@@ -564,11 +565,15 @@ export class RecentJobsWorker {
       }
       return selected;
     });
-    let discovery = null;
+    let discovery = null, missingDateProbe = false;
     if (!selected.issuers.length && claim.source.automation.originDiscovery) {
       let eligible = false;
       try { preflightCandidate(claim.source,candidate,this.now(),captured.sourceRetrievedAt); }
-      catch (error) { eligible = error.code === 'ISSUER_RELATIONSHIP_UNQUALIFIED'; }
+      catch (error) {
+        eligible = error.code === 'ISSUER_RELATIONSHIP_UNQUALIFIED';
+        if (!eligible && claim.source.automation.missingDateEvidence === 'shadow_v2' &&
+            missingDateEvidenceTiming(claim.source,candidate,error.code)) eligible = missingDateProbe = true;
+      }
       if (eligible) {
         discovery = await this.discoverOrigin(claim,candidate);
         if (discovery.delegation) selected = { ...selected, outcome:'qualified', issuers:[discovery.delegation.route], delegations:[delegationBinding(discovery.delegation)] };
@@ -592,7 +597,9 @@ export class RecentJobsWorker {
     claim.issuerTrust = result.trust;
     claim.source.issuerTrust = { issuers: result.issuers };
     claim.originDiscoveryId = result.originId;
-    if (discovery?.resolution.outcome === 'unavailable') fail('ORIGIN_DISCOVERY_UNAVAILABLE');
+    // The V2 probe is evidence collection after failed publisher preflight.
+    // Its receipt retains unavailable acquisition; the publisher hold remains primary.
+    if (discovery?.resolution.outcome === 'unavailable' && !missingDateProbe) fail('ORIGIN_DISCOVERY_UNAVAILABLE');
   }
   async discoverOrigin(claim, candidate) {
     const id = hash(`${claim.id}:origin:${claim.attempts}`), route = candidate.applicationCandidates[0];

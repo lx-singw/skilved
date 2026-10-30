@@ -53,3 +53,5 @@ Both worker and web images build locally; web compilation, typechecking and page
 ## Remaining work
 
 Qualify employer/delegated-tenant authority and exact vacancy binding for real missing-date routes before claiming original evidence coverage. Where a platform supplies an expiry, independently establish whether it is the employer's application deadline and preserve each fact's provenance. Original email/intake acquisition remains a separate gap. Positive real-batch extraction/drafting and publication qualification remain open; the evidence step deliberately leaves those admission checks intact.
+
+Follow-up: [versioned missing-date origin probes](210_MISSING_DATE_ORIGIN_PROBES_2026-10-30.md) add explicit V2 discovery and pending onboarding needs while retaining V1 behavior and publisher holds. Current acquisition and platform-profile/corporate identity gaps remain unqualified.

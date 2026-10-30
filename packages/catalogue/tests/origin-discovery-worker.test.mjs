@@ -10,16 +10,18 @@ import { RECENTJOBS_INDEX } from '../src/worker-policy.mjs';
 import { originalFixture,originalHtml,originalMicrodataHtml } from './fixtures/original-notices.mjs';
 import { syntheticExtraction } from './fixtures/recentjobs-model.mjs';
 import {makeDelegation,delegationDocument,delegationBinding} from '../src/origin-discovery.mjs';
+import {onboardingNeedId} from '../src/employer-onboarding.mjs';
 const hash=s=>createHash('sha256').update(s).digest('hex'),payload=v=>({json:JSON.stringify(v)}),value=s=>s.exists?JSON.parse(s.data().json):null;
 let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-origins';db=(await getRuntime()).db;});
 after(async()=>db?.terminate());
-async function fixture({root=true,count=2,hint='url',issuer='Fictional Workshop',format='jsonld',dedicatedHost=false}={}){
+async function fixture({root=true,count=2,hint='url',issuer='Fictional Workshop',format='jsonld',dedicatedHost=false,missingDateEvidence}={}){
  const id=randomUUID(),host=dedicatedHost?`jobs.authored-${id}.co.za`:`ats-${id}.example`,corp=dedicatedHost?`www.authored-${id}.co.za`:`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/${dedicatedHost?'':'tenant-a/'}`;
  let now='2026-10-29T10:00:00.000Z';
  const cases=Array.from({length:count},(_,i)=>originalFixture({issuer,host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
  if(hint==='url')cases.forEach(c=>{c.posting.hiringOrganization.sameAs=`https://${corp}/`;});
- const source=Source.parse({...cases[0].source,id:`publisher_${id}`,automation:{...cases[0].source.automation,issuerRegistry:'shadow_v1',originDiscovery:'shadow_v1',issuers:[]}});
+ if(missingDateEvidence)cases.forEach(c=>{c.detailHtml=c.detailHtml.replace('<p>Closing date: 30 October 2026</p>','<p>Closing date: Not specified</p>');});
+ const source=Source.parse({...cases[0].source,id:`publisher_${id}`,automation:{...cases[0].source.automation,issuerRegistry:'shadow_v1',originDiscovery:'shadow_v1',issuers:[],...(missingDateEvidence?{missingDateEvidence}:{})}});
  let parent=EmployerRelationship.parse({id:`corporate_${id}`,revision:1,state:'qualified',categories:['apprenticeship'],reviewedAt:now,expiresAt:'2026-11-01T10:00:00.000Z',
   route:{name:issuer,host:corp,pathPrefix:'/careers/',evidence:'Authored corporate authority'},delegationPage:page});
  const state={requests:[],extracted:[],validated:[],page:`<main><h1>Careers</h1><a href="${link}">View jobs</a></main>`,onValidate:null,onRobots:null,failProbe:false};
@@ -188,4 +190,51 @@ test('concurrent publisher discoveries converge on one current delegation and pr
  const current=value(docs.docs[0]);
  const versions=(await db.collection('m0_employer_delegation_versions').get()).docs.map(value).filter(r=>r.id===current.id);assert.equal(versions.length,1);
  assert.ok(f.state.requests.filter(url=>url===f.page).length<=2);assert.equal(f.state.extracted.length,2);
+});
+
+test('V2 missing-date probes corroborate reviewed corporate authority and reuse exact originals while retaining publisher holds',async()=>{
+ const f=await fixture({missingDateEvidence:'shadow_v2'});
+ f.cases[0].detailHtml=f.cases[0].detailHtml.replace('<p>Closing date: Not specified</p>','<table><tr><td>Closing date</td><td>Not specified</td></tr></table>');
+ const run=await f.worker.run(f.source.id);
+ assert.equal((await f.rows('employer_delegations')).length,1);
+ const originals=await f.rows('worker_original_resolutions');assert.equal(originals.length,2);
+ for(const r of originals){assert.equal(r.resolution.reason,'SOURCE_DEADLINE_UNRESOLVED');assert.equal(r.assessment.version,'missing_publisher_date_v2');assert.equal(r.assessment.admission,'held');assert.ok(r.primarySnapshotId);}
+ for(const c of f.cases)assert.equal(f.state.requests.filter(u=>u===c.url).length,1);
+ assert.equal(f.state.requests.filter(u=>u===f.page).length,1);
+ assert.deepEqual(new Set((await f.rows('worker_origin_discoveries')).map(r=>r.resolution.outcome)),new Set(['corroborated','cached']));
+ assert.ok(!run.results.some(r=>r.recordId));assert.ok((await f.rows('worker_exceptions')).every(r=>r.reason==='NOTICE_PRECISION_UNSUPPORTED'&&r.stage==='preflight'));
+ for(const name of ['worker_candidates','worker_decisions','drafts','public','model_calls','model_budgets'])assert.equal((await f.rows(name)).length,0);
+ assert.deepEqual(f.state.extracted,[]);assert.deepEqual(f.state.validated,[]);
+ assert.deepEqual(value(await f.worker.ref('sources',f.source.id).get()),f.source);assert.deepEqual((await f.worker.ref('workers',f.worker.actor).get()).data(),f.grant);
+});
+test('V2 unknown missing-date portals create one onboarding need across jobs without corporate guesses or authority',async()=>{
+ const issuer=`Unreviewed Missing ${randomUUID()}`,f=await fixture({root:false,hint:'name',issuer,missingDateEvidence:'shadow_v2'});
+ await f.worker.run(f.source.id);
+ const origins=await f.rows('worker_origin_discoveries');assert.equal(origins.length,2);assert.ok(origins.every(r=>r.resolution.reason==='CORPORATE_AUTHORITY_UNQUALIFIED'&&r.snapshots.length===1));
+ const need=value(await f.worker.ref('employer_onboarding_needs',onboardingNeedId({issuer,host:null})).get());
+ assert.equal(need.state,'needs_evidence');assert.equal(need.observations.length,2);
+ assert.deepEqual(new Set(need.observations.map(o=>o.originDiscoveryId)),new Set(origins.map(o=>o.id)));
+ assert.ok(!f.state.requests.some(u=>u.includes(f.corp)));assert.equal((await f.rows('employer_delegations')).length,0);
+ assert.ok((await f.rows('worker_original_resolutions')).every(r=>r.resolution.reason==='ORIGIN_UNQUALIFIED'&&r.assessment.version==='missing_publisher_date_v2'&&r.primarySnapshotId===null));
+ assert.deepEqual(f.state.extracted,[]);assert.deepEqual(f.state.validated,[]);
+ const requests=f.state.requests.length;assert.equal((await f.restart().runJob(f.source.id,await f.recheck())).sourceHeld,true);assert.equal(f.state.requests.length,requests);
+ assert.equal(value(await f.worker.ref('employer_onboarding_needs',need.id).get()).observations.length,2);
+});
+test('V1 missing-date policy does not inherit V2 unqualified portal probes',async()=>{
+ const f=await fixture({root:false,count:1,missingDateEvidence:'shadow_v1'});await f.worker.run(f.source.id);
+ assert.ok(f.state.requests.every(u=>u.startsWith('https://recentjobs.co.za/')));assert.equal((await f.rows('worker_origin_discoveries')).length,0);
+ const r=(await f.rows('worker_original_resolutions'))[0];assert.equal(r.resolution.reason,'ORIGIN_UNQUALIFIED');assert.equal(r.assessment.version,'missing_publisher_date_v1');
+});
+test('V2 unavailable probes retain unavailable evidence without replacing the publisher hold or claiming closure',async()=>{
+ const f=await fixture({count:1,missingDateEvidence:'shadow_v2'});f.state.failProbe=true;await f.worker.run(f.source.id);
+ const origin=(await f.rows('worker_origin_discoveries'))[0],exception=(await f.rows('worker_exceptions'))[0];
+ assert.equal(origin.resolution.outcome,'unavailable');assert.equal(exception.reason,'NOTICE_PRECISION_UNSUPPORTED');assert.equal(exception.stage,'preflight');assert.equal(exception.originDiscoveryId,origin.id);
+ assert.equal((await f.rows('worker_original_resolutions'))[0].assessment.availability,'unverified');assert.equal((await f.rows('employer_delegations')).length,0);
+ assert.deepEqual(f.state.extracted,[]);assert.ok(!f.state.requests.includes(f.page));
+});
+test('V2 missing-date probes keep ambiguous timing and revoked grants outside acquisition',async()=>{
+ const f=await fixture({count:1,missingDateEvidence:'shadow_v2'});f.cases[0].detailHtml=f.cases[0].detailHtml.replace('Not specified','soon');await f.worker.run(f.source.id);
+ assert.ok(f.state.requests.every(u=>u.startsWith('https://recentjobs.co.za/')));assert.equal((await f.rows('worker_origin_discoveries')).length,0);assert.equal((await f.rows('worker_original_resolutions')).length,0);
+ const g=await fixture({count:1,missingDateEvidence:'shadow_v2'});g.state.onRobots=async url=>{if(url.includes(g.host))await g.worker.ref('workers',g.worker.actor).set({...g.grant,active:false});};
+ await assert.rejects(g.worker.run(g.source.id),{code:'WORKER_FORBIDDEN'});assert.ok(!g.state.requests.includes(g.cases[0].url));assert.equal((await g.rows('worker_origin_discoveries')).length,0);assert.equal((await g.rows('worker_original_resolutions')).length,0);
 });

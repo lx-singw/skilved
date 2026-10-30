@@ -18,19 +18,20 @@ const closed = /\b(?:applications?\s+(?:are\s+)?closed|(?:position|vacancy)\s+(?
 const label = '(?:(?:application\\s+)?(?:closing\\s+date|deadline)|closing)';
 const unspecified = new RegExp(`^${label}(?:\\s*[:;–—-]\\s*|\\s+)not\\s+(?:specified|stated)\\s*[.!]?\\s*$`, 'i');
 const fieldLabel = new RegExp(`^${label}\\s*[:;–—-]\\s*$`, 'i');
+const bareFieldLabel = new RegExp(`^${label}$`, 'i');
 
 export const usesUndatedV2 = (source, candidate) => source.automation?.undatedNotices === 'shadow_recent_v2' &&
   !candidate.deadlineCandidates.some(d => d.localDate != null);
 
 /** Only a whole, unambiguous source field qualifies as explicitly unspecified. */
-export function undatedTimingEvidence(candidate) {
+export function undatedTimingEvidence(candidate, {allowBareLabel = false} = {}) {
   const title = candidate.title ?? '', body = candidate.sourceText ?? '';
   if (closed.test(`${title}\n${body}`)) fail('NOTICE_NOT_OPEN');
   const lines = body.split('\n'), evidence = [], remainder = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (unspecified.test(line)) evidence.push(line);
-    else if (fieldLabel.test(line) && /^not\s+(?:specified|stated)\s*[.!]?\s*$/i.test(lines[i + 1]?.trim() ?? ''))
+    else if ((fieldLabel.test(line) || allowBareLabel && bareFieldLabel.test(line)) && /^not\s+(?:specified|stated)\s*[.!]?\s*$/i.test(lines[i + 1]?.trim() ?? ''))
       evidence.push(`${line}\n${lines[++i].trim()}`);
     else remainder.push(line);
   }

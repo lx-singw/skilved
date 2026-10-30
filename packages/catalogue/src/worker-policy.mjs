@@ -58,17 +58,18 @@ export function preflightCandidate(source, candidate, now, sourceRetrievedAt, un
 }
 
 /** Opt-in collection on a failed preflight, never a replacement publisher date.
- * Unknown route authority is handled by originalNoticeTarget without fetching.
+ * V1 never probes unknown authority; V2 requires separate origin-discovery opt-in.
  */
 export function missingDateEvidenceTiming(source, candidate, errorCode) {
   const a = source.automation;
   if (errorCode !== 'NOTICE_PRECISION_UNSUPPORTED' || a?.mode !== 'shadow' ||
-      a.missingDateEvidence !== 'shadow_v1' || a.originalVerification !== 'shadow_v1' ||
+      !['shadow_v1','shadow_v2'].includes(a.missingDateEvidence) || a.originalVerification !== 'shadow_v1' ||
       !a.employerCrawl || a.undatedNotices !== 'reject' ||
       candidate.applicationCandidates.length !== 1 || candidate.applicationCandidates[0].method !== 'portal' ||
       candidate.applicationInstructions?.length || candidate.issues?.includes('programme_subject_scope_review_required') ||
       candidate.deadlineCandidates.some(d => d.localDate != null)) return null;
-  try { assertApprenticeshipSource(candidate); return undatedTimingEvidence(candidate); }
+  try { assertApprenticeshipSource(candidate); return undatedTimingEvidence(candidate,
+    {allowBareLabel: a.missingDateEvidence === 'shadow_v2'}); }
   catch (error) {
     if (['NOTICE_NOT_OPEN','NOTICE_PRECISION_UNSUPPORTED','NOTICE_CATEGORY_CONFLICT','NOTICE_CATEGORY_REVIEW_REQUIRED'].includes(error.code)) return null;
     throw error;
