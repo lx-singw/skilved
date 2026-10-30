@@ -7,6 +7,7 @@ import {probeUrl} from './origin-discovery.mjs';
 import {issuerNameKey,readRelationship,relationshipBinding,relationshipDocument} from './issuer-registry.mjs';
 import {DomainError} from './config.mjs';
 import {PdfEvidence,pdfIdentityMaterial,verifyPdfEvidence} from './onboarding-pdf.mjs';
+import {hasOrganizationProfileClaim,validOrganizationProfileHint,organizationProfilePlatformHost} from './adapters/organization-profile.mjs';
 
 export const ONBOARDING_VERSION='employer_onboarding_v1';
 export const onboardingHash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -61,7 +62,10 @@ export function evaluateOnboarding(input){
 }
 function current(b,now){if(!InstantSchema.safeParse(now).success||b.observations.some(o=>o.at>now||Date.parse(now)-Date.parse(o.at)>86400000))fail('ONBOARDING_EVIDENCE_STALE');}
 function checkNeed(snapshot,plan){const n=snapshot?.exists?JSON.parse(snapshot.data().json):null;
- if(!n||n.id!==plan.needId||![plan.issuer,...plan.aliases].some(v=>issuerNameKey(v)===issuerNameKey(n.issuerHint?.issuer))||n.issuerHint.host!==null&&n.issuerHint.host!==new URL(plan.corporateUrl).hostname)fail('ONBOARDING_NEED_CONFLICT');}
+ const profile=validOrganizationProfileHint(n?.issuerHint),corporateHost=new URL(plan.corporateUrl).hostname;
+ if(!n||n.id!==plan.needId||hasOrganizationProfileClaim(n.issuerHint)&&!profile||
+  ![plan.issuer,...plan.aliases].some(v=>issuerNameKey(v)===issuerNameKey(n.issuerHint?.issuer))||
+  (profile?organizationProfilePlatformHost(n.issuerHint,corporateHost):n.issuerHint.host!==null&&n.issuerHint.host!==corporateHost))fail('ONBOARDING_NEED_CONFLICT');}
 export async function recordOnboarding(c,tx,input,uid){
  const b=OnboardingBundle.parse(input);current(b,c.now());for(const o of b.observations)if(o.pdf)await verifyPdfEvidence(o.pdf);
  const id=onboardingHash(b),ref=c.ref('employer_onboarding',id),old=await tx.get(ref);

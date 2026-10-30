@@ -57,6 +57,39 @@ test('one company onboarding is reused by a later mixed publisher batch without 
  const root=value(await f.c.ref('employer_relationships',decision.authority.id).get());assert.equal(root.revision,1);
  for(const r of second.results.filter(r=>r.recordId)){assert.equal(value(await f.c.ref('drafts',r.recordId).get()).publication.approved,false);assert.equal((await f.c.ref('public',r.recordId).get()).exists,false);}
 });
+test('typed profile needs accept separately reviewed corporate identity without granting platform or vacancy authority',async()=>{
+ const f=await fixture(),posting=originalFixture({issuer:f.issuer,host:'www.pnet.co.za',path:'/jobs--Authored-apprentice--123-inline.html',slug:`profile-${randomUUID()}`});
+ posting.posting.hiringOrganization.url='https://www.pnet.co.za/cmp/en/Authored-Forge-456/work.html';
+ posting.detailHtml=posting.detailHtml.replace('<p>Closing date: 30 October 2026</p>','<p>Closing date: Not specified</p>');
+ const source=Source.parse({...posting.source,id:`publisher_${randomUUID()}`,automation:{...posting.source.automation,issuerRegistry:'shadow_v1',originDiscovery:'shadow_v1',missingDateEvidence:'shadow_v2',issuers:[]}}),requests=[];
+ const principal=`${randomUUID()}@example.test`,worker=new RecentJobsWorker(db,principal,{now:f.now,sleep:async()=>{},fetcher:async(_s,url)=>{
+  requests.push(url);if(url.endsWith('/robots.txt'))return{url,text:'User-agent: *\nAllow: /'};
+  if(url===RECENTJOBS_INDEX)return{url,text:`<div class="articles-wrap"><article class="type-post"><h2 class="entry-title"><a href="${posting.detailUrl}">${posting.candidate.title}</a></h2></article></div>`};
+  if(url===posting.detailUrl)return{url,text:posting.detailHtml};if(url===posting.url)return{url,text:originalHtml(posting.posting)};
+  if(url===f.evidence.plan.careersUrl)return{url,text:f.evidence.pages.get(url)};assert.fail(`Unexpected acquisition ${url}`);
+ },extractor:async()=>assert.fail('Profile evidence cannot admit AI'),validator:async()=>assert.fail('Profile evidence cannot admit validation')});
+ await f.c.registerSource('authored-token',source,null,'Register authored profile publisher');const grant={principal,active:true,sources:[source.id],roles:['ingest']};await worker.ref('workers',worker.actor).set(grant);
+ await worker.run(source.id);const needId=onboardingNeedId({issuer:f.issuer,host:'www.pnet.co.za'}),needRef=f.c.ref('employer_onboarding_needs',needId),need=value(await needRef.get());
+ assert.equal(need.state,'needs_evidence');assert.equal(need.issuerHint.urlKind,'platform_organization_profile');assert.equal(need.issuerHint.host,'www.pnet.co.za');
+ const bundle=structuredClone(f.evidence.bundle);bundle.plan.needId=needId;
+ // Invalid metadata and old explicit corporate-host claims cannot be silently reinterpreted.
+ await needRef.set({json:JSON.stringify({...need,issuerHint:{...need.issuerHint,organizationProfile:{...need.issuerHint.organizationProfile,version:'forged'}}})});
+ await assert.rejects(f.c.recordEmployerOnboarding('authored-token',bundle,'Reject changed profile metadata'),{code:'ONBOARDING_NEED_CONFLICT'});
+ await needRef.set({json:JSON.stringify({...need,issuerHint:{issuer:f.issuer,host:'www.pnet.co.za'}})});
+ await assert.rejects(f.c.recordEmployerOnboarding('authored-token',bundle,'Preserve legacy explicit host fence'),{code:'ONBOARDING_NEED_CONFLICT'});
+ await needRef.set({json:JSON.stringify(need)});
+ const proposal=await f.c.recordEmployerOnboarding('authored-token',bundle,'Record independent corporate identity for typed profile need');assert.equal(proposal.evaluation.state,'awaiting_identity_review');
+ assert.equal((await f.c.ref('employer_onboarding_decisions',proposal.id).get()).exists,false);
+ const approved=await f.c.decideEmployerOnboarding('authored-token',review(proposal,f),'Review company identity independently of its platform profile');
+ const root=value(await f.c.ref('employer_relationships',approved.authority.id).get());assert.equal(root.route.host,new URL(bundle.plan.corporateUrl).hostname);assert.deepEqual(root.route.emailAddresses,[]);
+ assert.equal(value(await needRef.get()).state,'authority_registered');assert.deepEqual(value(await needRef.get()).issuerHint,need.issuerHint);
+ await f.c.ref('operators',f.uid).set({active:false,roles:[]});f.advance(86400001);await worker.run(source.id);
+ assert.ok(requests.includes(bundle.plan.careersUrl));assert.ok(!requests.includes(posting.posting.hiringOrganization.url));
+ const rows=async name=>(await db.collection('m0_'+name).get()).docs.map(value).filter(r=>r.sourceId===source.id);
+ assert.ok((await rows('worker_origin_discoveries')).some(r=>r.resolution.reason==='DELEGATION_LINK_UNSUPPORTED'));
+ for(const name of ['employer_delegations','worker_candidates','worker_decisions','drafts','public','model_calls','model_budgets'])assert.equal((await rows(name)).length,0);
+ assert.deepEqual(value(await f.c.ref('sources',source.id).get()),source);assert.deepEqual((await worker.ref('workers',worker.actor).get()).data(),grant);
+});
 test('renewal requires fresh evidence and the exact current authority; unknown need IDs cannot be attached',async()=>{
  const f=await fixture(),p=await f.c.recordEmployerOnboarding('authored-token',f.evidence.bundle,'Capture initial root evidence');
  const first=await f.c.decideEmployerOnboarding('authored-token',review(p,f),'Initial identity qualification');

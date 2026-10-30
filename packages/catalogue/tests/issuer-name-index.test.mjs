@@ -5,7 +5,8 @@ import {Catalogue} from '../src/store.mjs';
 import {getRuntime} from '../src/runtime.mjs';
 import {EmployerRelationship} from '../src/schemas.mjs';
 import {relationshipDocument,legacyRelationshipKeys,relationshipBinding,issuerNameKey,readRelationship} from '../src/issuer-registry.mjs';
-import {corporateAnchor} from '../src/origin-discovery.mjs';
+import {corporateAnchor,issuerHint} from '../src/origin-discovery.mjs';
+import {originalFixture,originalHtml} from './fixtures/original-notices.mjs';
 let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-name-index';db=(await getRuntime()).db;});
 after(async()=>db?.terminate());
@@ -52,4 +53,19 @@ test('name lookup excludes revoked, expired and future authority and fails close
  }
  for(let i=0;i<31;i++){const r={...f.r,id:`capacity_${randomUUID()}`};await f.c.ref('employer_relationships',r.id).set(relationshipDocument(r));}
  await assert.rejects(f.lookup(),{code:'ISSUER_REGISTRY_CAPACITY'});
+});
+test('typed profile lookup uses the bounded name index without converting platform host to corporate authority',async()=>{
+ const f=await fixture(),posting=originalFixture(),url='https://www.pnet.co.za/jobs--Authored-apprentice--123-inline.html';
+ const hint=issuerHint(originalHtml({...posting.posting,hiringOrganization:{name:f.issuer,url:'https://www.pnet.co.za/cmp/en/Authored-Forge-456/work.html'}}),url);
+ const lookup=h=>db.runTransaction(tx=>corporateAnchor(tx,db,h,'2026-10-29T10:00:00.000Z'));
+ assert.equal(await lookup(hint),null,'Legacy rows are not scanned');
+ await f.c.reindexEmployerRelationships('authored-token',[relationshipBinding(f.r)],'Backfill authored profile company index');
+ assert.equal((await lookup(hint)).id,f.r.id);assert.equal(await lookup({issuer:f.issuer,host:'www.pnet.co.za'}),null);
+ const platform={...f.r,id:`platform_${randomUUID()}`,route:{...f.r.route,host:'pnet.co.za'},delegationPage:'https://pnet.co.za/careers/'};
+ await f.c.ref('employer_relationships',platform.id).set(relationshipDocument(platform));assert.equal((await lookup(hint)).id,f.r.id);
+ await f.c.ref('employer_relationships',f.r.id).set(relationshipDocument({...f.r,state:'revoked'}));assert.equal(await lookup(hint),null);
+ await f.c.ref('employer_relationships',f.r.id).set(relationshipDocument(f.r));
+ await assert.rejects(lookup({...hint,organizationProfile:{...hint.organizationProfile,extra:true}}),{code:'ORIGIN_HINT_INVALID'});
+ const other={...f.r,id:`ambiguous_${randomUUID()}`,route:{...f.r.route,host:'other.example'},delegationPage:'https://other.example/careers/'};
+ await f.c.ref('employer_relationships',other.id).set(relationshipDocument(other));assert.equal(await lookup(hint),null);
 });

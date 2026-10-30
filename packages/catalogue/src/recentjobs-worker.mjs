@@ -607,7 +607,7 @@ export class RecentJobsWorker {
     if (claim.source.automation.employerCrawl && route?.method === 'portal' && probeUrl(route.destination)) {
       try {
         await this.robots(claim,route.destination); primary = await this.request(claim,route.destination,'html');
-        hint = issuerHint(primary.text);
+        hint = issuerHint(primary.text,primary.url);
         if (!hint) resolution = discoveryOutcome('unsupported','ISSUER_HINT_UNSUPPORTED');
         else {
           anchor = await this.transaction(claim.sourceId,'worker.origin.anchor',async(tx,source)=>{
@@ -648,7 +648,8 @@ export class RecentJobsWorker {
           if (!versionExists.exists) tx.create(this.ref('employer_delegation_versions',delegationBinding(chosen).hash),payload(chosen));
         }
         tx.create(this.ref('worker_origin_discoveries',id),payload({id,sourceId:source.id,sourceRevision:source.revision,jobId:claim.id,at:this.now(),
-          resolution, snapshots:observations.map(o=>o.id), ...(hint?{issuerHint:{version:'issuer_hint_v2',method:hint.host===null?'organization_name':'structured_url',...hint}}:{}),
+          resolution, snapshots:observations.map(o=>o.id), ...(hint?{issuerHint:{version:hint.organizationProfile?'issuer_hint_v3':'issuer_hint_v2',
+            method:hint.organizationProfile?'platform_organization_profile':hint.host===null?'organization_name':'structured_url',...hint}}:{}),
           ...(chosen?{delegations:[delegationBinding(chosen)]}:{})}));
         if(needId)tx.set(this.ref('employer_onboarding_needs',needId),payload({id:needId,version:'employer_onboarding_v1',state:'needs_evidence',issuerHint:hint,
           firstSeenAt:need?.firstSeenAt??this.now(),lastSeenAt:this.now(),observations:[...(need?.observations??[]),{sourceId:source.id,jobId:claim.id,originDiscoveryId:id}].slice(-20)}));

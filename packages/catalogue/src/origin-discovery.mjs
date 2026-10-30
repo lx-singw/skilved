@@ -8,6 +8,7 @@ import { IssuerRoute } from './schemas.mjs';
 import { readRelationship, relationshipBinding, validateIssuerBindings, issuerNameKey } from './issuer-registry.mjs';
 import { inspectPrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { DomainError } from './config.mjs';
+import {organizationProfileClaim,hasOrganizationProfileClaim,validOrganizationProfileHint,organizationProfilePlatformHost} from './adapters/organization-profile.mjs';
 
 export const ORIGIN_DISCOVERY_VERSION = 'corporate_delegation_v2';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -35,7 +36,7 @@ export function probeUrl(input) {
     return url;
   } catch { return null; }
 }
-export function issuerHint(html) {
+export function issuerHint(html, postingUrl = null) {
   let inspected;
   try { inspected = inspectPrimaryJobPosting(html); }
   catch (error) { if (error.code === 'PRIMARY_NOTICE_UNSUPPORTED') return null; throw error; }
@@ -49,14 +50,20 @@ export function issuerHint(html) {
   const parsed = urls.map(probeUrl);
   if (parsed.some(url => !url || url.search)) return null;
   const origins = new Set(parsed.map(url => url.origin));
-  return origins.size === 1 ? { issuer: inspected.primary.issuer, host: parsed[0].hostname } : null;
+  if (origins.size !== 1) return null;
+  const profile = organizationProfileClaim(postingUrl,urls);
+  return { issuer: inspected.primary.issuer, host: parsed[0].hostname,
+    ...(profile ? {urlKind:'platform_organization_profile',organizationProfile:profile} : {}) };
 }
 export async function corporateAnchor(tx, db, hint, now) {
-  const key = hint.host === null ? issuerNameKey(hint.issuer) : `portal:${hint.host}`;
+  if (hasOrganizationProfileClaim(hint) && !validOrganizationProfileHint(hint)) fail('ORIGIN_HINT_INVALID');
+  // A platform profile is preserved as its own claim. Only an independently
+  // reviewed exact company name/alias can supply the corporate anchor.
+  const key = hint.host === null || validOrganizationProfileHint(hint) ? issuerNameKey(hint.issuer) : `portal:${hint.host}`;
   if (!key) return null;
   const rows = await tx.get(db.collection('m0_employer_relationships').where('routeKeys','array-contains',key).limit(31));
   if (rows.size > 30) fail('ISSUER_REGISTRY_CAPACITY');
-  const anchors = rows.docs.map(readRelationship).filter(r => r.state === 'qualified' && r.reviewedAt <= now && now < r.expiresAt &&
+  const anchors = rows.docs.map(readRelationship).filter(r => !organizationProfilePlatformHost(hint,r.route.host) && r.state === 'qualified' && r.reviewedAt <= now && now < r.expiresAt &&
     r.categories.includes('apprenticeship') && r.delegationPage && [r.route.name,...r.route.aliases].map(name).includes(name(hint.issuer)));
   return anchors.length === 1 ? anchors[0] : null;
 }

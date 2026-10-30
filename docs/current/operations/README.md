@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Platform organization profiles and independent corporate identity — 30 October 2026](211_PLATFORM_PROFILE_AND_CORPORATE_IDENTITY_2026-10-30.md)
+
 - [Missing-date origin probes and employer-onboarding needs — 30 October 2026](210_MISSING_DATE_ORIGIN_PROBES_2026-10-30.md)
 
 - [Original evidence collection for missing publisher dates — 30 October 2026](209_MISSING_DATE_ORIGINAL_EVIDENCE_2026-10-30.md)

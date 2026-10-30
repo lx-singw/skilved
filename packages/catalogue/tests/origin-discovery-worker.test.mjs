@@ -16,10 +16,11 @@ let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-origins';db=(await getRuntime()).db;});
 after(async()=>db?.terminate());
 async function fixture({root=true,count=2,hint='url',issuer='Fictional Workshop',format='jsonld',dedicatedHost=false,missingDateEvidence}={}){
- const id=randomUUID(),host=dedicatedHost?`jobs.authored-${id}.co.za`:`ats-${id}.example`,corp=dedicatedHost?`www.authored-${id}.co.za`:`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/${dedicatedHost?'':'tenant-a/'}`;
+ const id=randomUUID(),host=hint==='profile'?'www.pnet.co.za':dedicatedHost?`jobs.authored-${id}.co.za`:`ats-${id}.example`,corp=dedicatedHost?`www.authored-${id}.co.za`:`corporate-${id}.example`,page=`https://${corp}/careers/`,link=`https://${host}/${dedicatedHost?'':'tenant-a/'}`;
  let now='2026-10-29T10:00:00.000Z';
- const cases=Array.from({length:count},(_,i)=>originalFixture({issuer,host,path:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
+ const cases=Array.from({length:count},(_,i)=>originalFixture({issuer,host,path:hint==='profile'?`/jobs--Authored-apprentice--${i+100}-inline.html`:`/tenant-a/job/${i+100}/`,reference:`AP-${i+100}`,slug:`authored-${id}-${i}`}));
  if(hint==='url')cases.forEach(c=>{c.posting.hiringOrganization.sameAs=`https://${corp}/`;});
+ if(hint==='profile')cases.forEach(c=>{c.posting.hiringOrganization.url=`https://www.pnet.co.za/cmp/en/Authored-Forge-${parseInt(id.replaceAll('-','').slice(0,8),16)||1}/work.html`;});
  if(missingDateEvidence)cases.forEach(c=>{c.detailHtml=c.detailHtml.replace('<p>Closing date: 30 October 2026</p>','<p>Closing date: Not specified</p>');});
  const source=Source.parse({...cases[0].source,id:`publisher_${id}`,automation:{...cases[0].source.automation,issuerRegistry:'shadow_v1',originDiscovery:'shadow_v1',issuers:[],...(missingDateEvidence?{missingDateEvidence}:{})}});
  let parent=EmployerRelationship.parse({id:`corporate_${id}`,revision:1,state:'qualified',categories:['apprenticeship'],reviewedAt:now,expiresAt:'2026-11-01T10:00:00.000Z',
@@ -237,4 +238,19 @@ test('V2 missing-date probes keep ambiguous timing and revoked grants outside ac
  assert.ok(f.state.requests.every(u=>u.startsWith('https://recentjobs.co.za/')));assert.equal((await f.rows('worker_origin_discoveries')).length,0);assert.equal((await f.rows('worker_original_resolutions')).length,0);
  const g=await fixture({count:1,missingDateEvidence:'shadow_v2'});g.state.onRobots=async url=>{if(url.includes(g.host))await g.worker.ref('workers',g.worker.actor).set({...g.grant,active:false});};
  await assert.rejects(g.worker.run(g.source.id),{code:'WORKER_FORBIDDEN'});assert.ok(!g.state.requests.includes(g.cases[0].url));assert.equal((await g.rows('worker_origin_discoveries')).length,0);assert.equal((await g.rows('worker_original_resolutions')).length,0);
+});
+test('typed platform profiles select only reviewed company-name authority and still require actual corporate delegation',async()=>{
+ const f=await fixture({hint:'profile',count:1,issuer:`Authored Profile ${randomUUID()}`,missingDateEvidence:'shadow_v2'});
+ await f.worker.run(f.source.id);const origin=(await f.rows('worker_origin_discoveries'))[0];
+ assert.equal(origin.issuerHint.version,'issuer_hint_v3');assert.equal(origin.issuerHint.method,'platform_organization_profile');
+ assert.deepEqual(origin.issuerHint.organizationProfile.organizationUrls,[f.cases[0].posting.hiringOrganization.url]);
+ assert.equal(origin.resolution.reason,'DELEGATION_LINK_UNSUPPORTED');assert.ok(f.state.requests.includes(f.page));
+ assert.ok(!f.state.requests.includes(f.cases[0].posting.hiringOrganization.url),'A classification is not permission to fetch the profile');
+ assert.equal((await f.rows('employer_delegations')).length,0);assert.deepEqual(f.state.extracted,[]);
+ assert.equal((await f.rows('worker_exceptions'))[0].reason,'NOTICE_PRECISION_UNSUPPORTED');
+ const g=await fixture({hint:'profile',root:false,count:1,issuer:`Unknown Profile ${randomUUID()}`,missingDateEvidence:'shadow_v2'});
+ await g.worker.run(g.source.id);const hint=(await g.rows('worker_origin_discoveries'))[0].issuerHint;
+ const need=value(await g.worker.ref('employer_onboarding_needs',onboardingNeedId(hint)).get());
+ assert.equal(need.issuerHint.urlKind,'platform_organization_profile');assert.equal(need.issuerHint.host,'www.pnet.co.za');
+ assert.deepEqual(need.issuerHint.organizationProfile,hint.organizationProfile);assert.ok(!g.state.requests.some(u=>u.includes(g.corp)));
 });
