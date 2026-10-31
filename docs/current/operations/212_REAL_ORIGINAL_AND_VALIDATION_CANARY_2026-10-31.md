@@ -1,5 +1,7 @@
 # Real original corroboration, validation evidence and location completeness
 
+Follow-up: [durable source-day waits](213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md) improve future worker resumption without changing the real canary's negative outcome or recorded spending below.
+
 31 October 2026, South African time. Follow-up to [platform-profile identity](211_PLATFORM_PROFILE_AND_CORPORATE_IDENTITY_2026-10-30.md) under the [autonomous system target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
 ## Result

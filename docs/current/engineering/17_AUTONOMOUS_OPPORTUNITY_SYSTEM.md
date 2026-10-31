@@ -1,5 +1,7 @@
 # Autonomous opportunity system: delivery target
 
+31 October orchestration follow-up: [source-day budget waits](../operations/213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md) now preserve pending jobs and cached progress until the natural SAST reset without consuming ordinary failure retries or resetting provider accounting. This supports later unattended ticks; it does not provision a scheduler, reopen semantic exceptions or establish live positive-draft/publication acceptance.
+
 29 October 2026. Founder clarification: Skilved must discover, collect, extract, verify, curate, store and publish opportunities automatically, then maintain their freshness. RecentJobs remains the first discovery publisher. Supported adverts are data processed by one reusable workflow. A new vacancy must not need its own script, source registration, worker grant or code change.
 
 This is the current delivery direction for ingestion. The earlier individual-notice pilots are evaluation evidence, not the intended operating model. Generic improvements such as span-only practical extraction remain useful; running another isolated advert is no longer the default next milestone.

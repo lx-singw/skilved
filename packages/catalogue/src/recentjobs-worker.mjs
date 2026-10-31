@@ -35,6 +35,7 @@ import { ORIGIN_DISCOVERY_VERSION, discoveryOutcome, probeUrl, issuerHint, corpo
   delegationBinding, delegationDocument, readDelegation, lookupDelegations, validateDelegationBindings } from './origin-discovery.mjs';
 import { geminiAuthorityConfiguration, assertGeminiQuotaAuthority, withGeminiQuotaAuthority } from './ai/gemini-authority.mjs';
 import {onboardingNeedId} from './employer-onboarding.mjs';
+import {nextSouthAfricanDay} from './south-african-time.mjs';
 
 const hash = input => createHash('sha256').update(input).digest('hex');
 const payload = input => ({ json: JSON.stringify(input) });
@@ -51,7 +52,12 @@ const SOURCE_HOLD_REASONS = new Set(['NOTICE_CATEGORY_REVIEW_REQUIRED', 'NOTICE_
   'NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED', 'UNDATED_NOTICE_FRESHNESS_REQUIRED',
   'UNDATED_NOTICE_ORIGIN_REQUIRED', 'UNDATED_NOTICE_ORIGIN_CONFLICT', 'UNDATED_ORIGIN_IMPORT_REQUIRED',
   'UNDATED_HISTORY_CAPACITY', 'UNDATED_HISTORY_CONFLICT']);
-const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0);
+const ordinaryAttempts = job => job.attempts - (job.modelWindowRetries ?? 0) - (job.sourceBudgetWaits ?? 0);
+// Only our rejected reservation creates this error; provider-labelled errors do
+// not acquire an unlimited daily retry merely by using the same reason code.
+class SourceBudgetExhausted extends DomainError {
+  constructor(sourceId, at) { super('MODEL_BUDGET_EXHAUSTED'); this.sourceId=sourceId;this.resetAt=nextSouthAfricanDay(at); }
+}
 const UA = 'SkilvedSourceReview/1.0';
 const isRetryable = error => error.retryable === true || ['FETCH_TIMEOUT', 'UNSUPPORTED_RESPONSE', 'BODY_TOO_LARGE', 'SOURCE_BUSY',
   'EAI_AGAIN', 'ECONNRESET', 'ETIMEDOUT', 'ABORT_ERR'].includes(error.code);
@@ -161,7 +167,10 @@ export class RecentJobsWorker {
       const leaseRef = this.ref('worker_leases', sourceId), previous = value(await tx.get(leaseRef));
       if (!job || job.sourceId !== sourceId || !['pending', 'running'].includes(job.state) || job.nextAt > this.now() || job.leaseUntil > this.now()) fail('JOB_UNAVAILABLE');
       if (previous?.until > this.now()) fail('SOURCE_BUSY');
-      if (!Number.isInteger(job.modelWindowRetries ?? 0) || (job.modelWindowRetries ?? 0) < 0 ||
+      if (!Number.isSafeInteger(job.attempts) || job.attempts < 0 || job.attempts >= Number.MAX_SAFE_INTEGER ||
+          !Number.isSafeInteger(job.sourceBudgetWaits ?? 0) || (job.sourceBudgetWaits ?? 0) < 0 ||
+          (job.sourceBudgetResetAt != null && (!InstantSchema.safeParse(job.sourceBudgetResetAt).success || job.sourceBudgetResetAt > this.now())) ||
+          !Number.isInteger(job.modelWindowRetries ?? 0) || (job.modelWindowRetries ?? 0) < 0 ||
           (job.modelWindowRetries ?? 0) >= GEMINI_MAX_MODEL_WINDOWS || ordinaryAttempts(job) < 0) fail('JOB_UNAVAILABLE');
       if (ordinaryAttempts(job) >= 3) {
         const discovery = job.discoveryCycle ? value(await tx.get(this.ref('worker_discovery', sourceId))) : null;
@@ -174,6 +183,7 @@ export class RecentJobsWorker {
       }
       const lease = randomUUID(), until = new Date(Date.parse(this.now()) + LEASE_MS).toISOString();
       const claimed = { ...job, state: 'running', attempts: job.attempts + 1, lease, leaseUntil: until, sourceRevision: source.revision,
+        ...(job.sourceBudgetResetAt != null ? {sourceBudgetResetAt:null,error:null} : {}),
         ...(source.automation.issuerRegistry || job.issuerTrust ? { issuerTrust: null } : {}),
         ...(source.automation.originDiscovery || job.originDiscoveryId ? { originDiscoveryId: null } : {}) };
       tx.set(ref, payload(claimed)); tx.set(leaseRef, payload({ lease, until, nextRequestAt: previous?.nextRequestAt ?? this.now() }));
@@ -249,8 +259,9 @@ export class RecentJobsWorker {
     const usageId=this.provider==='gemini'?hash(`${this.quotaScope}:${attempt.model}:${quotaDate}`):null;
     await this.transaction(claim.sourceId, 'worker.model.reserve', async (tx, source) => {
       const job = await this.assertClaim(tx, source, claim);
-      const id = hash(`${source.id}:${dayInSA(this.now())}`), ref = this.ref('model_budgets', id);
-      const budget = value(await tx.get(ref)) ?? { sourceId: source.id, date: dayInSA(this.now()), calls: 0 };
+      const budgetAt=this.now(),sourceDay=dayInSA(budgetAt),id = hash(`${source.id}:${sourceDay}`), ref = this.ref('model_budgets', id);
+      const budget = value(await tx.get(ref)) ?? { sourceId: source.id, date: sourceDay, calls: 0 };
+      if (budget.calls >= source.automation.maxModelCallsPerDay) throw new SourceBudgetExhausted(source.id,budgetAt);
       let usage=null,blocked=null;
       if(this.provider==='gemini'){
         const availability=value(await tx.get(this.ref('model_availability',this.modelAvailabilityId(attempt.model))));
@@ -276,7 +287,6 @@ export class RecentJobsWorker {
         error.retryAfterMs = delayMs;
         if(blocked)error.rateLimitKind=blocked.kind;throw error;
       }
-      if (budget.calls >= source.automation.maxModelCallsPerDay) fail('MODEL_BUDGET_EXHAUSTED');
       if(usage)tx.set(this.ref('model_usage',usageId),payload({...usage,requests:usage.requests+1,minute:[...recentGeminiUsage(usage,this.now()),{id:callId,at,inputTokens:null}]}));
       tx.set(ref, payload({ ...budget, calls: budget.calls + 1 }));
       tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, stage }));
@@ -346,7 +356,10 @@ export class RecentJobsWorker {
       const ref = this.ref('worker_leases', source.id), lease = value(await tx.get(ref));
       const windowFailure = this.provider === 'gemini' && this.fallback && error.modelWindowFailed === true && geminiAvailabilityFailure(error);
       const windowRetry = windowFailure && (job.modelWindowRetries ?? 0) < GEMINI_MAX_MODEL_WINDOWS - 1;
-      const retry = windowFailure ? windowRetry : isRetryable(error) && ordinaryAttempts(job) < 3;
+      const budgetWait=error instanceof SourceBudgetExhausted && error.sourceId===source.id;
+      const retry = budgetWait || (windowFailure ? windowRetry : isRetryable(error) && ordinaryAttempts(job) < 3);
+      const nextAt=budgetWait?new Date(Math.max(Date.parse(this.now()),Date.parse(error.resetAt))).toISOString():
+        new Date(Date.parse(this.now()) + Math.max(60_000 * ordinaryAttempts(job), error.retryAfterMs ?? 0)).toISOString();
       const candidateCode = error.code ?? (/^RECENTJOBS_[A-Z_]+$/.test(error.message ?? '') ? error.message : null);
       const code = /^[A-Z_]+$/.test(candidateCode ?? '') ? candidateCode : 'WORKER_STAGE_FAILED';
       const locationDiagnostic=privateLocationDiagnostic(error);
@@ -363,7 +376,8 @@ export class RecentJobsWorker {
       }
       tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, state: retry ? 'pending' : 'exception', error: code,
         ...(windowRetry ? {modelWindowRetries:(job.modelWindowRetries ?? 0) + 1} : {}),
-        nextAt: new Date(Date.parse(this.now()) + Math.max(60_000 * ordinaryAttempts(job), error.retryAfterMs ?? 0)).toISOString(), lease: null, leaseUntil: null }));
+        ...(budgetWait ? {sourceBudgetWaits:(job.sourceBudgetWaits ?? 0)+1,sourceBudgetResetAt:nextAt} : {}),
+        nextAt, lease: null, leaseUntil: null }));
       tx.set(ref, payload({ ...lease, lease: null, until: null }));
       if (!retry) {
         if (discovery && discovery.cycleId === job.discoveryCycle && discovery.currentJobId === job.id)

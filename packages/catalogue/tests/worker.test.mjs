@@ -1471,6 +1471,14 @@ test('programme budget exhaustion stops the next validation request and preserve
   assert.equal((await worker.ref('drafts',decisions[0].recordId).get()).exists,true);assert.equal((await worker.ref('public',decisions[0].recordId).get()).exists,false);
 });
 
+test('programme source-budget resumption keeps completed siblings and validates cached remaining extraction',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:3});f.state.html=programmeHtml;f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));const candidate=parseRecentJobsDetail({html:programmeHtml,url:detailUrl});let sends=0;
+ const options=programmeOptions(async(_url,init)=>{sends++;return geminiAnswer(programmeResponse(JSON.parse(JSON.parse(init.body).contents[0].parts[0].text),candidate));});options.env={...options.env,SKILVED_GEMINI_PROJECT_ID:'authored-programme-resume-'+randomUUID()};const worker=f.restart(options);
+ assert.ok((await worker.run(f.sourceId)).results.some(r=>r.state==='pending'&&r.reason==='MODEL_BUDGET_EXHAUSTED'));assert.equal(sends,3);const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail'),prior=(await db.collection('m0_worker_programme_decisions').get()).docs.map(value).find(d=>d.sourceId===f.sourceId);assert.equal(prior.decision,'shadow_pass');
+ f.advance(Date.parse(job.nextAt)-Date.parse(f.now()));const result=await f.restart(options).runJob(f.sourceId,job.id);assert.equal(result.state,'done');assert.equal(result.draftCount,2);assert.equal(sends,4);assert.equal(result.programmes.length,2);assert.ok(result.programmes.some(r=>r.recordId===prior.recordId));
+ assert.equal(value(await worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-26').digest('hex')).get()).calls,3);assert.equal(value(await worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-27').digest('hex')).get()).calls,1);for(const r of result.programmes)assert.equal((await worker.ref('public',r.recordId).get()).exists,false);
+});
+
 test('cross-trade extraction fails locally without fallback while a valid sibling continues',async()=>{
   const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});f.state.html=programmeHtml;
   f.source.automation.issuers[0].emailAddresses=['electrical@employer.example','plumbing@employer.example'];await f.worker.ref('sources',f.sourceId).set(payload(f.source));
@@ -1663,6 +1671,87 @@ test('daily call reservation survives restarts and prevents a partial validation
   f.advance(24 * 3600000);
   const next = detailResult(await f.restart().run(f.sourceId));
   assert.equal(next.published, true); assert.equal(f.state.modelCalls, 1); assert.equal(f.state.validations, 1);
+});
+
+test('source daily exhaustion stays queued until exact SA reset and resumes the same cached extraction',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:1});
+ const first=await f.worker.run(f.sourceId);assert.ok(first.results.some(r=>r.state==='pending'&&r.reason==='MODEL_BUDGET_EXHAUSTED'));
+ const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');
+ assert.equal(job.state,'pending');assert.equal(job.nextAt,'2026-09-26T22:00:00.000Z');assert.equal(job.sourceBudgetResetAt,job.nextAt);assert.equal(job.sourceBudgetWaits,1);assert.equal(job.attempts,1);
+ assert.equal((await f.worker.ref('worker_queue',job.id).get()).exists,true);assert.equal((await f.worker.ref('worker_exceptions',job.id).get()).exists,false);
+ const oldRef=f.worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-26').digest('hex')),before=(await oldRef.get()).data(),requests=f.state.requests.length;
+ f.advance(Date.parse(job.nextAt)-Date.parse(f.now())-1);await assert.rejects(f.restart().runJob(f.sourceId,job.id),{code:'JOB_UNAVAILABLE'});assert.equal(f.state.requests.length,requests);
+ f.advance(1);const done=await f.restart().runJob(f.sourceId,job.id);assert.equal(done.state,'done');assert.equal(done.published,false);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+ assert.deepEqual((await oldRef.get()).data(),before);const renewed=value(await f.worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-27').digest('hex')).get());assert.equal(renewed.calls,1);
+ const after=value(await f.worker.ref('worker_jobs',job.id).get());assert.equal(after.sourceBudgetWaits,1);assert.equal(after.attempts,2);assert.equal(after.sourceBudgetResetAt,null);assert.equal(after.error,null);
+ assert.equal((await f.worker.ref('worker_queue',job.id).get()).exists,false);assert.equal((await f.worker.ref('public',done.recordId).get()).exists,false);
+});
+
+test('source quota waits across days and jobs do not exhaust ordinary retries or spend model calls',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:1});
+ const budget=async()=>{const date=f.now().slice(0,10),id=createHash('sha256').update(f.sourceId+':'+date).digest('hex');await f.worker.ref('model_budgets',id).set(payload({sourceId:f.sourceId,date,calls:1}));};
+ await budget();await f.worker.run(f.sourceId);const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');
+ const sibling={...job,id:createHash('sha256').update(randomUUID()).digest('hex'),attempts:0,sourceBudgetWaits:0,sourceBudgetResetAt:null,nextAt:f.now(),error:null};await f.worker.ref('worker_jobs',sibling.id).set(payload(sibling));await f.worker.ref('worker_queue',sibling.id).set({sourceId:f.sourceId});await f.restart().runJob(f.sourceId,sibling.id);
+ for(let day=1;day<=3;day++){f.advance(24*3600000);await budget();for(const id of [job.id,sibling.id])assert.equal((await f.restart().runJob(f.sourceId,id)).state,'pending');}
+ for(const id of [job.id,sibling.id]){const current=value(await f.worker.ref('worker_jobs',id).get());assert.equal(current.attempts,4);assert.equal(current.sourceBudgetWaits,4);assert.equal((await f.worker.ref('worker_exceptions',id).get()).exists,false);}
+ assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+ f.advance(24*3600000);const failing=f.restart({fetcher:async()=>{throw new DomainError('UNSUPPORTED_RESPONSE');}});
+ for(let i=0;i<3;i++){const result=await failing.runJob(f.sourceId,job.id);assert.equal(result.state,i===2?'exception':'pending');f.advance((i+1)*60000);}
+ const failed=value(await f.worker.ref('worker_jobs',job.id).get());assert.equal(failed.attempts,7);assert.equal(failed.sourceBudgetWaits,4);assert.equal((await f.worker.ref('worker_queue',job.id).get()).exists,false);
+});
+
+test('waiting source jobs retain grant, pause and current notice-expiry fences at reset',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:1});await f.worker.run(f.sourceId);
+ const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail'),grantRef=f.worker.ref('workers',f.worker.actor),grant=(await grantRef.get()).data();
+ f.advance(Date.parse(job.nextAt)-Date.parse(f.now()));await grantRef.set({...grant,active:false});await assert.rejects(f.restart().runJob(f.sourceId,job.id),{code:'WORKER_FORBIDDEN'});
+ await grantRef.set(grant);await f.worker.ref('sources',f.sourceId).set(payload({...f.source,paused:true}));await assert.rejects(f.restart().runJob(f.sourceId,job.id),{code:'SOURCE_PAUSED'});
+ await f.worker.ref('sources',f.sourceId).set(payload(f.source));f.state.html=detailHtml.replace('30 October 2026','25 September 2026');const result=await f.restart().runJob(f.sourceId,job.id);assert.equal(result.reason,'NOTICE_NOT_OPEN');assert.equal(result.state,'exception');assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,0);
+});
+
+test('a provider-labelled budget error cannot create a source-reset wait',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false});const worker=f.restart({extractor:async()=>{throw new DomainError('MODEL_BUDGET_EXHAUSTED');}});
+ assert.ok((await worker.run(f.sourceId)).results.some(r=>r.state==='exception'&&r.reason==='MODEL_BUDGET_EXHAUSTED'));
+ const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');assert.equal(job.sourceBudgetWaits,undefined);assert.equal(job.sourceBudgetResetAt,undefined);
+});
+
+test('completed cached work remains usable when the source daily allowance is fully spent',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:2}),first=detailResult(await f.worker.run(f.sourceId));assert.equal(first.published,false);
+ const id=createHash('sha256').update(randomUUID()).digest('hex'),job={id,sourceId:f.sourceId,kind:'detail',url:detailUrl,state:'pending',attempts:0,nextAt:f.now(),lease:null};await f.worker.ref('worker_jobs',id).set(payload(job));await f.worker.ref('worker_queue',id).set({sourceId:f.sourceId});
+ const result=await f.restart().runJob(f.sourceId,id);assert.equal(result.state,'done');assert.equal(result.recordId,first.recordId);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);assert.equal(value(await f.worker.ref('worker_jobs',id).get()).sourceBudgetWaits,undefined);
+ const budget=value(await f.worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-26').digest('hex')).get());assert.equal(budget.calls,2);
+});
+
+test('a published record loses its action while a changed-source recheck waits for source quota',async()=>{
+ const f=await fixture({calls:2,cadenceHours:1}),first=detailResult(await f.worker.run(f.sourceId)),before=value(await f.worker.ref('drafts',first.recordId).get());
+ f.advance(3600000);f.state.html=detailHtml.replace('</div>','<p>Published notice updated.</p></div>');const result=await f.restart().run(f.sourceId);assert.ok(result.results.some(r=>r.state==='pending'&&r.reason==='MODEL_BUDGET_EXHAUSTED'));
+ assert.equal((await f.catalogue.detail(first.recordId)).status.status,'under_review');const after=value(await f.worker.ref('drafts',first.recordId).get());assert.equal(after.publication.approved,false);assert.deepEqual(after.checks,before.checks);assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,1);
+});
+
+test('source quota waits preserve Gemini usage and later provider holds follow their separate reset',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:1}),options={...geminiOptions(()=>assert.fail('Held model reached transport')),env:{...geminiEnv,SKILVED_AI_FALLBACK:'false',SKILVED_GEMINI_PROJECT_ID:'authored-'+randomUUID()}},worker=f.restart(options);
+ const sourceRef=worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-26').digest('hex'));await sourceRef.set(payload({sourceId:f.sourceId,date:'2026-09-26',calls:1}));
+ const usageRef=worker.ref('model_usage',createHash('sha256').update(worker.quotaScope+':'+worker.model+':2026-09-26').digest('hex'));await usageRef.set(payload({scopeHash:worker.quotaScope,provider:'gemini',model:worker.model,date:'2026-09-26',requests:7,knownInputTokens:50,knownTotalTokens:70,unknownUsageCalls:0,minute:[]}));
+ const until=await worker.holdModelForDay(f.sourceId,worker.model),holdRef=worker.ref('model_availability',worker.modelAvailabilityId(worker.model)),before={budget:(await sourceRef.get()).data(),usage:(await usageRef.get()).data(),hold:(await holdRef.get()).data()};
+ assert.ok((await worker.run(f.sourceId)).results.some(r=>r.reason==='MODEL_BUDGET_EXHAUSTED'));
+ const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');assert.equal(job.nextAt,'2026-09-26T22:00:00.000Z');assert.equal(job.sourceBudgetWaits,1);
+ f.advance(Date.parse(job.nextAt)-Date.parse(f.now()));const resumed=await f.restart(options).runJob(f.sourceId,job.id);assert.equal(resumed.state,'pending');assert.equal(resumed.reason,'AI_RATE_LIMITED');const after=value(await worker.ref('worker_jobs',job.id).get());assert.equal(after.nextAt,until);assert.equal(after.sourceBudgetResetAt,null);assert.equal(after.sourceBudgetWaits,1);
+ assert.deepEqual((await sourceRef.get()).data(),before.budget);assert.deepEqual((await usageRef.get()).data(),before.usage);assert.deepEqual((await holdRef.get()).data(),before.hold);
+ assert.equal((await worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-27').digest('hex')).get()).exists,false);assert.equal(f.state.modelCalls,0);assert.equal(f.state.validations,0);
+});
+
+test('a source reset reached during failure persistence resumes immediately without a minute delay',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false,employerCrawl:false,calls:1});f.advance(Date.parse('2026-09-26T21:59:59.999Z')-Date.parse(f.now()));
+ await f.worker.ref('model_budgets',createHash('sha256').update(f.sourceId+':2026-09-26').digest('hex')).set(payload({sourceId:f.sourceId,date:'2026-09-26',calls:1}));
+ const failed=f.worker.failed.bind(f.worker);f.worker.failed=async(claim,error)=>{f.advance(1);return failed(claim,error);};
+ await f.worker.run(f.sourceId);const job=(await db.collection('m0_worker_jobs').get()).docs.map(value).find(j=>j.sourceId===f.sourceId&&j.kind==='detail');assert.equal(job.nextAt,f.now());assert.equal(job.nextAt,'2026-09-26T22:00:00.000Z');assert.equal(job.sourceBudgetWaits,1);assert.equal(f.state.modelCalls,0);
+});
+
+test('corrupt source-wait counters and reset times cannot bypass admission',async()=>{
+ const f=await fixture({mode:'shadow',publisher:false}),id=await f.worker.schedule(f.sourceId),ref=f.worker.ref('worker_jobs',id),job=value(await ref.get());
+ for(const change of [{sourceBudgetWaits:-1},{sourceBudgetWaits:0.5},{sourceBudgetWaits:'1'},{sourceBudgetWaits:1},{sourceBudgetResetAt:'invalid'},{sourceBudgetResetAt:'2026-09-26T22:00:00.000Z'}, {attempts:Number.MAX_SAFE_INTEGER}]){
+  await ref.set(payload({...job,...change}));await assert.rejects(f.restart().claim(f.sourceId,id),{code:'JOB_UNAVAILABLE'});
+ }
+ assert.equal(f.state.requests.length,0);assert.equal(f.state.modelCalls,0);
 });
 
 test('source lease excludes concurrent workers and expired crash leases can be reclaimed', async () => {

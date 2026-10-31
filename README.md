@@ -27,6 +27,8 @@ Start with the [current documentation index](docs/current/00_START_HERE.md). It 
 
 ## Engineering orientation
 
+Latest orchestration change: [source daily-budget resumption](docs/current/operations/213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md) preserves pending jobs and cached progress until exact SAST midnight. Later worker ticks resume within unchanged quotas and safety checks. Hosting and scheduling remain inactive; no fresh live draft success is implied.
+
 Latest ingestion evidence: [31 October real canary and location correction](docs/current/operations/212_REAL_ORIGINAL_AND_VALIDATION_CANARY_2026-10-31.md). Genuine staging authentication, employer corroboration and real extraction work; validation correctly holds an incomplete location. The prospective fix rejects the saved answer offline. No new private draft, automatic publication or deployed hosting is claimed.
 
 The observed repository uses a pnpm/Turborepo TypeScript monorepo, a Next.js web application, agent scaffolding and shared packages. Google Cloud/Firebase remains the proposed reference cloud, with a small number of execution services and logically separate agent responsibilities. Existing manifests and actual behaviour take precedence over archived directory diagrams.

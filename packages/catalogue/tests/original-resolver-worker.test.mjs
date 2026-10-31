@@ -20,8 +20,8 @@ before(async () => {
 });
 after(async () => { await db?.terminate(); });
 
-async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref','closed','unavailable','unknown','unsupported'], automation = {}) {
-  let now = '2026-10-29T10:00:00.000Z';
+async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref','closed','unavailable','unknown','unsupported'], automation = {}, startAt = '2026-10-29T10:00:00.000Z') {
+  let now = startAt;
   const sourceId = `publisher_${randomUUID()}`, principal = `${randomUUID()}@example.test`, uid = `operator_${randomUUID()}`;
   const cases = kinds.map((kind, index) => {
     const f = originalFixture({ issuer: kind.endsWith('_b') ? 'Imaginary Works' : 'Fictional Workshop',
@@ -99,6 +99,14 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
     restart: (overrides = {}) => new RecentJobsWorker(db, principal, { ...options, ...overrides }),
     advance: ms => { now = new Date(Date.parse(now) + ms).toISOString(); } };
 }
+
+test('same-job source quota resumption refreshes original evidence and retains cached extraction',async()=>{
+ const f=await fixture(['matched_a'],{maxModelCallsPerDay:1},'2026-10-28T10:00:00.000Z'),first=await f.worker.run(f.sourceId);assert.ok(first.results.some(r=>r.state==='pending'&&r.reason==='MODEL_BUDGET_EXHAUSTED'));
+ const job=(await f.rows('worker_jobs')).find(j=>j.kind==='detail'),before=(await f.rows('worker_original_resolutions'))[0];assert.equal(before.resolution.outcome,'matched');assert.equal(f.state.extracted.length,1);assert.equal(f.state.validated.length,0);
+ f.advance(Date.parse(job.nextAt)-Date.parse('2026-10-28T10:00:00.000Z'));const result=await f.restart().runJob(f.sourceId,job.id);assert.equal(result.state,'done');assert.equal(result.published,false);assert.equal(f.state.extracted.length,1);assert.equal(f.state.validated.length,1);
+ const receipts=await f.rows('worker_original_resolutions');assert.equal(receipts.length,2);assert.deepEqual(receipts.find(r=>r.id===before.id),before);const fresh=receipts.find(r=>r.attempt===2);assert.equal(fresh.at,job.nextAt);assert.equal(fresh.resolution.outcome,'matched');assert.equal(f.state.requests.filter(url=>url===f.cases[0].url).length,2);
+ assert.equal(value(await f.worker.ref('model_budgets',hash(f.sourceId+':2026-10-28')).get()).calls,1);assert.equal(value(await f.worker.ref('model_budgets',hash(f.sourceId+':2026-10-29')).get()).calls,1);assert.equal((await f.worker.ref('public',result.recordId).get()).exists,false);
+});
 
 test('one publisher batch corroborates two employers, isolates wrong vacancies and spends AI only on matches', async () => {
   const f = await fixture(), result = await f.worker.run(f.sourceId);
