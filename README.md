@@ -27,6 +27,8 @@ Start with the [current documentation index](docs/current/00_START_HERE.md). It 
 
 ## Engineering orientation
 
+Latest ingestion evidence: [31 October real canary and location correction](docs/current/operations/212_REAL_ORIGINAL_AND_VALIDATION_CANARY_2026-10-31.md). Genuine staging authentication, employer corroboration and real extraction work; validation correctly holds an incomplete location. The prospective fix rejects the saved answer offline. No new private draft, automatic publication or deployed hosting is claimed.
+
 The observed repository uses a pnpm/Turborepo TypeScript monorepo, a Next.js web application, agent scaffolding and shared packages. Google Cloud/Firebase remains the proposed reference cloud, with a small number of execution services and logically separate agent responsibilities. Existing manifests and actual behaviour take precedence over archived directory diagrams.
 
 Begin with **S01: reproduce the baseline** using the [developer workflow](docs/current/engineering/01_DEVELOPER_WORKFLOW_AND_REPOSITORY.md). Inspect current scripts and configuration before running setup; archived commands may create billable resources or overly broad permissions. Preserve existing uncommitted work. No clean install/build result is implied here.

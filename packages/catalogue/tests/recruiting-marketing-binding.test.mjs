@@ -7,7 +7,7 @@ test('canonical and posting-owned declared actions bind multiple employers witho
  for(const [issuer,host,id]of [['Authored Forge','jobs.example','123456'],['Imaginary Tools','careers.example','99887766554433221100']]){
   const f=recruitingFixture({issuer,host,id}),html=recruitingHtml(f),p=inspectPrimaryJobPosting(html),r=resolve(f,html);
   assert.equal(p.actionBinding.outcome,'supported');assert.equal(p.postingUrl,null);assert.equal(p.identifier,null);assert.equal(r.outcome,'matched');
-  assert.equal(r.version,'original_jobposting_v4');assert.equal(r.vacancyBinding.kind,'rmk_apply_action');assert.equal(r.vacancyBinding.evidence.platformId,id);
+  assert.equal(r.version,'original_jobposting_v5');assert.equal(r.vacancyBinding.kind,'rmk_apply_action');assert.equal(r.vacancyBinding.evidence.platformId,id);
   assert.deepEqual(r.vacancyBinding.evidence.applicationUrls,[f.action]);assert.deepEqual(r.vacancyBinding.evidence.controlKinds,['a','button']);
   assert.equal(JSON.parse(p.primary.text).url,undefined);assert.equal(JSON.parse(p.primary.text).identifier,undefined);assert.deepEqual(parsePrimaryJobPosting(html),p.primary);
   assert.equal(f.candidate.applicationCandidates[0].destination,f.url);

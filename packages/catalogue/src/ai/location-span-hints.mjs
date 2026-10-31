@@ -23,6 +23,9 @@ For numbered output return that complete span. For quote-based output copy its e
 text, including intervening lines. Never concatenate separate passages or omit intervening text.
 Null recommendedSpan does not mean the notice has no location. Hints are not exhaustive and do
 not resolve conflicting places, infer geography, establish attendance/coverage or verify an employer.
+An explicit location label listing places with & is a complete passage to retain. Check every
+listed name even when an earlier summary label names fewer places. A short header cannot
+replace a later complete location list. Preserve qualifiers; do not infer geography.
 Code will not widen or repair the returned location evidence.`;
 
 const label=/^((?:(?:Work|Job|Training) )?Locations?|Worksites?)\s*(?::\s*(.*)|\s*)$/i;

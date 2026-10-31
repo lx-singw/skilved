@@ -1,9 +1,9 @@
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
-import { isDeepStrictEqual } from 'node:util';
 import { DomainError } from './config.mjs';
 import { usesUndatedV2, undatedV2Window, undatedTimingEvidence } from './undated-policy.mjs';
 import { dayInSA } from './south-african-time.mjs';
 import { parseOriginalDeadline } from './original-deadline.mjs';
+import {originalApplicationDate,matchesOriginalTiming} from './original-closing-date.mjs';
 export { dayInSA } from './south-african-time.mjs';
 
 export const RECENTJOBS_INDEX = 'https://recentjobs.co.za/category/apprenticeships/';
@@ -139,7 +139,7 @@ export function assertMaterialFacts(record) {
       !record.requirements.requirements.length || JSON.stringify(record.requirements.expression).includes('"unknown"')) fail('MATERIAL_FACTS_UNRESOLVED');
 }
 
-export function publicationGate(source, candidate, record, primary, assessment, now, originalDeadline = null) {
+export function publicationGate(source, candidate, record, primary, assessment, now, originalDeadline = null, originalClosing = null) {
   if (candidate.applicationInstructions?.length) fail('NOTICE_APPLICATION_METHOD_REVIEW_REQUIRED');
   if (candidate.issues?.includes('programme_subject_scope_review_required')) fail('NOTICE_PROGRAMME_SCOPE_REVIEW_REQUIRED');
   assertApprenticeshipSource(candidate);
@@ -156,7 +156,7 @@ export function publicationGate(source, candidate, record, primary, assessment, 
     // Legacy/automatic callers retain their existing ISO-prefix contract.
     if (source.automation.mode === 'shadow' && source.automation.originalVerification === 'shadow_v1' && originalDeadline !== null) {
       const parsed = parseOriginalDeadline(primary.validThrough);
-      if (!parsed || !isDeepStrictEqual(parsed, originalDeadline) || parsed.localDate !== deadline.localDate ||
+      if (!parsed || !matchesOriginalTiming(primary.validThrough,originalDeadline,originalClosing) || originalApplicationDate(parsed,originalClosing) !== deadline.localDate ||
           parsed.instant !== null && Date.parse(parsed.instant) <= Date.parse(now)) fail('PRIMARY_DEADLINE_UNRESOLVED');
     } else if (!primary.validThrough || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(primary.validThrough) ||
         !DateSchema.safeParse(primary.validThrough.slice(0, 10)).success || primary.validThrough.slice(0, 10) !== deadline.localDate) fail('PRIMARY_DEADLINE_UNRESOLVED');
@@ -168,10 +168,10 @@ export function publicationGate(source, candidate, record, primary, assessment, 
 }
 
 /** The undated exception is limited to a private, unapproved single-notice draft. */
-export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt, undatedOrigin, originalDeadline = null) {
+export function draftGate(source, candidate, record, primary, assessment, now, sourceRetrievedAt, undatedOrigin, originalDeadline = null, originalClosing = null) {
   const v2 = usesUndatedV2(source, candidate);
   if (!v2 && (candidate.deadlineCandidates.length || source.automation?.undatedNotices !== 'shadow_recent'))
-    return publicationGate(source, candidate, record, primary, assessment, now, originalDeadline);
+    return publicationGate(source, candidate, record, primary, assessment, now, originalDeadline,originalClosing);
   preflightCandidate(source, candidate, now, sourceRetrievedAt, undatedOrigin);
   const window = v2 ? undatedV2Window(source, candidate, now, sourceRetrievedAt, undatedOrigin)
     : undatedReviewWindow(source, candidate, now, sourceRetrievedAt);

@@ -1,5 +1,7 @@
 # Platform organization profiles and independent corporate identity
 
+Follow-up: [31 October real original/validation canary](212_REAL_ORIGINAL_AND_VALIDATION_CANARY_2026-10-31.md) reaches live employer corroboration and extraction, then holds incomplete location evidence. The saved-cohort outcomes below remain historical; no platform delegation is inferred from the later case.
+
 30 October 2026. Follow-up to [missing-date origin probes](210_MISSING_DATE_ORIGIN_PROBES_2026-10-30.md) under the [autonomous system target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
 ## Result

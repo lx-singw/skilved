@@ -27,6 +27,22 @@ test('work bases and explicit location labels require structured values and comp
   rejects(()=>assertLocationCompleteness(source('Work location\nCity: Exampletown'),fact('City: Exampletown',[place('Exampletown')])));
 });
 
+test('a later complete ampersand location label cannot be replaced by an incomplete summary header',()=>{
+ for(const list of ['Location: North End & Salt River','Locations\nNorth End & Salt River','Training locations: North End & Salt River']){
+  const s=source('Location: North End\nAbout the employer\n'+list),original=fact('Location: North End',[place('North End')]),before=structuredClone(original);
+  rejects(()=>assertLocationCompleteness(s,original));assert.deepEqual(original,before);
+  rejects(()=>assertLocationCompleteness(s,fact(s.sourceText,[place('North End')])));
+  assert.doesNotThrow(()=>assertLocationCompleteness(s,fact(s.sourceText,[place('North End'),place('Salt River')])));
+  assert.deepEqual(locationCompletenessPolicy(s).obligations.at(-1).values,['North End','Salt River']);
+ }
+ const s=source('Location:\nNorth End & Salt River Mining');
+ assert.doesNotThrow(()=>assertLocationCompleteness(s,fact(s.sourceText,[place('North End'),place('Salt River Mining')])));
+ rejects(()=>assertLocationCompleteness(s,fact(s.sourceText,[place('North End'),place('Mining')])));
+ for(const text of ['Contact details\nLocation: North End & Salt River','Residence requirements\nLocations: North End & Salt River',
+  'Location: North End & Salt River if selected','Location: North End & Head Office','Documents to prepare\nLocation: North End & Salt River'])assert.deepEqual(locationCompletenessPolicy(source(text)).obligations,[]);
+ const scoped={...source('Location: North End & Salt River'),programmeScope:{includedSpans:[[1,1]]}};assert.deepEqual(locationCompletenessPolicy(scoped).obligations,[]);
+});
+
 test('a source work base cannot hide in summary, broad evidence, unknown location or an employer prefix',()=>{
   const s=source(workBase+'\nProvince\nGauteng');
   for(const x of [absent,{state:'ambiguous',value:null,quote:workBase},fact(s.sourceText,[place(null,'gauteng')]),fact(s.sourceText,[place('Aurora','gauteng')])]){

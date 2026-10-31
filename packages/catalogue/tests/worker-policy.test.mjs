@@ -41,11 +41,12 @@ test('semantic validator requires evidence from both notices and rejects unsuppo
   const env = { SKILVED_AI_MODE: 'groq', GROQ_API_KEY: 'synthetic_api_key_for_tests_only' };
   const good = { supported: true, issues: [], evidence: [{ source: 'recentjobs', quote: 'Fictional source quote' }, { source: 'primary', quote: 'Primary source quote' }] };
   const respond = data => ({ env, fetchImpl: async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(data) } }] }) });
-  assert.equal((await validateExtraction(input, respond(good))).supported, true);
-  for (const data of [{ ...good, issues: [{ field: 'deadline', reason: 'Conflicting' }] },
-    { ...good, evidence: [good.evidence[0], good.evidence[0]] },
-    { ...good, evidence: [good.evidence[0], { source: 'primary', quote: 'Invented quote' }] },
-    { ...good, approved: true }]) await assert.rejects(validateExtraction(input, respond(data)), /AI_INVALID_VALIDATION/);
+  const wire={...good,evidence:{recentjobs:[good.evidence[0].quote],primary:[good.evidence[1].quote]}};
+  assert.equal((await validateExtraction(input, respond(wire))).supported, true);
+  for (const data of [{ ...wire, issues: [{ field: 'deadline', reason: 'Conflicting' }] },
+    { ...wire, evidence: {recentjobs:wire.evidence.recentjobs} },
+    { ...wire, evidence: {...wire.evidence,primary:['Invented quote']} },
+    { ...wire, approved: true }]) await assert.rejects(validateExtraction(input, respond(data)), /AI_INVALID_VALIDATION/);
   const discovery = { ...input, primary: null };
   assert.equal((await validateExtraction(discovery, respond({ ...good, evidence: [good.evidence[0]] }))).supported, true);
   await assert.rejects(validateExtraction(discovery, respond(good)), /AI_INVALID_VALIDATION/);

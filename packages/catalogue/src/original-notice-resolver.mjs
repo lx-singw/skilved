@@ -1,14 +1,16 @@
 import { DateSchema, InstantSchema } from '@skilved/types/opportunities';
-import { isDeepStrictEqual } from 'node:util';
+import { createHash } from 'node:crypto';
 import { inspectPrimaryJobPosting } from './adapters/primary-jobposting.mjs';
 import { approvedRoute, dayInSA } from './worker-policy.mjs';
 import { noticeMetadataPolicy } from './ai/notice-metadata.mjs';
 import { DomainError } from './config.mjs';
 import { parseOriginalDeadline } from './original-deadline.mjs';
 import {validRecruitingMarketingBinding} from './adapters/recruiting-marketing-binding.mjs';
+import {originalClosingDateProof,originalApplicationDate,matchesOriginalTiming} from './original-closing-date.mjs';
 
-export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v4';
+export const ORIGINAL_RESOLVER_VERSION = 'original_jobposting_v5';
 const nameKey = text => text.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+const timingHash=proof=>createHash('sha256').update(JSON.stringify(proof??null)).digest('hex');
 const words = text => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const platformIdentifier=id=>['rmkid','rmkjobid','rmkspecificid','recruitingmarketingid','recruitingmarketingjobid','recruitingmarketingspecificid']
   .includes((id?.name??'').normalize('NFKC').toLowerCase().replace(/[^a-z0-9]/g,''));
@@ -109,13 +111,20 @@ export function resolveOriginalNotice({ source, candidate, observation, now }) {
   const expiry = deadline(primary.validThrough, now);
   if (!expiry) return result('unsupported', 'DEADLINE_UNRESOLVED');
   basis.deadlineEvidence = expiry.evidence;
+  const closing=originalClosingDateProof(descriptionText);
+  basis.identity.closingDateProofSha256=timingHash(closing);
+  if(closing)basis.closingDateEvidence=closing;
+  if(closing?.state==='unresolved')return result('unsupported','ORIGINAL_CLOSING_DATE_UNRESOLVED');
+  const applicationDate=originalApplicationDate(expiry.evidence,closing);
+  if(applicationDate===null)return result('conflicting','ORIGINAL_TIMING_CONFLICT');
+  if(applicationDate<dayInSA(now))return result('closed','ORIGINAL_DEADLINE_ELAPSED');
   // Classify closure only after matching this vacancy's identity, not a different
   // expired advert, transport failure, generic careers page or robots denial.
   if (expiry.elapsed) return result('closed', 'ORIGINAL_DEADLINE_ELAPSED');
   const sourceDates = [...new Set(candidate.deadlineCandidates.map(d => d.localDate))];
   if (sourceDates.length !== 1 || !DateSchema.safeParse(sourceDates[0]).success) return result('unsupported', 'SOURCE_DEADLINE_UNRESOLVED');
-  if (expiry.date !== sourceDates[0]) return result('conflicting', 'DEADLINE_CONFLICT');
-  if (expiry.closingDay) return result('unsupported', 'CLOSING_DAY_HOLD');
+  if (applicationDate !== sourceDates[0]) return result('conflicting', 'DEADLINE_CONFLICT');
+  if (expiry.closingDay || closing && applicationDate===dayInSA(now)) return result('unsupported', 'CLOSING_DAY_HOLD');
   basis.checks.push('deadline', 'application_method');
   return { ...result('matched', 'EXACT_NOTICE_CORROBORATED'), primary };
 }
@@ -131,9 +140,12 @@ export function refreshOriginalResolution(resolution, now) {
     return{...basis,outcome:'unsupported',reason:'VACANCY_BINDING_CHANGED'};
   const expiry = deadline(resolution.identity.validThrough, now);
   if (!expiry) return { ...basis, outcome: 'unsupported', reason: 'DEADLINE_UNRESOLVED' };
-  if (!isDeepStrictEqual(expiry.evidence, resolution.deadlineEvidence))
+  if (resolution.identity.closingDateProofSha256!==timingHash(resolution.closingDateEvidence)||
+      !matchesOriginalTiming(resolution.identity.validThrough,resolution.deadlineEvidence,resolution.closingDateEvidence??null))
     return { ...basis, outcome: 'unsupported', reason: 'DEADLINE_EVIDENCE_CHANGED' };
   if (expiry.elapsed) return { ...basis, outcome: 'closed', reason: 'ORIGINAL_DEADLINE_ELAPSED' };
-  if (expiry.closingDay) return { ...basis, outcome: 'unsupported', reason: 'CLOSING_DAY_HOLD' };
+  const applicationDate=originalApplicationDate(resolution.deadlineEvidence,resolution.closingDateEvidence??null);
+  if(applicationDate<dayInSA(now))return{...basis,outcome:'closed',reason:'ORIGINAL_DEADLINE_ELAPSED'};
+  if (expiry.closingDay || resolution.closingDateEvidence && applicationDate===dayInSA(now)) return { ...basis, outcome: 'unsupported', reason: 'CLOSING_DAY_HOLD' };
   return resolution;
 }

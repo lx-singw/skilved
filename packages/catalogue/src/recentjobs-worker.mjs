@@ -17,6 +17,7 @@ import { GEMINI_MODEL, GEMINI_MODEL_CHAIN } from './ai/gemini.mjs';
 import { geminiAvailabilityFailure } from './ai/gemini-models.mjs';
 import { transportCodeOf } from './ai/transport-diagnostic.mjs';
 import { privateLocationDiagnostic } from './ai/location-evidence.mjs';
+import {privateValidationDiagnostic} from './ai/validation-diagnostic.mjs';
 import { extractWithProvider } from './ai/provider.mjs';
 import { GROQ_EXTRACTION_VERSION } from './ai/groq-schema.mjs';
 import { extractMetadata, METADATA_VERSION } from './ai/metadata.mjs';
@@ -349,6 +350,7 @@ export class RecentJobsWorker {
       const candidateCode = error.code ?? (/^RECENTJOBS_[A-Z_]+$/.test(error.message ?? '') ? error.message : null);
       const code = /^[A-Z_]+$/.test(candidateCode ?? '') ? candidateCode : 'WORKER_STAGE_FAILED';
       const locationDiagnostic=privateLocationDiagnostic(error);
+      const validationDiagnostic=privateValidationDiagnostic(error);
       const recordId = hash(`${source.id}:${hash(job.url)}`);
       const old = job.kind === 'detail' ? value(await tx.get(this.ref('drafts', recordId))) : null;
       const catalogueState = value(await tx.get(this.ref('state', 'current'))) ?? { revision: 1 };
@@ -376,6 +378,7 @@ export class RecentJobsWorker {
           ...(job.discoverySnapshotId ? { discoverySnapshotId: job.discoverySnapshotId } : {}),
           programmePlanId:job.programmePlanId ?? null,
           ...(locationDiagnostic?{locationDiagnostic}:{}),
+          ...(validationDiagnostic?{validationDiagnostic}:{}),
           attempts: job.attempts, modelWindowRetries:job.modelWindowRetries ?? 0, at: this.now() }));
         const sourceHold = job.kind === 'detail' && !old?.publication.previouslyPublic && !old?.publication.approved &&
           (job.stage === 'preflight' && SOURCE_HOLD_REASONS.has(code) || !job.stage && code === 'RECENTJOBS_LAYOUT_CHANGED');
@@ -803,7 +806,7 @@ export class RecentJobsWorker {
       const current = refreshOriginalResolution(original.resolution, this.now());
       if (current.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${current.outcome.toUpperCase()}`);
     }
-    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin, original?.resolution.deadlineEvidence ?? null);
+    draftGate(claim.source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin, original?.resolution.deadlineEvidence ?? null,original?.resolution.closingDateEvidence??null);
     const published = claim.source.automation.mode === 'automatic';
     return this.finish(claim, { recordId: captured.recordId, published, snapshotId: captured.snapshotId }, async (tx, source) => {
       await this.assertStoredUndatedOrigin(tx, source, candidate, undatedOrigin);
@@ -819,7 +822,7 @@ export class RecentJobsWorker {
         const current = refreshOriginalResolution(original.resolution, this.now());
         if (current.outcome !== 'matched') fail(`ORIGINAL_NOTICE_${current.outcome.toUpperCase()}`);
       }
-      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin, original?.resolution.deadlineEvidence ?? null);
+      const currentGate = draftGate(source, candidate, record, primary, parsed, this.now(), captured.sourceRetrievedAt, undatedOrigin, original?.resolution.deadlineEvidence ?? null,original?.resolution.closingDateEvidence??null);
       record.revision = (old?.revision ?? 0) + 1; record.requirements.revision = record.revision;
       record.createdAt = captured.createdAt; record.updatedAt = this.now();
       if (primarySnapshotId) record.citations.push({ id: 'primary_notice', label: 'Employer application notice', url: destination, snapshotId: primarySnapshotId, approved: published });

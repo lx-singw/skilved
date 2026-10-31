@@ -4,6 +4,8 @@
 
 This is the current delivery direction for ingestion. The earlier individual-notice pilots are evaluation evidence, not the intended operating model. Generic improvements such as span-only practical extraction remain useful; running another isolated advert is no longer the default next milestone.
 
+31 October evidence: the [frozen fifty-notice screen and real canary](../operations/212_REAL_ORIGINAL_AND_VALIDATION_CANARY_2026-10-31.md) reach employer corroboration and real extraction in persistent Firestore under genuine identities. V17 correctly rejects an incomplete location after the missing-primary output defect is addressed. V29 rejects the saved answer unchanged offline. No new qualified private draft or unattended/publication acceptance exists. This bounded legacy-source canary does not replace the publisher-wide model below; the unchanged daily source ceiling controls the next live attempt.
+
 ## Complete workflow
 
 1. A recurring controller discovers new and changed URLs from an approved publisher, with bounded pagination, cursors and request pacing.

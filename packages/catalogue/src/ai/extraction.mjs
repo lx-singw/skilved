@@ -19,7 +19,7 @@ import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './m
 import {noticeMetadataPolicy,assertReferenceCompleteness} from './notice-metadata.mjs';
 import {assertIssuerAttribution,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v28';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v29';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()

@@ -44,7 +44,29 @@ export function locationCompletenessPolicy(candidate) {
     obligations.push({field,values,span:[first+1,last+1],originalText:lines.slice(first,last+1).join('\n')});
     i=last;
   }
-  return {version:'source_location_completeness_v1',obligations};
+  return {version:'source_location_completeness_v2',obligations:[...obligations,...joinedLocationObligations(candidate)]};
+}
+
+/** Exact, affirmative ampersand-separated label values. No geographic lookup,
+ * qualifier stripping or classification of the names as cities/provinces. */
+function joinedLocationObligations(candidate){
+  const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),excluded=practicalEvidencePolicy(candidate).publisherPreparationSpans,obligations=[];
+  const permitted=i=>i>=0&&i<lines.length&&!excluded.some(([a,b])=>i+1>=a&&i+1<=b)&&!isPromotionalLine(lines[i])&&
+    (!candidate.programmeScope||candidate.programmeScope.includedSpans?.some(([a,b])=>i+1>=a&&i+1<=b));
+  let otherContext=false;
+  for(let i=1;i<lines.length;i++){
+    if(!permitted(i))continue;
+    const text=lines[i].trim();
+    if(/^(?:Residence(?: requirements)?|Residential address|Contact(?: details| information| address)?|Postal address|Company address|Employer address|Head office address)\s*:?$/i.test(text)){otherContext=true;continue;}
+    if(/^(?:Job|Vacancy|Position) details\s*:?$/i.test(text))otherContext=false;
+    const label=text.match(/^((?:(?:Work|Job|Training) )?Locations?)\s*(?::\s*(.*)|\s*)$/i);
+    if(!label||otherContext&&!/^(?:Work|Job|Training) /i.test(label[1]))continue;
+    const last=label[2]?i:i+1;if(!permitted(last))continue;
+    const values=(label[2]||lines[last]).trim().replace(/[.]$/,'').split(/\s+&\s+/);
+    if(values.length<2||values.length>6||!values.every(v=>name(v)&&/^\p{Lu}/u.test(v)))continue;
+    obligations.push({field:'labelled_place',values,span:[i+1,last+1],originalText:lines.slice(i,last+1).join('\n')});i=last;
+  }
+  return obligations;
 }
 
 // This is an enforcement-only check. Advisory spans and model requests stay
@@ -69,7 +91,7 @@ export function assertLocationCompleteness(candidate,fact) {
   for(const hint of [...locationCompletenessPolicy(candidate).obligations,...compoundCountryObligations(candidate)]) {
     if(fact.state!=='stated'||!fact.quote?.includes(hint.originalText))fail();
     for(const expected of hint.values) {
-      const target=normalise(expected),fields=hint.field==='work_base'?['city','province','country']:[hint.field];
+      const target=normalise(expected),fields=['work_base','labelled_place'].includes(hint.field)?['city','province','country']:[hint.field];
       const retained=fact.value.places.some(place=>fields.some(field=>{
         const value=place[field];
         if(!value)return false;

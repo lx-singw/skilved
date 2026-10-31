@@ -85,7 +85,7 @@ test('shared guidance reaches all extraction/validation contracts without rewrit
   calls++;const request=JSON.parse(init.body);assert.equal(request.generationConfig.maxOutputTokens,6144);
   assert.ok(request.systemInstruction.parts[0].text.includes(RESIDENCE_EVIDENCE_INSTRUCTION));return answer(negative);
  }});
- assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_validation_v15');assert.equal(result.supported,false);
+ assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_validation_v17');assert.equal(result.supported,false);
  assert.deepEqual(validateAssessment(negative,m.snapshot.text),negative);assert.deepEqual(negative,before);
  assert.throws(()=>validateAssessment({...negative,supported:true},m.snapshot.text),/AI_INVALID_VALIDATION/);
 });

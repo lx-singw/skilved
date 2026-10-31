@@ -35,13 +35,17 @@ async function fixture(kinds = ['matched_a','matched_b','wrong_url','wrong_ref',
     if (kind === 'legacy_bad_weekday') f.posting.validThrough = 'Thu Oct 30 09:00:00 UTC 2026';
     if(kind.startsWith('rmk_')){delete f.posting.url;delete f.posting.identifier;f.action=`https://${new URL(f.url).hostname}/talentcommunity/apply/${kind==='rmk_wrong_action'?'999999':index+100}/?locale=en_US`;}
     if(kind==='rmk_rollover')f.posting.validThrough='Fri Oct 30 22:00:00 UTC 2026';
+    if(kind.startsWith('closing_')){
+      f.posting.validThrough=kind==='closing_mismatch'?'2026-10-31T22:00:00Z':kind==='closing_bad_boundary'?'2026-10-30T22:00:00.001Z':'2026-10-30T22:00:00Z';
+      if(kind!=='closing_missing')f.posting.description+=`<p>Closing date</p><p>${kind==='closing_mismatch'?'31':'30'} October 2026</p>`;
+    }
     if(kind.startsWith('missing_')){
       f.detailHtml=f.detailHtml.replace('<p>Closing date: 30 October 2026</p>',kind==='missing_unspecified_b'?'<p>Closing date: Not specified</p>':kind==='missing_ambiguous'?'<p>Closing date: soon</p>':'');
       if(kind==='missing_query'){const old=f.url;f.url+='?tracking=1';f.detailHtml=f.detailHtml.replace(old,f.url);}
       if(kind==='missing_wrong_issuer')f.posting.hiringOrganization.name='Another Company';
       if(kind==='missing_closed')f.posting.validThrough='2026-10-20';
     }
-    f.primaryHtml = kind.startsWith('rmk_')?recruitingHtml(f):kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_') ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
+    f.primaryHtml = kind.startsWith('rmk_')?recruitingHtml(f):kind === 'unsupported' ? '<h1>Careers search</h1>' : kind.startsWith('microdata_')||kind==='closing_midnight_b' ? originalMicrodataHtml(f.posting) : originalHtml(f.posting);
     return { ...f, kind };
   });
   const source = Source.parse({ ...cases[0].source, id: sourceId,
@@ -132,7 +136,7 @@ test('normal shadow worker admits corroborated Microdata for two issuers but hol
   assert.equal(result.results.filter(r => r.recordId).length, 2);
   assert.equal(f.state.extracted.length, 2); assert.equal(f.state.validated.length, 2);
   const resolutions = await f.rows('worker_original_resolutions'); assert.equal(resolutions.length, 3);
-  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v4'));
+  assert.ok(resolutions.every(r => r.resolution.adapter === 'jobposting_microdata_v1' && r.resolution.version === 'original_jobposting_v5'));
   assert.equal(resolutions.filter(r => r.resolution.outcome === 'matched').length, 2);
   assert.equal(resolutions.find(r => r.resolution.outcome === 'conflicting').resolution.reason, 'DEADLINE_CONFLICT');
   assert.equal((await f.rows('worker_decisions')).length, 2);
@@ -147,7 +151,7 @@ test('shared RMK action binding reaches private drafts for two issuers but wrong
  const f=await fixture(['rmk_a','rmk_b','rmk_wrong_action','rmk_rollover']),run=await f.worker.run(f.sourceId);
  assert.equal(run.results.filter(r=>r.recordId).length,2,JSON.stringify(run));assert.equal(f.state.extracted.length,2);assert.equal(f.state.validated.length,2);
  const resolutions=await f.rows('worker_original_resolutions'),matched=resolutions.filter(r=>r.resolution.outcome==='matched');assert.equal(matched.length,2);
- for(const r of matched){assert.equal(r.resolution.version,'original_jobposting_v4');assert.equal(r.resolution.vacancyBinding.kind,'rmk_apply_action');}
+ for(const r of matched){assert.equal(r.resolution.version,'original_jobposting_v5');assert.equal(r.resolution.vacancyBinding.kind,'rmk_apply_action');}
  assert.deepEqual(new Set(resolutions.filter(r=>r.resolution.outcome==='conflicting').map(r=>r.resolution.reason)),new Set(['VACANCY_ACTION_CONFLICT','DEADLINE_CONFLICT']));
  assert.equal(value(await f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-10-29`)).get()).calls,4);
  for(const r of run.results.filter(r=>r.recordId)){assert.equal(value(await f.worker.ref('drafts',r.recordId).get()).publication.approved,false);assert.equal((await f.worker.ref('public',r.recordId).get()).exists,false);}
@@ -301,10 +305,25 @@ test('the existing missing-date default makes no original requests or assessment
  assert.ok(f.state.requests.every(u=>u.startsWith('https://recentjobs.co.za/')));
  assert.equal((await f.rows('worker_exceptions'))[0].reason,'NOTICE_PRECISION_UNSUPPORTED');
 });
+test('normal worker stores explicit closing-date and midnight-expiry proofs for two issuers while other timing stays held',async()=>{
+ const f=await fixture(['closing_midnight_a','closing_midnight_b','closing_mismatch','closing_missing','closing_bad_boundary']),run=await f.worker.run(f.sourceId);
+ assert.equal(run.results.filter(r=>r.recordId).length,2);assert.equal(f.state.extracted.length,2);assert.equal(f.state.validated.length,2);
+ const receipts=await f.rows('worker_original_resolutions');assert.equal(receipts.length,5);
+ for(const r of receipts.filter(r=>r.resolution.outcome==='matched')){assert.equal(r.resolution.version,'original_jobposting_v5');assert.equal(r.resolution.deadlineEvidence.localDate,'2026-10-31');assert.equal(r.resolution.closingDateEvidence.localDate,'2026-10-30');}
+ assert.deepEqual(new Set(receipts.filter(r=>r.resolution.outcome!=='matched').map(r=>r.resolution.reason)),new Set(['DEADLINE_CONFLICT','ORIGINAL_TIMING_CONFLICT']));
+ for(const r of run.results.filter(r=>r.recordId)){assert.equal(value(await f.worker.ref('drafts',r.recordId).get()).publication.approved,false);assert.equal((await f.worker.ref('public',r.recordId).get()).exists,false);}
+ assert.equal(value(await f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-10-29`)).get()).calls,4);
+});
 test('missing-date collection cannot swallow grant revocation during original acquisition',async()=>{
  const f=await fixture(['missing_a'],{missingDateEvidence:'shadow_v1'});
  f.state.afterRobots=async url=>{if(url.startsWith('https://careers.example/'))await f.worker.ref('workers',f.worker.actor).set({...f.grant,active:false});};
  await assert.rejects(f.worker.run(f.sourceId),{code:'WORKER_FORBIDDEN'});
  assert.equal((await f.rows('worker_original_resolutions')).length,0);
  assert.ok(!f.state.requests.includes(f.cases[0].url));assert.deepEqual(f.state.extracted,[]);
+});
+test('rejected validation diagnostics stay in the private exception while the worker returns only its failure code',async()=>{
+ const f=await fixture(['matched_a']),worker=f.restart({validator:async()=>({supported:true,issues:[],evidence:[{source:'recentjobs',quote:'Grade 12 with Mathematics OR N3 Electrical'}],provenance:{usage:{totalTokens:20}}})});
+ const run=await worker.run(f.sourceId),rejected=run.results.find(r=>r.reason==='AI_INVALID_VALIDATION');assert.deepEqual(rejected,{state:'exception',reason:'AI_INVALID_VALIDATION'});
+ const e=(await f.rows('worker_exceptions'))[0];assert.equal(e.validationDiagnostic.schemaValid,true);assert.deepEqual(e.validationDiagnostic.missingSources,['primary']);assert.ok(!JSON.stringify(e.validationDiagnostic).includes('Grade 12'));
+ assert.equal((await f.rows('worker_decisions')).length,0);assert.equal((await f.rows('drafts')).length,0);
 });
