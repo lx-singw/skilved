@@ -1,5 +1,5 @@
 import {DomainError} from '../config.mjs';
-import {isPromotionalLine,uncoveredRequirementLines} from './source-lines.mjs';
+import {isPromotionalLine,promotionalLineNumbers,uncoveredRequirementLines} from './source-lines.mjs';
 import {assertNoPreparationEvidence,practicalEvidencePolicy} from './practical-evidence.mjs';
 import {qualificationLineKind,isSubjectExclusion,isEducationOnlyLine} from './qualification-evidence.mjs';
 
@@ -99,7 +99,7 @@ const documentScope=/\b(?:if|where|when|applicable to|for foreign nationals|exte
 // Preserve legacy selectors for historical replays. This policy applies only
 // to the current canonical extractor and its compact provider payload.
 export function requirementSourcePolicy(candidate) {
- const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),sections=[];let active=null;
+ const lines=`${candidate.title}\n${candidate.sourceText}`.split('\n'),sections=[],promotions=new Set(promotionalLineNumbers(candidate));let active=null;
  const close=until=>{if(active)sections.push({...active,until});active=null;};
  for(let index=0;index<lines.length;index++){
   const text=headingLabel(lines[index]);let kind=null;
@@ -108,7 +108,7 @@ export function requirementSourcePolicy(candidate) {
   if(kind){close(index);active={start:index+1,kind,level:kind==='documents'?(submissionBlock||/\brequired\b/i.test(text)?'required':'unclear'):kind,
     ...(submissionBlock?{submissionBlock:true,instructionLine:index+1,acceptanceLine:index>0&&incompleteApplications.test(label(lines[index-1]))?index:null}:{}),
     ...(inherent?{inherent:true}:{}),...(competencies?{competencies:true}:{})};}
-  else if(active&&(ending.test(text)||profileEnding.test(text)||editorial.test(text)||/^documents to prepare\s*:?$/i.test(text)||isPromotionalLine(text)))close(index);
+  else if(active&&(ending.test(text)||profileEnding.test(text)||editorial.test(text)||/^documents to prepare\s*:?$/i.test(text)||isPromotionalLine(text)||promotions.has(index+1)))close(index);
  }
  // An unbounded section still abstains rather than treating a footer as evidence.
  const layoutContext=new Set(),qualificationAlternatives=[],tableSpans=[];
@@ -227,7 +227,7 @@ export function requirementSourcePolicy(candidate) {
   let allowed=true;
   for(let line=first;line<=last;line++)if(lines[line-1].trim()&&!known.has(line)||
     candidate.programmeScope&&!candidate.programmeScope.includedSpans?.some(([from,to])=>from<=line&&line<=to)||
-    excluded.some(([from,to])=>from<=line&&line<=to)||isPromotionalLine(lines[line-1])){allowed=false;break;}
+    excluded.some(([from,to])=>from<=line&&line<=to)||promotions.has(line)){allowed=false;break;}
   if(allowed)submissionBlocks.push({span,originalText});
  }
  return {version:REQUIREMENT_SOURCE_POLICY_VERSION,requiredLineNumbers:lineHints.map(h=>h.line),lineHints,completeRequirementSpans,conditionalDocumentInstructions,submissionInstructions,submissionBlocks,layoutContextLineNumbers:[...layoutContext],qualificationAlternatives,qualificationConjunctions,educationOnlySpans};

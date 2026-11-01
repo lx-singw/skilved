@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { requirementLineNumbers, uncoveredRequirementLines, promotionalLineNumbers } from '../src/ai/source-lines.mjs';
+import { requirementLineNumbers, uncoveredRequirementLines, promotionalLineNumbers, containsPromotionalContent,hasPromotionalEvidence } from '../src/ai/source-lines.mjs';
 
 const candidate = text => ({ title: 'Authored apprentice', sourceText: text });
 const extraction = (...quotes) => ({ requirements: { items: quotes.map(quote => ({ fact: { quote } })), expression: { op: 'ref', id: 'unused' } } });
@@ -29,4 +29,26 @@ test('publisher invitations are marked without deleting employer submission inst
   assert.deepEqual(promotionalLineNumbers(input), [4]);
   assert.deepEqual(requirementLineNumbers(input), [3]);
   assert.match(input.sourceText, /Join our WhatsApp group/);
+});
+
+test('mixed application labels and adjacent-line social invitations retain exact source line numbers',()=>{
+  for(const invite of ['Join our WhatsApp group','Join our\nWhatsApp group','Apply now online Join our\nWhatsApp group',
+    'Apply now online Join our WhatsApp group','Follow us on\nTelegram','Subscribe to our\nnewsletter']){
+    const input=candidate('Minimum requirements\nGrade 12\n'+invite+'\nHow to apply\nSend your CV via WhatsApp to the recruitment number.');
+    const before=structuredClone(input),count=invite.split('\n').length;
+    assert.deepEqual(promotionalLineNumbers(input),Array.from({length:count},(_,i)=>4+i));
+    assert.equal(containsPromotionalContent(invite),true);assert.deepEqual(requirementLineNumbers(input),[3]);
+    assert.equal(hasPromotionalEvidence(input,'Grade 12'),false);assert.deepEqual(input,before);
+  }
+});
+
+test('partial social evidence is held while the application-only prefix and genuine submission methods survive',()=>{
+  const input=candidate('Apply now online Join our\nWhatsApp group');
+  for(const quote of ['Join our','WhatsApp group','Apply now online Join our','Join our\nWhatsApp group'])assert.equal(hasPromotionalEvidence(input,quote),true);
+  assert.equal(hasPromotionalEvidence(input,'Apply now online'),false);
+  for(const text of ['Send your CV via WhatsApp to the recruitment number.','Apply by email: hr@employer.example',
+    'Follow the application instructions.','Join our engineering team.','Do not join our WhatsApp group.',
+    'Join our\nUnrelated instructions\nWhatsApp group','WhatsApp group']){
+    assert.equal(containsPromotionalContent(text),false);assert.deepEqual(promotionalLineNumbers(candidate(text)),[]);
+  }
 });

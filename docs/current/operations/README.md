@@ -14,6 +14,10 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Fresh staging extraction and mixed social invitations — 1 November 2026](214_LIVE_EXTRACTION_PROMOTION_GUARD_2026-11-01.md)
+- [Durable source daily-budget waits — 31 October 2026](213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md)
+- [Real original and validation canary — 31 October 2026](212_REAL_ORIGINAL_AND_VALIDATION_CANARY_2026-10-31.md)
+
 - [Platform organization profiles and independent corporate identity — 30 October 2026](211_PLATFORM_PROFILE_AND_CORPORATE_IDENTITY_2026-10-30.md)
 
 - [Missing-date origin probes and employer-onboarding needs — 30 October 2026](210_MISSING_DATE_ORIGIN_PROBES_2026-10-30.md)

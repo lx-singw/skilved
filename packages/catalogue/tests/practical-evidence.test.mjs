@@ -2,8 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {assertPracticalEvidence,practicalEvidencePolicy} from '../src/ai/practical-evidence.mjs';
 import {assertRequirementSourcePolicy,requirementSourcePolicy} from '../src/ai/requirement-source-policy.mjs';
-import {decodeGroqMetadata,groqExtractionPayload} from '../src/ai/groq-schema.mjs';
+import {decodeGroqMetadata,decodeGroqExtraction,groqExtractionPayload} from '../src/ai/groq-schema.mjs';
 import {extractMetadata} from '../src/ai/metadata.mjs';
+import {extractWithProvider} from '../src/ai/provider.mjs';
 import {mapExtraction} from '../src/ai/extraction.mjs';
 import {syntheticExtraction} from './fixtures/recentjobs-model.mjs';
 
@@ -49,6 +50,9 @@ test('recognised publisher preparation is held even when copied verbatim into pr
  assert.doesNotThrow(()=>assertPracticalEvidence(candidate,stated('Email subject: Electrical')));
  const open={title:'Authored',sourceText:'Documents to prepare\nUpdated CV'};
  assert.throws(()=>assertPracticalEvidence(open,stated('Updated CV')),/AI_PUBLISHER_PREPARATION_UNRESOLVED/);
+ // Existing numbered-heading boundaries must survive the additional split-line recognition.
+ assert.deepEqual(practicalEvidencePolicy({title:'Authored',sourceText:'Documents to prepare\nUpdated CV\n1. Join our WhatsApp group\nOther material\nHow to apply'}).publisherPreparationSpans,[[2,3]]);
+ assert.deepEqual(requirementSourcePolicy({title:'Authored',sourceText:'Minimum requirements\nGrade 12\n1. Join our WhatsApp group\nN3\nHow to apply'}).requiredLineNumbers,[3]);
 });
 
 test('duplicate preparation wording needs fuller evidence, while actual required documents remain supported',()=>{
@@ -80,6 +84,41 @@ test('native mapping independently blocks practical expansion and retains exact 
  assert.throws(()=>map(preparation),/AI_PUBLISHER_PREPARATION_UNRESOLVED/);
  const good=map(extraction());assert.equal(good.record.practicalConditions.value,attachment);assert.equal(good.record.practicalConditions.originalText,attachment);
  assert.equal(good.record.applicationRoute.value.destination,candidate.applicationCandidates[0].destination);assert.equal(good.record.publication.approved,false);
+});
+
+test('mixed and split social invitations reject before drafting without editing source, output or original application route',()=>{
+ const extra='Apply now online Join our\nWhatsApp group',notice={...candidate,sourceText:candidate.sourceText+'\n'+extra};
+ const data=extraction();data.practicalConditions=stated(extra);
+ data.requirements.items.push(item('d',attachment,'document'));data.requirements.expression.children.push({op:'ref',id:'d'});
+ const before=structuredClone({notice,data});
+ assert.throws(()=>mapExtraction(notice,data,{sourceId:'practical_test',now:'2026-10-15T10:00:00.000Z'}),{code:'AI_PROMOTIONAL_CONTENT'});
+ for(const quote of [extra,'Join our','WhatsApp group'])assert.throws(()=>assertPracticalEvidence(notice,stated(quote)),{code:'AI_PROMOTIONAL_CONTENT'});
+ const first=notice.sourceText.split('\n').length,raw=partial();raw.practicalConditions={state:'stated',span:[first,first+1]};
+ for(const decode of [decodeGroqMetadata,decodeGroqExtraction]){
+  const input=decode===decodeGroqExtraction?{...raw,requirements:{items:[],expression:`unknown(${first},${first+1})`}}:raw;
+  assert.throws(()=>decode(input,notice),{code:'AI_PROMOTIONAL_CONTENT'});
+ }
+ assert.deepEqual(groqExtractionPayload(notice).excludedPromotionalLineNumbers,[first,first+1]);
+ assert.deepEqual({notice,data},before);
+ assert.equal(notice.applicationCandidates[0].destination,'https://employer.example/apply');
+ // This authored supported instruction demonstrates the unchanged success path;
+ // it is not used to repair the retained rejected provider answer.
+ const good=mapExtraction(notice,extraction(),{sourceId:'practical_test',now:'2026-10-15T10:00:00.000Z'});
+ assert.equal(good.record.applicationRoute.value.destination,notice.applicationCandidates[0].destination);
+ assert.equal(good.record.publication.approved,false);
+});
+
+test('ordinary and split providers report one charged rejection without fallback or response repair for split promotions',async()=>{
+ const notice={title:'Authored apprenticeship',sourceText:'Apply now online Join our\nWhatsApp group',applicationCandidates:[]};
+ for(const provider of ['groq','gemini'])for(const split of [false,true]){
+  const raw=partial();raw.practicalConditions={state:'stated',span:[2,3]};raw.applicationCandidateIndex=null;
+  if(!split)raw.requirements={items:[],expression:'unknown(2,3)'};
+  const before=structuredClone(raw);let calls=0;
+  const env={SKILVED_AI_MODE:provider,GROQ_API_KEY:'synthetic_promotion_key',GEMINI_API_KEY:'synthetic_promotion_key',SKILVED_AI_FALLBACK:'true'};
+  const fetchImpl=async()=>{calls++;return provider==='gemini'?Response.json({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify(raw)}]}}],usageMetadata:{promptTokenCount:10,totalTokenCount:15}}):Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(raw)}}],usage:{prompt_tokens:10,completion_tokens:5,total_tokens:15}});};
+  await assert.rejects((split?extractMetadata:extractWithProvider)(notice,{env,fetchImpl}),e=>e.code==='AI_PROMOTIONAL_CONTENT'&&e.usage.totalTokens===15);
+  assert.equal(calls,1);assert.deepEqual(raw,before);
+ }
 });
 
 test('metadata rejects extra prose and publisher evidence without repairing a response or trying another model',async()=>{

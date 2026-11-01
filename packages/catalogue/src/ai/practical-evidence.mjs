@@ -1,5 +1,5 @@
 import {DomainError} from '../config.mjs';
-import {isPromotionalLine} from './source-lines.mjs';
+import {containsPromotionalContent,hasPromotionalEvidence,promotionalLineNumbersFromText,isPromotionalLine} from './source-lines.mjs';
 
 export const PRACTICAL_EVIDENCE_INSTRUCTION = `
 For practicalConditions, select ONE complete contiguous source passage.
@@ -10,6 +10,11 @@ separated passages or select only part of a conditional instruction. Other field
 use supported paraphrases. practicalEvidencePolicy.publisherPreparationSpans identifies
 recognised Documents to prepare sections. They are publisher preparation context, not
 employer practical conditions; do not use them in practicalConditions or requirement items.
+excludedPromotionalLineNumbers also marks invitations split across adjacent source lines and
+mixed lines such as an application-link label followed by a social-group invitation. Never
+copy those invitations into applicant facts. An application link alone is not a practical
+condition: select its supplied application candidate separately. Do not edit a mixed passage
+to remove promotional words; choose other complete evidence or retain uncertainty for review.
 If required instructions cannot fit one faithful passage, retain uncertainty for review instead
 of silently dropping instructions or joining evidence. Local checks do not replace semantic review.`;
 
@@ -22,11 +27,11 @@ export function practicalEvidencePolicy(candidate) {
 }
 
 export function practicalEvidencePolicyFromText(text) {
-  const lines=text.split('\n'),publisherPreparationSpans=[];
+  const lines=text.split('\n'),publisherPreparationSpans=[],promotions=new Set(promotionalLineNumbersFromText(text));
   let start=null;
   for(const [index,line] of lines.entries()) {
     const text=heading(line);
-    if(start!==null&&(preparation.test(text)||boundary.test(text)||/^Closing(?: date)?\s*:/i.test(text)||isPromotionalLine(text))) {
+    if(start!==null&&(preparation.test(text)||boundary.test(text)||/^Closing(?: date)?\s*:/i.test(text)||isPromotionalLine(text)||promotions.has(index+1))) {
       publisherPreparationSpans.push([start,index]);start=null;
     }
     if(preparation.test(text))start=index+1;
@@ -40,7 +45,7 @@ export function practicalEvidencePolicyFromText(text) {
 export function assertPracticalEvidence(candidate,fact) {
   if(fact?.state!=='stated')return;
   if(typeof fact.value!=='string'||typeof fact.quote!=='string'||!fact.quote)throw new DomainError('AI_PRACTICAL_EVIDENCE_UNRESOLVED');
-  if([fact.value,fact.quote].some(text=>text.split('\n').some(isPromotionalLine)))throw new DomainError('AI_PROMOTIONAL_CONTENT');
+  if(containsPromotionalContent(fact.value)||hasPromotionalEvidence(candidate,fact.quote))throw new DomainError('AI_PROMOTIONAL_CONTENT');
   if(fact.value!==fact.quote)throw new DomainError('AI_PRACTICAL_EVIDENCE_UNRESOLVED');
   assertNoPreparationEvidence(candidate,fact.quote);
 }

@@ -1,5 +1,7 @@
 # Autonomous opportunity system: delivery target
 
+1 November fresh evidence: [the bounded staging follow-up](../operations/214_LIVE_EXTRACTION_PROMOTION_GUARD_2026-11-01.md) corroborates the employer again and retains both locations/qualification alternatives in real extraction. Validation holds a publisher social invitation in practical conditions. Shared V30 checks now reject the saved answer unchanged before another validation call; the same source's two-call allowance remains spent. No new private draft, applicant-preview integration, publisher-wide acceptance or publication qualification is claimed. This legacy-source diagnostic does not replace A–D below.
+
 31 October orchestration follow-up: [source-day budget waits](../operations/213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md) now preserve pending jobs and cached progress until the natural SAST reset without consuming ordinary failure retries or resetting provider accounting. This supports later unattended ticks; it does not provision a scheduler, reopen semantic exceptions or establish live positive-draft/publication acceptance.
 
 29 October 2026. Founder clarification: Skilved must discover, collect, extract, verify, curate, store and publish opportunities automatically, then maintain their freshness. RecentJobs remains the first discovery publisher. Supported adverts are data processed by one reusable workflow. A new vacancy must not need its own script, source registration, worker grant or code change.

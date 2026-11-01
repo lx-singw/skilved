@@ -8,7 +8,7 @@ import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION } from './locatio
 import {assertLocationCompleteness} from './location-completeness.mjs';
 import {LOCATION_SPAN_INSTRUCTION} from './location-span-hints.mjs';
 import {ATTENDANCE_EVIDENCE_INSTRUCTION} from './attendance-evidence-hints.mjs';
-import { isPromotionalLine } from './source-lines.mjs';
+import {containsPromotionalContent,hasPromotionalEvidence} from './source-lines.mjs';
 import { assertRequirementSourcePolicy, REQUIREMENT_SOURCE_INSTRUCTION } from './requirement-source-policy.mjs';
 import { PREFERRED_EXPRESSION_INSTRUCTION } from './requirement-expression-instruction.mjs';
 import {assertPracticalEvidence, PRACTICAL_EVIDENCE_INSTRUCTION} from './practical-evidence.mjs';
@@ -19,7 +19,7 @@ import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './m
 import {noticeMetadataPolicy,assertReferenceCompleteness} from './notice-metadata.mjs';
 import {assertIssuerAttribution,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v29';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v30';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -132,8 +132,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
   const facts = [extracted.issuer, extracted.summary, extracted.intake, extracted.location, extracted.residence,
     extracted.experience, extracted.deadline, ...extracted.compensation, extracted.practicalConditions,
     ...extracted.requirements.items.map(item => item.fact)];
-  if (facts.some(f => f.quote?.split('\n').some(isPromotionalLine) ||
-      typeof f.value === 'string' && f.value.split('\n').some(isPromotionalLine))) fail('AI_PROMOTIONAL_CONTENT');
+  if (facts.some(f => hasPromotionalEvidence(candidate,f.quote)||containsPromotionalContent(f.value))) fail('AI_PROMOTIONAL_CONTENT');
   assertPracticalEvidence(candidate,extracted.practicalConditions);
   const snapshotId = hash(`${sourceId}:${candidate.sourceUrl}:${candidate.contentHash}`);
   const evidence = [];

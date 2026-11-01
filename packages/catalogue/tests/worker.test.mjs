@@ -1346,6 +1346,22 @@ test('promotional application instructions are rejected before semantic validati
   assert.equal(result.results.some(r => r.published === true), false);
 });
 
+test('mixed-line and split social invitations spend only extraction and cannot create a draft in shadow or automatic mode',async()=>{
+ for(const mode of ['shadow','automatic'])for(const invite of ['Apply now online Join our WhatsApp group','Apply now online Join our\nWhatsApp group']){
+  const f=await fixture({mode,employerCrawl:false}),extraction=syntheticExtraction();
+  f.state.html=f.state.html.replace('</div>','<p>'+invite.replace('\n','</p><p>')+'</p></div>');
+  extraction.practicalConditions={state:'stated',value:invite,quote:invite};const before=structuredClone(extraction);
+  f.worker.extractor=async()=>{f.state.modelCalls++;return {extraction,provenance:{usage:{totalTokens:20}}};};
+  const result=await f.worker.run(f.sourceId);
+  assert.ok(result.results.some(r=>r.reason==='AI_PROMOTIONAL_CONTENT'));assert.equal(f.state.modelCalls,1);assert.equal(f.state.validations,0);
+  const calls=(await db.collection('m0_model_calls').get()).docs.map(value).filter(c=>c.sourceId===f.sourceId);
+  assert.deepEqual(calls.map(c=>c.stage),['extraction']);
+  const hash=text=>createHash('sha256').update(text).digest('hex'),recordId=hash(f.sourceId+':'+hash(detailUrl));
+  assert.equal((await f.worker.ref('drafts',recordId).get()).exists,false);assert.equal((await f.worker.ref('public',recordId).get()).exists,false);
+  assert.equal(result.results.some(r=>r.published===true),false);assert.deepEqual(extraction,before);
+ }
+});
+
 test('unresolved material facts retain the candidate but spend no validation call or employer-page fetch', async () => {
   const f = await fixture();
   f.worker.extractor = async () => {

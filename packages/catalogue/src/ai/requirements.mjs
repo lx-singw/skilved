@@ -2,7 +2,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { z } from 'zod';
 import { generateStructured } from './provider.mjs';
 import { GroqRequirementsSchema, decodeGroqRequirements, groqExtractionPayload } from './groq-schema.mjs';
-import { uncoveredRequirementLines, isPromotionalLine, requirementLineNumbers } from './source-lines.mjs';
+import { uncoveredRequirementLines, hasPromotionalEvidence, requirementLineNumbers } from './source-lines.mjs';
 import { DomainError } from '../config.mjs';
 import { requirementLayout } from './requirement-layout.mjs';
 import { requirementEvidence } from './requirement-evidence.mjs';
@@ -195,7 +195,7 @@ export function requirementsPayloadV7(candidate) {
 
 function checkRequirements(requirements,candidate) {
   if (uncoveredRequirementLines(candidate,{requirements}).length) throw new DomainError('AI_REQUIREMENT_COVERAGE');
-  if (requirements.items.some(item => item.fact.quote.split('\n').some(isPromotionalLine))) throw new DomainError('AI_PROMOTIONAL_CONTENT');
+  if (requirements.items.some(item => hasPromotionalEvidence(candidate,item.fact.quote))) throw new DomainError('AI_PROMOTIONAL_CONTENT');
   return requirements;
 }
 
