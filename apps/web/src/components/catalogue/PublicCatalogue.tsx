@@ -1,23 +1,15 @@
 import Link from "next/link"
-import { ArrowRight, BriefcaseBusiness, CalendarDays, Compass, GraduationCap, Hammer, Layers3, MapPin, Search, SlidersHorizontal, Sprout } from "lucide-react"
-import { CATEGORY_LABELS, ENTRY_STAGE_LABELS, parseReadQuery, type PublicOpportunity } from "@skilved/types/opportunities"
+import { ArrowRight, Compass, Search, SlidersHorizontal } from "lucide-react"
+import { ENTRY_STAGE_LABELS, parseReadQuery } from "@skilved/types/opportunities"
 import { Header } from "@/components/layout/Header"
 import { readCatalogue } from "@/lib/public-catalogue"
-import { catalogueHref, opportunityHref } from "@/lib/catalogue-query"
-import { FeedSave } from "./FeedSave"
+import { catalogueHref } from "@/lib/catalogue-query"
+import { OpportunityPost } from "./OpportunityPost"
 import { DiscoveryRail } from "./DiscoveryRail"
 
 const provinces: Record<string, string> = { eastern_cape: "Eastern Cape", free_state: "Free State", gauteng: "Gauteng", kwazulu_natal: "KwaZulu-Natal", limpopo: "Limpopo", mpumalanga: "Mpumalanga", north_west: "North West", northern_cape: "Northern Cape", western_cape: "Western Cape" }
 const categories = { bursary: "Bursaries", learnership: "Learnerships", apprenticeship: "Apprenticeships", internship: "Internships", graduate_programme: "Graduate programmes", job: "Jobs" }
-const icons = { bursary: GraduationCap, learnership: Sprout, apprenticeship: Hammer, internship: Layers3, graduate_programme: GraduationCap, job: BriefcaseBusiness }
-
-export function placeLabel(opportunity: PublicOpportunity) {
-  const location = opportunity.location.value
-  if (!location) return "Location not stated"
-  if (location.attendance === "remote") return "Remote"
-  if (location.coverage === "national") return "National"
-  return location.places.map(p => [p.city, p.province ? provinces[p.province] ?? p.province.replaceAll("_", " ") : null, p.country === "ZA" ? null : p.country].filter(Boolean).join(", ")).join(" · ") || "Location not stated"
-}
+export { placeLabel } from "@/lib/opportunity-presentation"
 
 function FeedHeading() {
   return <div className="feed-heading"><p className="eyebrow">Discover your possibilities</p><h1>Your opportunity feed<span>.</span></h1><p>Work, learn, study. Find a next step that feels like you.</p></div>
@@ -82,18 +74,6 @@ function FeedFilters({ selected }: { selected: URLSearchParams }) {
       <Link href="/">Clear all</Link>
     </nav>}
   </>
-}
-
-function OpportunityPost({ opportunity: o, query }: { opportunity: PublicOpportunity; query: URLSearchParams }) {
-  const Icon = icons[o.category]
-  return <article className="opportunity-post">
-    <div className="post-byline"><span className={`opportunity-icon category-${o.category}`}><Icon size={23} strokeWidth={1.6} aria-hidden /></span><div><p className="issuer-name">{o.issuer.value ?? "Issuer not stated"}</p><p className="post-type">{CATEGORY_LABELS[o.category]}</p></div><span className="category-tag">{CATEGORY_LABELS[o.category]}</span></div>
-    <h2><Link href={opportunityHref(o.id, query)}>{o.title.value ?? "Title not stated"}</Link></h2>
-    {o.summary.value && <p className="post-summary">{o.summary.value}</p>}
-    <div className="post-facts"><p><MapPin size={15} aria-hidden />{placeLabel(o)}</p><p><CalendarDays size={15} aria-hidden />{o.deadline.originalText ?? "Closing date not stated"}</p></div>
-    <p className="post-field">{o.fields.length ? `Field: ${o.fields.join(" · ")}` : "Field not stated"}</p>
-    <footer className="post-actions"><Link href={opportunityHref(o.id, query)}>View opportunity <ArrowRight size={17} aria-hidden /></Link><FeedSave id={o.id} revision={o.revision} /></footer>
-  </article>
 }
 
 export async function PublicCatalogue({ query, preparing = false }: { query: URLSearchParams; preparing?: boolean }) {

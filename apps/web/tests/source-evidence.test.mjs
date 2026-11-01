@@ -1,23 +1,17 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
+import { loadUi } from "./helpers/load-ui.mjs"
 import { createRequire } from "node:module"
 import { test } from "node:test"
 import { allFixtures, makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
 
 const require = createRequire(import.meta.url)
-const ts = require("typescript")
+
 const React = require("react")
 const { renderToStaticMarkup } = require("react-dom/server")
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
 const { PublicOpportunitySchema } = require("@skilved/types/opportunities")
 
-async function load(relative, overrides = {}) {
-  const source = await readFile(new URL(`../src/${relative}`, import.meta.url), "utf8")
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
-  const exports = {}
-  new Function("require", "exports", compiled.outputText)(id => overrides[id] ?? require(id), exports)
-  return exports
-}
+const load = loadUi
 const components = await load("components/catalogue/SourceEvidence.tsx")
 const navigation = await load("lib/catalogue-query.ts")
 const render = (name, opportunity) => renderToStaticMarkup(React.createElement(components[name], { opportunity }))

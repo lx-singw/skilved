@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {readFile} from 'node:fs/promises'
+import {loadUi} from "./helpers/load-ui.mjs"
 import {createRequire} from 'node:module'
 import {makeRecord,allFixtures} from '../../../packages/types/tests/fixtures/opportunities.mjs'
-const require=createRequire(import.meta.url),ts=require('typescript'),React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{projectOpportunity}=require('@skilved/types/opportunities/internal')
-async function load(path,overrides={}){const out={},compiled=ts.transpileModule(await readFile(new URL('../src/'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}});new Function('require','exports',compiled.outputText)(id=>overrides[id]??require(id),out);return out}
+const require=createRequire(import.meta.url),React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{projectOpportunity}=require('@skilved/types/opportunities/internal')
+const load = loadUi
 const metadataModule=await load('lib/public-opportunity-metadata.ts'),build=metadataModule.publicOpportunityMetadata,origin='https://skilved.example',time='2026-10-24T10:00:00.000Z'
 function current(revision=1,id='public_job'){const r=makeRecord('job');r.id=id;r.revision=revision;r.checks=r.checks.map(c=>({...c,recordRevision:revision}));r.title.value='Public rôle '+revision;return projectOpportunity(r)}
 function generic(result){assert.equal(result.title.absolute,'Opportunity details | Skilved');assert.doesNotMatch(JSON.stringify(result),/Public rôle|Fictional|issuer\.example|PRIVATE_|eligib|applied|verified/);assert.deepEqual(result.robots,{index:false,follow:false});assert.deepEqual(result.openGraph.images,[]);assert.deepEqual(result.twitter.images,[])}
