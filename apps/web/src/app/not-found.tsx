@@ -5,7 +5,8 @@ export default function NotFound() {
   return (
     <>
       <Header />
-      <main className="mx-auto flex max-w-2xl flex-col items-center gap-4 px-4 pt-24 text-center">
+      <main id="main-content" className="workspace content-page">
+        <div className="feed-state">
         <p className="font-mono text-xs text-muted-foreground">404</p>
         <h1 className="text-2xl font-bold text-foreground">Page not found</h1>
         <p className="text-sm text-muted-foreground">
@@ -17,6 +18,7 @@ export default function NotFound() {
         >
           Back to feed
         </Link>
+        </div>
       </main>
     </>
   )

@@ -9,13 +9,13 @@ export const metadata: Metadata = {
     template: "%s | Skilved",
   },
   description:
-    "Skilved is preparing a free work and study opportunity catalogue for South Africa. Public listings are not available yet.",
+    "Explore work and study opportunities in South Africa. Browse freely, build a shortlist and find your next step with Skilved.",
   applicationName: "Skilved",
   robots: { index: false, follow: false },
 }
 
 export const viewport: Viewport = {
-  themeColor: "#16A34A",
+  themeColor: "#263b30",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -33,6 +33,7 @@ export default function RootLayout({
       className="bg-background"
     >
       <body className="font-sans antialiased">
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <ThemeProvider>
           {children}
           <BottomNav />

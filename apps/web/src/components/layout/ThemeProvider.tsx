@@ -14,11 +14,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Sync with localStorage and apply class to <html>
   useEffect(() => {
-    const stored = localStorage.getItem("skilved-theme") as Theme | null
-    const preferred = window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light"
-    const initial = stored ?? preferred
+    let stored: string | null = null
+    try { stored = localStorage.getItem("skilved-theme") } catch { /* Browsing works without storage. */ }
+    const initial = stored === "dark" ? "dark" : "light"
     setTheme(initial)
     document.documentElement.classList.toggle("dark", initial === "dark")
   }, [])
@@ -26,7 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   function toggle() {
     setTheme((prev) => {
       const next = prev === "light" ? "dark" : "light"
-      localStorage.setItem("skilved-theme", next)
+      try { localStorage.setItem("skilved-theme", next) } catch { /* Keep the choice for this visit. */ }
       document.documentElement.classList.toggle("dark", next === "dark")
       return next
     })

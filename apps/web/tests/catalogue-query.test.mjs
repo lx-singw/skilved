@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { test } from "node:test"
 import { makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
+import { loadUi } from "./helpers/load-ui.mjs"
 
 const require = createRequire(import.meta.url)
 const ts = require("typescript")
@@ -17,9 +18,6 @@ const React = require("react")
 const { renderToStaticMarkup } = require("react-dom/server")
 
 async function catalogueView(result, params) {
-  const text = await readFile(new URL("../src/components/catalogue/PublicCatalogue.tsx", import.meta.url), "utf8")
-  const output = ts.transpileModule(text, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
-  const exports = {}
   const dependencies = id => {
     if (id === "@/lib/public-catalogue") return { readCatalogue: async () => result }
     if (id === "@/lib/catalogue-query") return loaded.exports
@@ -27,8 +25,13 @@ async function catalogueView(result, params) {
     if (id === "next/link") return { __esModule: true, default: ({ href, children, ...props }) => React.createElement("a", { href, ...props }, children) }
     return require(id)
   }
-  new Function("require", "exports", output.outputText)(dependencies, exports)
-  return renderToStaticMarkup(await exports.PublicCatalogue({ query: params }))
+  const ui = loadUi("components/catalogue/PublicCatalogue.tsx", {
+    "@/lib/public-catalogue": dependencies("@/lib/public-catalogue"),
+    "@/lib/catalogue-query": loaded.exports,
+    "@/components/layout/Header": dependencies("@/components/layout/Header"),
+    "next/link": dependencies("next/link"),
+  })
+  return renderToStaticMarkup(await ui.PublicCatalogue({ query: params }))
 }
 
 test("page queries retain geography, explicit false and literal search semantics", () => {

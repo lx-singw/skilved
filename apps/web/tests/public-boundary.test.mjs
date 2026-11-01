@@ -23,7 +23,7 @@ const archivedPages = [
   "/profile", "/profile/edit", "/profile/thabo-m", "/career-profile", "/career",
   "/onboarding", "/onboarding/qualifications", "/onboarding/notifications",
   "/auth/signin", "/auth/signout", "/auth/verify", "/auth/signup",
-  "/applications", "/apply/op-001", "/permissions", "/saved", "/privacy", "/terms",
+  "/applications", "/apply/op-001", "/permissions", "/privacy", "/terms",
 ]
 
 let child
@@ -145,6 +145,16 @@ test("public pages state their limits, retain six-category ambition and avoid un
   const about = await fetch(`${base}/about`)
   assert.equal(about.status, 200)
   assert.match(await about.text(), /not available yet/)
+})
+
+test("anonymous saved list stays reachable while catalogue reads are disabled", async () => {
+  const response = await fetch(base + "/saved")
+  assert.equal(response.status, 200)
+  const html = await response.text()
+  assert.match(html, /Saved in this browser/)
+  assert.match(html, /Loading saved progress/)
+  assert.match(html, /no account backup or cross-device sync/)
+  assert.doesNotMatch(html, /href="\/auth|demo_apprenticeship|PRIVATE_/)
 })
 
 test("shipped page assets do not contain sample records or private prototype screens", async () => {

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import Link from "next/link"
+import { Header } from "@/components/layout/Header"
 
 export default function ErrorPage({
   error,
@@ -15,7 +16,8 @@ export default function ErrorPage({
   }, [error])
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col items-center gap-4 px-4 pt-24 text-center">
+    <><Header /><main id="main-content" className="workspace content-page">
+    <div className="feed-state">
       <p className="font-mono text-xs text-muted-foreground">Error</p>
       <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
       <div className="flex gap-3">
@@ -32,6 +34,6 @@ export default function ErrorPage({
           Back to feed
         </Link>
       </div>
-    </main>
+    </div></main></>
   )
 }

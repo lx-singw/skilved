@@ -6,6 +6,7 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Implemented anonymous feed renovation — 31 October 2026](06_ANONYMOUS_FEED_RENOVATION_2026-10-31.md): current public UI, verification and remaining limits.
 - [Opportunity companion experience, source checks and copy](05_OPPORTUNITY_COMPANION_EXPERIENCE.md)
 - [M0 discovery surfaces, states and acceptance](../product/03_DISCOVERY_FIRST_MVP.md): first-launch scope takes precedence over the expanded journey below.
 - [Brand and design system](01_BRAND_AND_DESIGN_SYSTEM.md)

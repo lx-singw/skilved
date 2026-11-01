@@ -1,0 +1,52 @@
+import assert from "node:assert/strict"
+import { createRequire } from "node:module"
+import { test } from "node:test"
+import { loadUi } from "./helpers/load-ui.mjs"
+const require = createRequire(import.meta.url), React = require("react")
+const { renderToStaticMarkup } = require("react-dom/server")
+const link = { __esModule: true, default: ({ href, children, ...props }) => React.createElement("a", { href, ...props }, children) }
+
+test("the publication-disabled home still offers an anonymous feed and working category filters", async () => {
+  const ui = loadUi("components/catalogue/PublicCatalogue.tsx", {
+    "@/components/layout/Header": { Header: () => null },
+    "@/lib/public-catalogue": { readCatalogue: async () => ({ kind: "error", reason: "unavailable" }) },
+    "next/link": link,
+  })
+  const html = renderToStaticMarkup(await ui.PublicCatalogue({ query: new URLSearchParams("category=job&province=gauteng&remote=false&cursor=old"), preparing: true }))
+  assert.match(html, /Your opportunity feed/)
+  assert.match(html, /Our opportunity catalogue is being prepared/)
+  assert.match(html, /no published listings yet/)
+  assert.match(html, /href="\/\?category=bursary&amp;province=gauteng&amp;remote=false"/)
+  assert.doesNotMatch(html, /href="[^"]*cursor=old|href="\/auth|opportunities\/demo|role="article"/)
+  assert.match(html, /aria-current="page">Jobs/)
+  assert.match(html, /name="province"/)
+  assert.match(html, /value="gauteng" selected=""/)
+  assert.match(html, /aria-label="Remove filter: Gauteng"/)
+  assert.match(html, /aria-label="Remove filter: In person or hybrid"/)
+  assert.doesNotMatch(html, /<details[^>]+open=/)
+})
+
+test("inline save waits for storage and sends the existing reversible save/remove commands", () => {
+  const calls = []
+  let progress = { view: null, busy: false, message: "", change: action => { calls.push(action); return Promise.resolve() } }
+  const ui = loadUi("components/catalogue/FeedSave.tsx", { "@/lib/use-local-progress": { useLocalProgress: () => progress } })
+  const render = () => ui.FeedSave({ id: "public_card", revision: 7 })
+  let button = render().props.children[0]
+  assert.equal(button.props.disabled, true)
+  assert.equal(button.props["aria-pressed"], false)
+  progress = { ...progress, view: { status: "ready", snapshot: { items: [] } } }
+  button = render().props.children[0]
+  assert.equal(button.props.disabled, false)
+  button.props.onClick()
+  assert.deepEqual(calls, [{ type: "save", id: "public_card", revision: 7 }])
+  progress.view.snapshot.items.push({ opportunityId: "public_card" })
+  button = render().props.children[0]
+  assert.equal(button.props["aria-pressed"], true)
+  button.props.onClick()
+  assert.deepEqual(calls[1], { type: "remove", id: "public_card" })
+  progress = { ...progress, view: { status: "unavailable" } }
+  const html = renderToStaticMarkup(render())
+  assert.match(html, /disabled=""/)
+  assert.match(html, /Browser storage is unavailable/)
+  assert.doesNotMatch(html, /aria-pressed="true"/)
+})

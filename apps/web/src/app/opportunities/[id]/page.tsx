@@ -31,14 +31,14 @@ export default async function OpportunityPage({ params, searchParams }: { params
   const back = catalogueReturnHref((await searchParams)?.from, id)
   const result = await readCurrentOpportunity(id)
   if (!result) notFound()
-  if (result.kind === "unavailable") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
+  if (result.kind === "unavailable") return <><Header /><main id="main-content" className="workspace content-page">
     <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
     <h1 className="mt-6 text-3xl font-semibold">We couldn’t load this opportunity</h1>
     <p className="mt-4 text-muted-foreground">Its current details and application route could not be checked. This does not establish that the listing has closed or been removed.</p>
     <a href={`/opportunities/${id}${back ? `?from=${encodeURIComponent(back.split("#")[0])}` : ""}`} className="mt-5 inline-block min-h-11 py-3 font-medium text-primary underline">Try loading these details again</a>
     <p className="mt-4"><Link href="/saved" className="text-primary underline">Return to your saved references and personal progress</Link></p>
   </main></>
-  if (result.kind === "status") return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-12">
+  if (result.kind === "status") return <><Header /><main id="main-content" className="workspace content-page">
     <Link href={back ?? "/"} className="text-primary underline">{back ? "← Back to results" : "← All opportunities"}</Link>
     <h1 className="mt-6 text-3xl font-semibold">{result.status.status === "under_review" ? "This opportunity needs a fresh check" : "This listing is no longer available"}</h1>
     <p className="mt-4 text-muted-foreground">The application link is unavailable. Browse the catalogue for current opportunities.</p>
@@ -47,12 +47,16 @@ export default async function OpportunityPage({ params, searchParams }: { params
   const o = result.opportunity
   const application = o.lifecycle === "published" && o.application.state === "available" ? o.application.route : null
   const canApply = application && ["portal", "email"].includes(application.method)
-  return <><Header /><main className="mx-auto max-w-3xl px-4 pb-24 pt-10">
+  return <><Header /><main id="main-content" className="workspace content-page detail-page">
     <Link href={back ?? "/"} className="text-sm font-medium text-primary hover:underline">{back ? "← Back to results" : "← All opportunities"}</Link>
-    <p className="mt-8 text-sm font-semibold uppercase tracking-wide text-primary">{CATEGORY_LABELS[o.category]}</p>
-    <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl">{o.title.value ?? "Opportunity details"}</h1>
+    <div className="detail-hero">
+    <p className="eyebrow">{CATEGORY_LABELS[o.category]}</p>
+    <h1 className="mt-3 text-3xl font-semibold tracking-tight leading-tight sm:text-4xl">{o.title.value ?? "Opportunity details"}</h1>
     <p className="mt-3 text-muted-foreground">{o.issuer.value ?? "Issuer not stated"} · {placeLabel(o)}</p>
-    {o.summary.value && <p className="mt-6 text-lg leading-relaxed">{o.summary.value}</p>}
+    {o.summary.value && <p className="mt-6 leading-relaxed text-muted-foreground">{o.summary.value}</p>}
+    <nav aria-label="In this opportunity" className="detail-jump"><a href="#application-heading">How to apply ↗</a><a href="#preparation">Requirements & preparation</a><a href="#sources-heading">Sources & checks</a></nav>
+    </div>
+    <div className="detail-sections">
     <SaveOpportunity key={o.id} id={o.id} revision={o.revision} />
     <OpportunityContext opportunity={o} />
     <section className="mt-8 rounded-xl border border-border bg-card p-6" aria-labelledby="application-heading">
@@ -65,12 +69,13 @@ export default async function OpportunityPage({ params, searchParams }: { params
         : <p className="mt-4 text-muted-foreground">{o.lifecycle === "closed" ? "This intake is closed." : "An application link is not currently available. Check the source notice for guidance."}</p>}
       <p className="mt-4 text-sm text-muted-foreground">Follow the application method stated in the notice. Skilved rechecks the listing before opening a portal or your email app; you complete and submit the application yourself.</p>
     </section>
-    <PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} />
+    <div id="preparation"><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} /></div>
     <PublicChecklistExport id={o.id} origin={publicExportSettings().origin} />
     <RequirementExplanation opportunity={o} />
     <EntryStage opportunity={o} />
     <OpportunityConditions opportunity={o} />
     <SourceEvidence opportunity={o} />
     {process.env.SKILVED_CATALOGUE_REPORTS === "true" && <OpportunityReport id={o.id} />}
+    </div>
   </main></>
 }
