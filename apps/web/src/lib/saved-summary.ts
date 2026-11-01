@@ -1,8 +1,8 @@
-import { DetailResponseSchema, IdSchema } from "@skilved/types/opportunities"
+import { DetailResponseSchema, IdSchema, type PublicOpportunity } from "@skilved/types/opportunities"
 
-export type SavedSummary = { kind: "current"; id: string; revision: number; title: string; state: "published" | "closed" }
+export type SavedSummary = { kind: "current"; id: string; revision: number; title: string; state: "published" | "closed"; category: PublicOpportunity["category"]; issuer: string; deadline: string }
   | { kind: "restricted"; id: string; revision: number }
-  | { kind: "missing" | "unavailable" }
+  | { kind: "missing" } | { kind: "unavailable" }
 export async function readSavedSummary(id: string, signal?: AbortSignal): Promise<SavedSummary> {
   if (!IdSchema.safeParse(id).success || signal?.aborted) return { kind: "unavailable" }
   const controller = new AbortController(), abort = () => controller.abort()
@@ -16,7 +16,8 @@ export async function readSavedSummary(id: string, signal?: AbortSignal): Promis
     const result = DetailResponseSchema.parse(await response.json())
     if (controller.signal.aborted) return { kind: "unavailable" }
     if (result.kind === "status") return { kind: "restricted", id: result.status.id, revision: result.status.revision }
-    return { kind: "current", id: result.opportunity.id, revision: result.opportunity.revision, title: result.opportunity.title.value ?? "Saved opportunity", state: result.opportunity.lifecycle }
+    const o = result.opportunity
+    return { kind: "current", id: o.id, revision: o.revision, title: o.title.value ?? "Saved opportunity", state: o.lifecycle, category: o.category, issuer: o.issuer.value ?? "Issuer not established", deadline: o.deadline.state === "stated" ? o.deadline.originalText ?? "Closing date not stated" : o.deadline.state === "not_stated" ? "Closing date not stated" : "Closing date needs clarification" }
   } catch { return { kind: "unavailable" } }
   finally { clearTimeout(timer); signal?.removeEventListener("abort", abort) }
 }

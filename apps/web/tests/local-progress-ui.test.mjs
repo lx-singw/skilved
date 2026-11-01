@@ -1,18 +1,13 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
+import { loadUi } from "./helpers/load-ui.mjs"
 import { createRequire } from "node:module"
 import { test } from "node:test"
 import { makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
 
-const require = createRequire(import.meta.url), ts = require("typescript"), React = require("react")
+const require = createRequire(import.meta.url), React = require("react")
 const { IDBFactory } = require("fake-indexeddb"), { renderToStaticMarkup } = require("react-dom/server")
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
-async function load(path, overrides = {}) {
-  overrides = { "@/lib/saved-identity": { checkSavedIdentity: async () => false }, ...overrides }
-  const source = await readFile(new URL(`../src/${path}`, import.meta.url), "utf8")
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
-  const exports = {}; new Function("require", "exports", compiled.outputText)(id => overrides[id] ?? require(id), exports); return exports
-}
+const load = (path, overrides = {}) => loadUi(path, { "@/lib/saved-identity": { checkSavedIdentity: async () => false }, ...overrides })
 const core = await load("lib/local-progress.ts")
 const { createProgressSession } = await load("lib/local-progress-session.ts", { "./local-progress": core })
 const empty = { status: "ready", snapshot: { token: null, items: [] } }
@@ -66,7 +61,7 @@ test("saved summaries use validated current public facts and local IDs without p
   }
   try {
     assert.deepEqual(await readSavedSummary("../private"), { kind: "unavailable" }); assert.equal(calls, 0)
-    const current = await readSavedSummary(record.id); assert.deepEqual(current, { kind: "current", id: record.id, revision: record.revision, title: record.title.value, state: "published" })
+    const current = await readSavedSummary(record.id); assert.deepEqual(current, { kind: "current", id: record.id, revision: record.revision, title: record.title.value, state: "published", category: record.category, issuer: record.issuer.value, deadline: record.deadline.originalText })
     assert.doesNotMatch(JSON.stringify(current), /destination|issuer.example|PRIVATE_|applied/)
     record.publication.disposition = "withheld"; projection = projectOpportunity(record); assert.deepEqual(await readSavedSummary(record.id), { kind: "restricted", id: record.id, revision: record.revision })
     status = 404; assert.deepEqual(await readSavedSummary(record.id), { kind: "missing" })

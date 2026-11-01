@@ -1,18 +1,13 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
+import { loadUi } from "./helpers/load-ui.mjs"
 import { createRequire } from "node:module"
 import { test } from "node:test"
 import { makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
 
-const require = createRequire(import.meta.url), ts = require("typescript"), React = require("react")
+const require = createRequire(import.meta.url), React = require("react")
 const { IDBFactory } = require("fake-indexeddb"), { renderToStaticMarkup } = require("react-dom/server")
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
-async function load(path, overrides = {}) {
-  overrides = { "@/lib/saved-identity": { checkSavedIdentity: async () => false }, ...overrides }
-  const source = await readFile(new URL(`../src/${path}`, import.meta.url), "utf8")
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
-  const exports = {}; new Function("require", "exports", compiled.outputText)(id => overrides[id] ?? require(id), exports); return exports
-}
+const load = (path, overrides = {}) => loadUi(path, { "@/lib/saved-identity": { checkSavedIdentity: async () => false }, ...overrides })
 const core = await load("lib/local-progress.ts")
 const { createProgressSession } = await load("lib/local-progress-session.ts", { "./local-progress": core })
 const ui = await load("components/catalogue/SavedProgress.tsx", { "@/lib/use-local-progress": {}, "@/lib/saved-summary": {} })
