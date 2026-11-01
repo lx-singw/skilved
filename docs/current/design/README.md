@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Category-specific opportunity reading — 1 November 2026](09_CATEGORY_READING_2026-11-01.md): decision facts, support coverage and content stress checks.
+
 - [Saved workspace and returning journeys — 1 November 2026](08_SAVED_WORKSPACE_2026-11-01.md): stage views, current notices and preparation shortcuts.
 
 - [Opportunity cards and detail workspace — 1 November 2026](07_OPPORTUNITY_DETAIL_RENOVATION_2026-11-01.md): category identity, preparation routes and responsive details.

@@ -1,10 +1,11 @@
-import { ArrowUpRight, Banknote, MapPin, Users } from "lucide-react"
+import { ArrowUpRight } from "lucide-react"
 import type { PublicOpportunity } from "@skilved/types/opportunities"
 import { issuerInitials, opportunityFacts, opportunityIdentity } from "@/lib/opportunity-presentation"
+import { CategoryOverviewFacts } from "./OpportunityLens"
 import { NoticeDate, OpportunityGlyph } from "./OpportunityIdentity"
 
 export function OpportunityOverview({ opportunity: o }: { opportunity: PublicOpportunity }) {
-  const identity = opportunityIdentity[o.category], facts = opportunityFacts(o)
+  const identity = opportunityIdentity[o.category]
   const unknowns = [
     o.location.state !== "stated" && {label: "Location", href: "#conditions-heading"},
     (o.location.state !== "stated" || !o.location.value || o.location.value.attendance === "not_stated") && {label: "Attendance", href: "#conditions-heading"},
@@ -15,12 +16,12 @@ export function OpportunityOverview({ opportunity: o }: { opportunity: PublicOpp
     o.residence.state !== "stated" && {label: "Residence conditions", href: "#conditions-heading"},
   ].filter((item): item is {label: string; href: string} => Boolean(item))
   return <header className={`opportunity-overview ${identity.theme}`}>
-    <div className="overview-banner"><span>{identity.label}</span><span>{identity.verb}<ArrowUpRight size={16} aria-hidden /></span></div>
+    <div className="overview-banner"><span>{identity.label}{o.lifecycle === "closed" && <strong className="overview-closed">Intake closed</strong>}</span><span>{identity.verb}<ArrowUpRight size={16} aria-hidden /></span></div>
     <div className="overview-title">
       <div><p className="overview-issuer"><span className="issuer-monogram" aria-hidden>{issuerInitials(o)}</span>{o.issuer.value ?? "Issuer not stated"}</p><h1>{o.title.value ?? "Opportunity details"}</h1><p className="overview-fields">{o.fields.length ? o.fields.join(" / ") : "Field not stated"}</p></div>
       <div className="overview-art"><OpportunityGlyph category={o.category} large /><span>{identity.focus}</span></div>
     </div>
-    <dl className="overview-facts"><div><dt><MapPin size={16} aria-hidden />The setting</dt><dd>{facts.place}<small>{facts.attendance}</small></dd></div><div><dt><Banknote size={16} aria-hidden />The support</dt><dd>{facts.support}<small>{facts.supportDetail}</small></dd></div><div><dt><Users size={16} aria-hidden />The entry stage</dt><dd>{facts.stage}<small>Read all eligibility conditions</small></dd></div></dl>
+    <CategoryOverviewFacts opportunity={o} />
     {unknowns.length > 0 && <div className="clarity-note"><span className="clarity-mark" aria-hidden>?</span><p><strong>Keep these questions open.</strong> {unknowns.map(item => <a key={item.label} href={item.href}>{item.label}</a>)}</p></div>}
   </header>
 }

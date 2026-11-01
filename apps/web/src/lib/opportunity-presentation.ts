@@ -23,17 +23,19 @@ export function placeLabel(o: PublicOpportunity) {
   if (location.coverage === "national") return "National"
   return location.places.map(p => [p.city, p.province ? provinceLabels[p.province] ?? p.province.replaceAll("_", " ") : null, p.country === "ZA" ? null : p.country].filter(Boolean).join(", ")).join(" · ") || "Location not stated"
 }
+export function supportAmount(value: NonNullable<PublicOpportunity["compensation"][number]["value"]>) {
+  if (value.amount === null || !value.currency) return null
+  const periods = { hour: "per hour", day: "per day", week: "per week", month: "per month", year: "per year", once: "once", programme: "for the programme", not_stated: "period not stated" }
+  const number = (amount: number) => amount.toLocaleString("en-GB", { maximumFractionDigits: 20 })
+  return `${value.currency} ${number(value.amount)}${value.maximum !== null && value.maximum !== value.amount ? `–${number(value.maximum)}` : ""} ${periods[value.period]}`
+}
 export function opportunityFacts(o: PublicOpportunity) {
   const statedSupport = o.compensation.filter(f => f.state === "stated" && f.value)
   const kinds = [...new Set(statedSupport.map(f => supportLabels[f.value!.kind]))]
   const unresolvedSupport = o.compensation.some(f => f.state !== "stated")
   const stages = o.entryStage?.state === "stated" && o.entryStage.value
   const priced = statedSupport.find(f => f.value!.amount !== null && f.value!.currency)?.value
-  const periods = { hour: "per hour", day: "per day", week: "per week", month: "per month", year: "per year", once: "once", programme: "for the programme", not_stated: "period not stated" }
-  const number = (value: number) => value.toLocaleString("en-GB", { maximumFractionDigits: 20 })
-  const supportDetail = priced && priced.amount !== null
-    ? `${supportLabels[priced.kind]}: ${priced.currency} ${number(priced.amount)}${priced.maximum !== null && priced.maximum !== priced.amount ? `–${number(priced.maximum)}` : ""} ${periods[priced.period]}`
-    : "See the original wording"
+  const supportDetail = priced ? `${supportLabels[priced.kind]}: ${supportAmount(priced)}` : "See the original wording"
   return {
     place: placeLabel(o),
     attendance: o.location.state === "stated" && o.location.value ? attendanceLabels[o.location.value.attendance] : "Attendance not established",

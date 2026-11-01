@@ -1,5 +1,7 @@
 import type { PublicOpportunity } from "@skilved/types/opportunities"
 
+import { supportAmount } from "@/lib/opportunity-presentation"
+
 type PublicFact = PublicOpportunity["practicalConditions"] | PublicOpportunity["location"] | PublicOpportunity["compensation"][number] | PublicOpportunity["organisations"][number]
 
 const roles = { issuer: "Issuer", employer_host: "Employer or host", training_provider: "Training provider", qualification_issuer: "Qualification issuer", oversight: "Oversight body" }
@@ -63,8 +65,9 @@ export function OpportunityConditions({ opportunity: o }: { opportunity: PublicO
     </section>
     <section className="mt-8" aria-labelledby="funding-heading">
       <h2 id="funding-heading" className="text-xl font-semibold">Pay and support</h2>
-      {o.compensation.length ? <ul className="mt-4 space-y-4">{o.compensation.map((fact, index) => <li key={index} className="space-y-2 text-muted-foreground">
+      {o.compensation.length ? <ul className="support-ledger">{o.compensation.map((fact, index) => <li key={index} className="support-ledger-item">
         {fact.state === "stated" && fact.value && <p className="font-medium">{support[fact.value.kind]} · {periods[fact.value.period]}</p>}
+        {fact.state === "stated" && fact.value && <div className="support-ledger-value"><strong>{supportAmount(fact.value) ?? "Amount or currency not stated"}</strong><p>Coverage: {fact.value.coverage ?? "Coverage not stated"}</p></div>}
         <FactWording fact={fact} citations={o.citations} />
       </li>)}</ul> : <p className="mt-3 text-muted-foreground">Pay and support are not stated in the reviewed notice.</p>}
       <p className="mt-4 text-sm text-muted-foreground">Consider travel, accommodation and other recurring costs. Check the notice for what support covers and when it is paid; ask the issuer using the notice’s contact details if this is unclear. Missing support details do not mean support is offered or excluded.</p>

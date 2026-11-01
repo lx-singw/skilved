@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { cache } from "react"
 import { notFound } from "next/navigation"
+import { OpportunityProfile } from "@/components/catalogue/OpportunityLens"
+import { opportunityLens } from "@/lib/opportunity-lens"
 import { OpportunityOverview, OpportunityContents, ApplicationDate } from "@/components/catalogue/OpportunityOverview"
 import { Header } from "@/components/layout/Header"
 import { FeedSave } from "@/components/catalogue/FeedSave"
@@ -54,8 +56,9 @@ export default async function OpportunityPage({ params, searchParams }: { params
     <div className="opportunity-workspace-grid">
       <div className="opportunity-reading">
         <section id="opportunity-story" className="story-panel">
-          <p className="section-caption">01 / Get the full picture</p><h2>A closer look.</h2>
+          <p className="section-caption">01 / Get the full picture</p><h2>{opportunityLens(o).story}</h2>
           {o.summary.value ? <p className="opportunity-summary">{o.summary.value}</p> : <p className="section-lede">A summary is not stated in this notice. Review the original instructions and source details below.</p>}
+          <OpportunityProfile opportunity={o} />
           <details className="context-drawer"><summary>Intake, organisations & who is involved <span>+</span></summary><OpportunityContext opportunity={o} /></details>
         </section>
         <div id="preparation"><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} /></div>

@@ -1,17 +1,14 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { test } from "node:test"
+import { loadUi } from "./helpers/load-ui.mjs"
 import { allFixtures, makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
 
-const require = createRequire(import.meta.url), ts = require("typescript"), React = require("react")
+const require = createRequire(import.meta.url), React = require("react")
 const { renderToStaticMarkup } = require("react-dom/server")
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
 const { PublicOpportunitySchema } = require("@skilved/types/opportunities")
-const source = await readFile(new URL("../src/components/catalogue/OpportunityConditions.tsx", import.meta.url), "utf8")
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } })
-const components = {}
-new Function("require", "exports", compiled.outputText)(require, components)
+const components = loadUi("components/catalogue/OpportunityConditions.tsx")
 const render = (name, o) => renderToStaticMarkup(React.createElement(components[name], { opportunity: PublicOpportunitySchema.parse(o) }))
 const opportunity = () => projectOpportunity(makeRecord()).opportunity
 const unknown = state => ({ state, value: null, originalText: state === "not_stated" ? null : "Synthetic wording needs clarification.", citations: state === "not_stated" ? [] : ["citation_fixture"] })
