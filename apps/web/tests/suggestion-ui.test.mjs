@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {createRequire} from 'node:module'
 import {test} from 'node:test'
+import {loadUi} from './helpers/load-ui.mjs'
 const require=createRequire(import.meta.url),ts=require('typescript'),React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),{IDBFactory}=require('fake-indexeddb')
 async function load(path,overrides={}){const code=ts.transpileModule(await readFile(new URL('../src/'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}});const out={};new Function('require','exports',code.outputText)(id=>overrides[id]??require(id),out);return out}
 const core=await load('lib/suggestion-access.ts'),network=await load('lib/suggestion-client.ts',{'./suggestion-access':core}),{createSuggestionSession:session,INITIAL_SUGGESTION_STATE:initial}=await load('lib/suggestion-session.ts',{'./suggestion-access':core,'./suggestion-client':network})
@@ -45,7 +46,7 @@ test('local forget/clear messages distinguish server withdrawal and public outco
   await s.action({type:'submit',url},null);assert.deepEqual(s.getSnapshot().publicIds,['public_A']);assert.match(s.getSnapshot().message,/approved public results/)
 })
 let state={...initial,action:async()=>{},reload:async()=>{}}
-const {Suggestions}=await load('components/catalogue/Suggestions.tsx',{'@/lib/use-suggestions':{useSuggestions:()=>state}})
+const {Suggestions}=loadUi('components/catalogue/Suggestions.tsx',{'@/lib/use-suggestions':{useSuggestions:()=>state}})
 const render=(props={enabled:true,intakeEnabled:true})=>renderToStaticMarkup(React.createElement(Suggestions,props))
 test('server rendering starts loading with no personal records or native form credential navigation',()=>{
   state={...state,...initial};const html=render({enabled:false,intakeEnabled:false})
@@ -55,7 +56,7 @@ test('server rendering starts loading with no personal records or native form cr
 test('receipt and pending rendering omits URLs, credentials and local IDs; status/public links remain safe',()=>{
   state={...state,...initial,view:{status:'ready',snapshot:{token:'PRIVATE_WRITE',items:[{kind:'receipt',id:'PRIVATE_LOCAL_ID',access:{...access,expiresAt:'2099-10-16T12:01:00.000Z'},savedAt:start},{kind:'pending',id:'PRIVATE_PENDING',url,ticket,expiresAt:expiry,createdAt:start,sentAt:start}]}},statuses:{PRIVATE_LOCAL_ID:{schemaVersion:1,receiptId:access.receiptId,status:'resolved_to_listing',revision:1,createdAt:start,updatedAt:start,expiresAt:expiry,publicResultIds:['public_A']}}}
   const html=render();for(const value of [url,ticket,access.capability,access.receiptId,'PRIVATE_LOCAL_ID','PRIVATE_PENDING','PRIVATE_WRITE'])assert.equal(html.includes(value),false,value)
-  assert.match(html,/href="\/opportunities\/public_A"/);assert.match(html,/Current public results available/);assert.match(html,/Access or retry expired/)
+  assert.match(html,/href="\/opportunities\/public_A"/);assert.match(html,/Public result references available/);assert.match(html,/Access or retry expired/)
   assert.match(html,/Forget local access/);assert.match(html,/Withdraw suggestion/);assert.match(html,/does not withdraw a server suggestion/)
   const off=render({enabled:true,intakeEnabled:false});assert.match(off,/New suggestions and retries are paused/);assert.match(off,/Existing receipt status and withdrawal/)
 })

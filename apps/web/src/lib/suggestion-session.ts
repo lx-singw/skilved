@@ -26,10 +26,10 @@ export function createSuggestionSession(store = createSuggestionAccessStore(), c
       try { result = await store.read() } catch { result = { status: "unavailable" } }
       if (active && current === sequence) update({ ...state, view: result, statuses: {}, publicIds: [], message: "" })
     },
-    action: async (command: Action, observed: string | null): Promise<void> => {
-      if (!active || state.busy || !state.view || (command.type !== "clear" && !("snapshot" in state.view))) return
+    action: async (command: Action, observed: string | null): Promise<boolean> => {
+      if (!active || state.busy || !state.view || (command.type !== "clear" && !("snapshot" in state.view))) return false
       if ("snapshot" in state.view && state.view.snapshot.token !== observed) {
-        ++sequence; update({ ...state, view: { status: "conflict" }, statuses: {}, publicIds: [], message: "Access changed. Reload receipts before trying again." }); return
+        ++sequence; update({ ...state, view: { status: "conflict" }, statuses: {}, publicIds: [], message: "Access changed. Reload receipts before trying again." }); return false
       }
       const current = ++sequence, request = new AbortController(); controller = request
       update({ ...state, busy: true, message: "", publicIds: [] })
@@ -43,11 +43,11 @@ export function createSuggestionSession(store = createSuggestionAccessStore(), c
       } catch { result = { kind: "unavailable" } }
       let fresh: SuggestionLocalResult
       try { fresh = await store.read() } catch { fresh = { status: "unavailable" } }
-      if (!active) return
+      if (!active) return false
       if (current !== sequence) {
         update({ ...state, busy: false, statuses: {}, publicIds: [], message: "" })
         if (pendingRead) { pendingRead = false; await session.refresh(true) }
-        return
+        return false
       }
       const r = (result && typeof result === "object" ? result : {}) as { kind?: string; status?: string; value?: unknown; forgotten?: boolean }
       const localStatus = r.kind === "local" ? r.status : undefined
@@ -74,6 +74,8 @@ export function createSuggestionSession(store = createSuggestionAccessStore(), c
       update({ view: fresh, busy: false, message, statuses, publicIds })
       if (success || r.kind === "withdrawn") { try { notify() } catch { /* Local commit/ack remains valid. */ } }
       pendingRead = false
+      // The form may clear a completed submit or explicit retry, never an uncertain or obsolete attempt.
+      return (command.type === "submit" || command.type === "retry") && (success || approved.success && approved.data.kind === "approved")
     },
   }
   return session
