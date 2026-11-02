@@ -1,4 +1,4 @@
-# Real private draft and authenticated applicant-preview preparation
+# Real private draft and authenticated applicant preview
 
 2 November 2026. Follow-up to the [mixed social invitation guard](214_LIVE_EXTRACTION_PROMOTION_GUARD_2026-11-01.md), within the [autonomous delivery target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
@@ -20,20 +20,24 @@ Gemini 3.5 Flash-Lite receives one extraction and one validation request with fa
 
 ## Private applicant preview
 
-A separate local preview is prepared from committed applicant-UI snapshot `462e650`, preserving newer uncommitted UI work. It copies no local environment files. The copied Next process has catalogue/AI execution disabled and receives no cloud/provider credentials.
+A separate local preview runs from committed applicant-UI snapshot `462e650`, preserving newer UI work. It copies no local environment files. The copied Next process has catalogue/AI execution disabled and receives no cloud/provider credentials.
 
 The local gateway requires a fresh genuine Firebase Google identity for the existing reviewer. It uses normal authenticated draft inspection and the existing read-only `previewPublication` service to obtain a hypothetical public-shaped projection. This does not approve or persist any changes. Current reviewer access, source state and exact draft revision are rechecked. The draft remains unapproved in Firestore.
 
 The interface carries an explicit private-preview banner. Application actions are unavailable; mutations and unrelated API paths are blocked. The viewer session stays in local server memory and an HttpOnly cookie, with expiry. Direct access to the copied Next server and its projection bridge is rejected without the internal gateway credential. No unauthenticated feed is populated with the private draft.
 
-The local sign-in page is available at `http://localhost:48739/signin` while its temporary preview process runs. An earlier reviewer token is expired, so the founder has been asked to sign in again. **Authenticated rendering remains pending until that real sign-in and a resulting applicant-page check complete.** No authenticated UI success or screenshot is claimed by preparation alone.
+The founder completes a fresh genuine Google reviewer sign-in at 03:06 UTC / 05:06 SAST. Normal authenticated draft inspection and read-only publication preview pass with the existing reviewer-only role; no token is persisted. The founder confirms the opportunity opens. Browser inspection then verifies the real notice in both the authenticated feed and detail page, with private-preview banners, both locations, the two education alternatives, the separate preferred item, closing date and original employer citation. Both Next routes return HTTP 200. Screenshots and bounded DOM evidence remain private.
+
+This is a hypothetical publication projection in a protected local viewer. Existing public-component publication labels do not establish stored approval or public availability. The real Firestore record remains unapproved, and no active application link appears in the detail page. The local preview process and in-memory reviewer session are temporary; this does not deploy hosting or establish an ongoing public service.
 
 ## Verification and remaining work
 
 Live readbacks verify the new draft, its decision, actual model versions/receipts, supported assessment, cited content and preserved prior records. All six private draft IDs return 404 through the normal public read handler; the public feed is empty, reports are disabled and responses are no-store. Final cloud readbacks and IAM checks confirm cleanup without further provider calls or cloud writes.
 
-The copied preview passes Next route generation and TypeScript checking. Pre-authentication HTTP checks verify direct-Next 403, unauthenticated gateway redirect and projection-bridge 403. A Windows request independently receives the sign-in page with HTTP 200 and no-store headers. These establish readiness for the real reviewer interaction, not authenticated rendering.
+The copied preview passes Next route generation and TypeScript checking. Pre-authentication HTTP checks verify direct-Next 403, unauthenticated gateway redirect, projection-bridge 403, rejected forged bridge access and rejected login origin. A Windows request independently receives the sign-in page with HTTP 200 and no-store headers. Genuine reviewer readback plus actual browser feed/detail inspection complete the controlled authenticated-rendering check; no synthetic identity is accepted as proof.
+
+A post-render cloud readback matches the state recorded after worker cleanup: source, authority, calls, caches, budgets, usage, operators, workers, decisions and drafts are unchanged by previewing. All six private IDs still return public 404, the public feed remains empty, temporary delegation is absent and prior IAM bindings remain. This UI-verification follow-up makes zero model requests and zero Firestore writes. Six updated documentation files pass 417 local-link checks; source/provider artifacts and screenshots stay out of commits.
 
 Production extraction/runtime code is unchanged from the previous verified backend sprint; its 1,182-test regression is prior evidence, not a new run or proof of this UI acceptance. This sprint's checks focus on the real worker result, privacy, cleanup, preview typechecking and access boundaries. Native bodies, provider data, credentials and private preview files remain ignored under `.artifacts/groq/live-draft-2026-11-02/`.
 
-Next, complete the authenticated applicant preview, then demonstrate a representative mixed batch under the publisher-wide workflow. Qualification must include duplicates, closed/conflicting notices, supported original methods, restart/quota recovery and false-acceptance review. This legacy-source diagnostic still uses temporary bounded access and does not satisfy unattended batch acceptance. Employer crawling remains optional. Hosting, scheduling and public publication remain off.
+The controlled real-notice-to-private-applicant-preview step is complete. Next, demonstrate a representative mixed batch under the publisher-wide workflow. Qualification must include duplicates, closed/conflicting notices, supported original methods, restart/quota recovery and false-acceptance review. This legacy-source diagnostic still uses temporary bounded access and does not satisfy unattended batch acceptance. Employer crawling remains optional. Hosting, scheduling and public publication remain off.
