@@ -3,9 +3,9 @@ import { cache } from "react"
 import { notFound } from "next/navigation"
 import { OpportunityProfile } from "@/components/catalogue/OpportunityLens"
 import { opportunityLens } from "@/lib/opportunity-lens"
-import { OpportunityOverview, OpportunityContents, ApplicationDate } from "@/components/catalogue/OpportunityOverview"
+import { OpportunityOverview, OpportunityContents } from "@/components/catalogue/OpportunityOverview"
 import { Header } from "@/components/layout/Header"
-import { FeedSave } from "@/components/catalogue/FeedSave"
+import { ApplicationPanel } from "@/components/catalogue/ApplicationPanel"
 import { readOpportunity } from "@/lib/public-catalogue"
 import { PreparationChecklist } from "@/components/catalogue/PreparationChecklist"
 import { OpportunityReport } from "@/components/catalogue/OpportunityReport"
@@ -13,7 +13,7 @@ import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/S
 import { catalogueReturnHref } from "@/lib/catalogue-query"
 import { EntryStage } from "@/components/catalogue/EntryStage"
 import { OpportunityContext, OpportunityConditions } from "@/components/catalogue/OpportunityConditions"
-import { ApplicationRouteLink, SaveOpportunity } from "@/components/catalogue/SavedProgress"
+import { SaveOpportunity } from "@/components/catalogue/SavedProgress"
 import { PublicChecklistExport } from "@/components/catalogue/PublicChecklistExport"
 import { publicExportSettings } from "@/lib/public-export-config"
 import { publicOpportunityMetadata } from "@/lib/public-opportunity-metadata"
@@ -47,8 +47,6 @@ export default async function OpportunityPage({ params, searchParams }: { params
     <p className="mt-4"><Link href="/saved" className="text-primary underline">Return to your saved references and personal progress</Link></p>
   </main></>
   const o = result.opportunity
-  const application = o.lifecycle === "published" && o.application.state === "available" ? o.application.route : null
-  const canApply = application && ["portal", "email"].includes(application.method)
   return <><Header /><main id="main-content" className="workspace opportunity-workspace">
     <div className="opportunity-back"><Link href={back ?? "/"}>{back ? "← Back to results" : "← All opportunities"}</Link><span>Explore. Understand. Make your move.</span></div>
     <OpportunityOverview opportunity={o} />
@@ -77,15 +75,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
         <Link href={back ?? "/"} className="return-to-discovery">Keep exploring opportunities <span>↗</span></Link>
       </div>
       <aside className="opportunity-action-rail" aria-label="Your next step">
-        <section className="application-panel" aria-labelledby="application-heading">
-          <p className="mini-label">When you’re ready</p><h2 id="application-heading">Application details</h2><ApplicationDate opportunity={o} />
-          {application && <p className="application-method">Apply {application.method === "portal" ? "through the original portal" : application.method === "email" ? "by email" : application.method === "post" ? "by post" : "in person"}</p>}
-          {application?.method === "email" && <p className="application-destination">Application email: {application.destination}</p>}
-          {application && ["in_person", "post"].includes(application.method) && <p className="application-destination">{application.method === "post" ? "Apply by post" : "Apply in person"}: {application.destination}</p>}
-          {canApply ? <ApplicationRouteLink id={o.id} revision={o.revision} email={application.method === "email"} /> : application ? null : <p className="section-lede">{o.lifecycle === "closed" ? "This intake is closed." : "An application link is not currently available. Check the source notice for guidance."}</p>}
-          <details className="application-help"><summary>Before opening the application</summary><p>Follow the application method stated in the notice. Skilved rechecks the listing before opening a portal or your email app; you complete and submit the application yourself.</p></details>
-          <div className="rail-save-action"><FeedSave id={o.id} revision={o.revision} /><a href="#your-workspace">Your personal workspace ↓</a></div>
-        </section>
+        <ApplicationPanel opportunity={o} />
         <div className="next-step-note"><span aria-hidden>↳</span><div><h3>You set the pace.</h3><p>Read the conditions. Check what’s unclear. Save it if it’s a possibility.</p><a href="#preparation">Start with the requirements ↓</a></div></div>
       </aside>
     </div>

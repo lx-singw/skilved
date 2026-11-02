@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Application handoff and recovery — 2 November 2026](11_APPLICATION_HANDOFF_2026-11-02.md): method-specific destinations, document context and changed-link recovery.
+
 - [Feed discovery and search recovery — 1 November 2026](10_FEED_DISCOVERY_2026-11-01.md): readable results, grouped choices and progressive empty-search recovery.
 
 - [Category-specific opportunity reading — 1 November 2026](09_CATEGORY_READING_2026-11-01.md): decision facts, support coverage and content stress checks.
