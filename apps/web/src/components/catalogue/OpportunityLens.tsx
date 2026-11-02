@@ -3,7 +3,7 @@ import type { PublicOpportunity } from "@skilved/types/opportunities"
 import { opportunityLens, type LensFact } from "@/lib/opportunity-lens"
 
 const icons = {support:Banknote,fields:BookOpen,place:MapPin,education:GraduationCap,experience:Users,conditions:ClipboardList,provider:Building2,route:Route}
-function LensValue({ fact }: { fact: LensFact }) {
+export function LensValue({ fact }: { fact: Pick<LensFact,"value"|"detail"> }) {
   return <>{fact.value.length > 180 ? <details className="lens-long-wording"><summary>{fact.value.slice(0,140)}…<span>Read full wording</span></summary><p>{fact.value}</p></details> : <span>{fact.value}</span>}{fact.detail && <small>{fact.detail}</small>}</>
 }
 export function CategoryCardFacts({ opportunity: o }: { opportunity: PublicOpportunity }) {

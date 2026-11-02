@@ -1,14 +1,11 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { test } from "node:test"
+import { loadUi } from "./helpers/load-ui.mjs"
 import { makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
-const require = createRequire(import.meta.url), ts = require("typescript")
+const require = createRequire(import.meta.url)
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
-const source = await readFile(new URL("../src/lib/saved-summary.ts", import.meta.url), "utf8")
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } })
-const exports = {}; new Function("require", "exports", compiled.outputText)(require, exports)
-const { createSavedSummaryReader, readSavedSummary } = exports
+const { createSavedSummaryReader, readSavedSummary } = loadUi("lib/saved-summary.ts")
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no }); return { promise, resolve, reject } }
 
 test("newer public response wins even when the obsolete request ignores cancellation", async () => {

@@ -1,6 +1,8 @@
 import { DetailResponseSchema, IdSchema, type PublicOpportunity } from "@skilved/types/opportunities"
+import { opportunityLens, type LensFact } from "./opportunity-lens"
+import { opportunityFacts } from "./opportunity-presentation"
 
-export type SavedSummary = { kind: "current"; id: string; revision: number; title: string; state: "published" | "closed"; category: PublicOpportunity["category"]; issuer: string; deadline: string }
+export type SavedSummary = { kind: "current"; id: string; revision: number; title: string; state: "published" | "closed"; category: PublicOpportunity["category"]; issuer: string; deadline: string; preview: { caption:string; facts:Pick<LensFact,"key"|"label"|"value"|"detail"|"unresolved">[]; place:string; attendance:string; deadlineState:PublicOpportunity["deadline"]["state"]; deadlineWording?:string } }
   | { kind: "restricted"; id: string; revision: number }
   | { kind: "missing" } | { kind: "unavailable" }
 export async function readSavedSummary(id: string, signal?: AbortSignal): Promise<SavedSummary> {
@@ -17,7 +19,8 @@ export async function readSavedSummary(id: string, signal?: AbortSignal): Promis
     if (controller.signal.aborted) return { kind: "unavailable" }
     if (result.kind === "status") return { kind: "restricted", id: result.status.id, revision: result.status.revision }
     const o = result.opportunity
-    return { kind: "current", id: o.id, revision: o.revision, title: o.title.value ?? "Saved opportunity", state: o.lifecycle, category: o.category, issuer: o.issuer.value ?? "Issuer not established", deadline: o.deadline.state === "stated" ? o.deadline.originalText ?? "Closing date not stated" : o.deadline.state === "not_stated" ? "Closing date not stated" : "Closing date needs clarification" }
+    const lens = opportunityLens(o), facts = opportunityFacts(o)
+    return { kind: "current", id: o.id, revision: o.revision, title: o.title.value ?? "Saved opportunity", state: o.lifecycle, category: o.category, issuer: o.issuer.value ?? "Issuer not established", deadline:facts.deadline, preview: { caption:lens.caption, facts:lens.facts.slice(0,2).map(({key,label,value,detail,unresolved})=>({key,label,value,detail,unresolved})), place:facts.place, attendance:facts.attendance, deadlineState:o.deadline.state, deadlineWording:o.deadline.state!=="stated"?o.deadline.originalText??undefined:undefined } }
   } catch { return { kind: "unavailable" } }
   finally { clearTimeout(timer); signal?.removeEventListener("abort", abort) }
 }

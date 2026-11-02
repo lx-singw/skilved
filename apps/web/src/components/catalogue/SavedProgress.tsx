@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Archive, ArrowUpRight, Bookmark, CalendarDays, HardDrive, Layers3, PencilLine, RefreshCw, Send, Sparkles, X } from "lucide-react"
+import { Archive, ArrowUpRight, Bookmark, HardDrive, Layers3, PencilLine, RefreshCw, Send, Sparkles, X } from "lucide-react"
 import { OpportunityGlyph } from "./OpportunityIdentity"
 import { opportunityIdentity } from "@/lib/opportunity-presentation"
 import { savedWorkspace, savedCardState, type SavedFilter, type SavedSort } from "@/lib/saved-workspace"
@@ -10,30 +10,30 @@ import { useLocalProgress } from "@/lib/use-local-progress"
 import { createSavedSummaryReader, type SavedSummary } from "@/lib/saved-summary"
 import { checkSavedIdentity } from "@/lib/saved-identity"
 import { LocalProgressStageSchema, type LocalProgressItem } from "@skilved/types/opportunities"
+import { SavedNoticePreview } from "./SavedNoticePreview"
+import { LocalTime, PersonalProgressHistory } from "./PersonalProgressHistory"
 
 const button = "min-h-11 rounded-md border border-border px-4 py-2 text-sm font-medium disabled:opacity-50"
 type Progress = ReturnType<typeof useLocalProgress>
 const stages: Record<LocalProgressItem["userStage"], string> = { interested: "Interested", preparing: "Preparing", applied_reported: "Applied — marked by you", not_pursuing: "No longer pursuing" }
 
-function LocalTime({ value }: { value: string }) {
-  return <time dateTime={value}>{new Date(value).toLocaleString("en-ZA", { dateStyle: "long", timeStyle: "short" })}</time>
-}
+const stageHints: Record<LocalProgressItem["userStage"],string> = { interested:"A possibility you’re still exploring.", preparing:"Your preparation stage. Checklist ticks stay temporary.", applied_reported:"Your report only. Submission is not confirmed.", not_pursuing:"Set aside for now. Your earlier history stays here." }
 
 function PersonalProgress({ item, busy, change, compact = false }: { item: LocalProgressItem; busy: boolean; change: Progress["change"]; compact?: boolean }) {
-  const history = <><p className="text-sm text-muted-foreground">These are your personal notes about progress, not an issuer’s records. You can change your stage.</p>
-    {item.userStage === "applied_reported" && item.reportedAppliedAt && <p className="text-sm">Applied — marked by you <LocalTime value={item.reportedAppliedAt} />. Skilved has not confirmed submission.</p>}
-    <p className="text-sm text-muted-foreground">{item.lastRouteOpenedAt ? <>Last route-opening action recorded <LocalTime value={item.lastRouteOpenedAt} />. This does not confirm that the issuer’s page loaded or that you submitted.</> : "No route-opening action is recorded in this browser."}</p></>
+  const history = <PersonalProgressHistory item={item}/>
   return <div className={compact ? "saved-personal-progress" : "mt-4 space-y-3"}>
     <label className="block text-sm font-medium" htmlFor={`personal-stage-${item.opportunityId}`}>Personal stage</label>
-    <select id={`personal-stage-${item.opportunityId}`} value={item.userStage} disabled={busy} className="min-h-11 max-w-full rounded-md border border-border bg-background px-3 py-2 text-sm" onChange={event => {
+    {compact && <p className="saved-stage-hint" id={`stage-hint-${item.opportunityId}`}>{stageHints[item.userStage]}</p>}
+    <select id={`personal-stage-${item.opportunityId}`} aria-describedby={compact?`stage-hint-${item.opportunityId}`:undefined} value={item.userStage} disabled={busy} className="min-h-11 max-w-full rounded-md border border-border bg-background px-3 py-2 text-sm" onChange={event => {
       const stage = LocalProgressStageSchema.safeParse(event.target.value)
       if (stage.success) void change({ type: "stage", id: item.opportunityId, stage: stage.data })
     }}>{Object.entries(stages).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select>
-    {compact ? <details className="saved-history"><summary>Your history & what this stage means</summary><div>{history}</div></details> : history}
+    {compact && <p className="saved-personal-update">Last local update <LocalTime value={item.updatedAt}/></p>}
+    {compact ? <details className="saved-history"><summary>Your history & what this stage means</summary>{history}</details> : history}
   </div>
 }
 
-export function SavedRevision({ item, id, revision, busy, change, canAcknowledge = false, alsoSaved = false }: { item: LocalProgressItem; id: string; revision: number; busy: boolean; change: Progress["change"]; canAcknowledge?: boolean; alsoSaved?: boolean }) {
+export function SavedRevision({ item, id, revision, busy, change, canAcknowledge = false, alsoSaved = false, compact = false }: { item: LocalProgressItem; id: string; revision: number; busy: boolean; change: Progress["change"]; canAcknowledge?: boolean; alsoSaved?: boolean; compact?: boolean }) {
   if (id !== item.opportunityId) return <div className="mt-3 space-y-2 text-sm">
     <p>This saved reference currently resolves to another listing. Your personal progress stays with the original reference; it has not been moved or combined.</p>
     {alsoSaved && <p>You also saved the current listing. Both sets of personal progress are retained separately.</p>}
@@ -41,9 +41,9 @@ export function SavedRevision({ item, id, revision, busy, change, canAcknowledge
   </div>
   if (revision === item.lastViewedRevision) return null
   return <div className="mt-3 space-y-2 text-sm" role="note">
-    <p>The public details differ from the version you last saved or marked reviewed. Your personal stage and history have been retained. Check the current conditions and application instructions.</p>
+    <p>{compact ? "The notice changed. Your stage and history are kept." : "The public details differ from the version you last saved or marked reviewed. Your personal stage and history have been retained. Check the current conditions and application instructions."}</p>
     {canAcknowledge ? <button type="button" className={button} disabled={busy} onClick={() => { void change({ type: "acknowledge_revision", id, revision }) }}>Mark these details as reviewed</button>
-      : <Link href={`/opportunities/${id}`} className="text-primary underline">Review changed details</Link>}
+      : !compact && <Link href={`/opportunities/${id}`} className="text-primary underline">Review changed details</Link>}
   </div>
 }
 
@@ -128,7 +128,7 @@ export function SaveOpportunity({ id, revision }: { id: string; revision: number
 }
 
 function SavedItem({ item, items, token, busy, change, remove, refreshSignal }: { item: LocalProgressItem; items: LocalProgressItem[]; token: string | null; busy: boolean; change: Progress["change"]; remove: () => void; refreshSignal: number }) {
-  const { opportunityId: id, savedAt } = item
+  const { opportunityId: id } = item
   const [summary, setSummary] = useState<SavedSummary | null>(null)
   const [refresh, setRefresh] = useState(0)
   useEffect(() => {
@@ -149,11 +149,10 @@ function SavedItem({ item, items, token, busy, change, remove, refreshSignal }: 
       <div className="saved-card-topline"><span className={`saved-notice-status ${card.tone === "attention" ? "needs-attention" : ""}`}><span aria-hidden />{card.label}</span><button type="button" className="saved-recheck" onClick={() => setRefresh(value => value + 1)} aria-label={`Check current public details for ${title}`}><RefreshCw size={14} aria-hidden /><span>Recheck</span></button></div>
       {current && <p className="saved-issuer">{current.issuer}</p>}
       <h2><Link href={`/opportunities/${id}`}>{title}</Link></h2>
-      {current && <p className="saved-closing"><CalendarDays size={15} aria-hidden /><span>{current.deadline}</span></p>}
-      <p className="saved-on">Saved in this browser <LocalTime value={savedAt} /></p>
+      {current && <SavedNoticePreview summary={current}/>}
       {summary && summary.kind !== "current" && <p className="saved-unavailable">{summary.kind === "restricted" ? "This listing is unavailable or under review. No application action is offered here." : summary.kind === "missing" ? "No current public listing was found. Your saved reference is retained." : "Current details could not be loaded. Open the reference to try again."}</p>}
       {current?.state === "closed" && <p className="saved-unavailable">This intake is closed. Your saved reference is retained.</p>}
-      {summary && "id" in summary && <div className="saved-revision-note"><SavedRevision item={item} id={summary.id} revision={summary.revision} busy={busy} change={change} alsoSaved={items.some(other => other.opportunityId === summary.id)} /></div>}
+      {summary && "id" in summary && <div className="saved-revision-note"><SavedRevision item={item} id={summary.id} revision={summary.revision} busy={busy} change={change} alsoSaved={items.some(other => other.opportunityId === summary.id)} compact /></div>}
       {other && summary && "revision" in summary && <SavedIdentityReview key={`${id}:${other.opportunityId}:${summary.revision}:${token}`} item={item} target={other} revision={summary.revision} token={token} busy={busy} change={change} />}
       <PersonalProgress item={item} busy={busy} change={change} compact />
     </div>

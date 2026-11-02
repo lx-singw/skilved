@@ -61,7 +61,8 @@ test("saved summaries use validated current public facts and local IDs without p
   }
   try {
     assert.deepEqual(await readSavedSummary("../private"), { kind: "unavailable" }); assert.equal(calls, 0)
-    const current = await readSavedSummary(record.id); assert.deepEqual(current, { kind: "current", id: record.id, revision: record.revision, title: record.title.value, state: "published", category: record.category, issuer: record.issuer.value, deadline: record.deadline.originalText })
+    const current = await readSavedSummary(record.id), { preview, ...metadata } = current; assert.deepEqual(metadata, { kind: "current", id: record.id, revision: record.revision, title: record.title.value, state: "published", category: record.category, issuer: record.issuer.value, deadline: record.deadline.originalText })
+    assert.equal(preview.facts.length, 2); assert.equal(preview.caption, "Your craft, in context")
     assert.doesNotMatch(JSON.stringify(current), /destination|issuer.example|PRIVATE_|applied/)
     record.publication.disposition = "withheld"; projection = projectOpportunity(record); assert.deepEqual(await readSavedSummary(record.id), { kind: "restricted", id: record.id, revision: record.revision })
     status = 404; assert.deepEqual(await readSavedSummary(record.id), { kind: "missing" })
@@ -148,7 +149,7 @@ test("personal stage rendering stays reversible and distinguishes own report fro
     assert.ok(html.includes(`value="${stage}" selected=""`))
     assert.match(html, /not an issuer’s records/); assert.match(html, /Last route-opening action recorded/)
     assert.match(html, /does not confirm that the issuer’s page loaded or that you submitted/)
-    if (stage === "applied_reported") { assert.match(html, /Skilved has not confirmed submission/); assert.match(html, /dateTime="2026-10-16T04:30:00.000Z"/) }
-    else assert.doesNotMatch(html, /Skilved has not confirmed submission/)
+    assert.match(html, /Skilved has not confirmed submission/); assert.match(html, /dateTime="2026-10-16T04:30:00.000Z"/)
+    assert.match(html, /earlier report time is retained if you change your stage/)
   }
 })

@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Saved cards and personal history — 2 November 2026](14_SAVED_CARD_DETAIL_2026-11-02.md): category facts, complete wording and retained personal history.
+
 - [Source inspection and scoped evidence — 2 November 2026](13_SOURCE_INSPECTION_2026-11-02.md): readable source addresses, separate check records and explicit missing evidence.
 
 - [Public copy and return journey — 2 November 2026](12_PUBLIC_COPY_2026-11-02.md): document preview, reference-only recovery and a canonical way back.
