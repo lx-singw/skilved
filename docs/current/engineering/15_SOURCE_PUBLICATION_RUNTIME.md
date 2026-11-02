@@ -22,6 +22,14 @@ pnpm catalogue:operator --help
 
 Catalogue tests require Node 22, Java 21 and Firebase CLI 15.22.3. The root command starts Auth/Firestore on loopback 19099/18080 with project `demo-skilved-b03`, runs the tests and shuts them down. Ports must be free. It uses a separate deny-all rules file and never changes hosted rules or actual users. Test-created identities and notices are synthetic. CI installs the pinned CLI and Java; hosted CI execution is separate evidence.
 
+## Read-only publisher expansion planning
+
+For an existing shadow RecentJobs source, `pnpm --filter @skilved/catalogue plan:publisher /absolute/private/input.json` produces a private proposal containing a normal `source` command and explicit expected revision. Input is `{source, observedAt, budgets: [{sourceId, date, calls}], discovery: {maxPages, maxArticles}}`; supply a current source read and its complete retained source-budget rows. Keep input/output under ignored private storage. This command initializes no database/provider client and never executes its proposed update.
+
+The plan preserves source ID, owner, permission evidence, URLs, issuer trust, optional employer crawling and daily ceiling. It binds current/proposed source state and budget history with canonical hashes, reports source-day spending/earliest allowance, and retains historical over-cap usage rather than rewriting it. The report is a planning snapshot; actual worker admission still checks current source/provider accounting and availability. Never create a replacement source to obtain an allowance.
+
+Applying the proposal uses the existing genuine Source-role operator workflow below. Reviewer-only access is insufficient, expected revisions still apply, and role provisioning remains a separately authorized infrastructure action. The planner does not qualify new employers, migrate trust, grant a worker, schedule work or enable automatic publication. See the [mixed native batch and publisher plan](../operations/216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md) for measured rehearsal results and rollout limits.
+
 ## Configuration and identities
 
 | Variable | Actual behavior |

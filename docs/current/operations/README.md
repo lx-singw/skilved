@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Mixed RecentJobs batch and source-preserving publisher plan — 2 November 2026](216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md)
+
 - [Real private draft and authenticated applicant preview — 2 November 2026](215_REAL_PRIVATE_DRAFT_AND_APPLICANT_PREVIEW_2026-11-02.md)
 
 - [Fresh staging extraction and mixed social invitations — 1 November 2026](214_LIVE_EXTRACTION_PROMOTION_GUARD_2026-11-01.md)

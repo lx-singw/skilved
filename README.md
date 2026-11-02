@@ -27,6 +27,8 @@ Start with the [current documentation index](docs/current/00_START_HERE.md). It 
 
 ## Engineering orientation
 
+Latest publisher work: [the fixed twenty-notice batch and source-preserving plan](docs/current/operations/216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md) produce nineteen holds and one natural-quota wait in normal-worker frozen replay. Restart creates no duplicate work. A reusable read-only planner prepares bounded discovery under the same source ID, trust and spent ceiling; live application still requires genuine Source-role access. No new AI call, cloud policy change or publication is claimed by the rehearsal.
+
 Latest orchestration change: [source daily-budget resumption](docs/current/operations/213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md) preserves pending jobs and cached progress until exact SAST midnight. Later worker ticks resume within unchanged quotas and safety checks. Hosting and scheduling remain inactive; no fresh live draft success is implied.
 
 Latest ingestion evidence: [2 November real private draft and authenticated applicant preview](docs/current/operations/215_REAL_PRIVATE_DRAFT_AND_APPLICANT_PREVIEW_2026-11-02.md). The normal worker corroborates the employer, passes fresh V30 extraction/V17 validation and stores a new unapproved staging draft. Genuine reviewer sign-in and browser inspection verify the real notice in the private feed/detail UI, with application actions disabled. Six private drafts and zero public records remain; preview reads preserve data, quota history and reviewer-only access. Hosting/publication stay off. Publisher-wide unattended acceptance remains ahead.

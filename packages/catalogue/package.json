@@ -14,6 +14,7 @@
     "test:extraction": "node --test tests/extraction.test.mjs",
     "extract:recentjobs": "node tools/extract-recentjobs.mjs",
     "plan:recentjobs": "node tools/plan-recentjobs-programmes.mjs",
+    "plan:publisher": "node tools/plan-recentjobs-publisher.mjs",
     "worker:recentjobs": "node tools/run-recentjobs.mjs",
     "check:staging-reads": "node tools/check-staging-reads.mjs",
     "shadow:recentjobs": "node tools/shadow-recentjobs.mjs",
