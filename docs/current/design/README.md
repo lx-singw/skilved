@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Inline opportunity briefs — 2 November 2026](15_INLINE_OPPORTUNITY_BRIEFS_2026-11-02.md): source summaries, connected instructions, document wording and precise detail links.
+
 - [Saved cards and personal history — 2 November 2026](14_SAVED_CARD_DETAIL_2026-11-02.md): category facts, complete wording and retained personal history.
 
 - [Source inspection and scoped evidence — 2 November 2026](13_SOURCE_INSPECTION_2026-11-02.md): readable source addresses, separate check records and explicit missing evidence.

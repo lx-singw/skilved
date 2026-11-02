@@ -293,19 +293,17 @@
   .dossier-deadline { display: flex; gap: 12px; font-size: 10px; line-height: 1.8; color: hsl(var(--muted-foreground)); padding: 12px 0; overflow-wrap: anywhere; }
   .dossier-deadline > span { font-weight: 600; flex-shrink: 0; }
   .card-brief { border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--background) / .6); margin: 2px 0 16px; }
-  .card-brief summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 13px 14px; list-style: none; color: hsl(var(--op-accent)); }
-  .card-brief summary > span { display: grid; grid-template-columns: 16px 1fr; column-gap: 8px; align-items: center; font-size: 12px; font-weight: 550; }
-  .card-brief small { grid-column: 2; font-size: 10px; margin-top: 3px; font-weight: 400; color: hsl(var(--muted-foreground)); }
-  .card-brief[open] summary > svg { transform: rotate(180deg); }
+  .card-brief > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 13px 14px; list-style: none; color: hsl(var(--op-accent)); }
+  .card-brief > summary > span { display: grid; grid-template-columns: 16px 1fr; column-gap: 8px; align-items: center; font-size: 12px; font-weight: 550; }
+  .card-brief > summary small { grid-column: 2; font-size: 10px; margin-top: 3px; font-weight: 400; color: hsl(var(--muted-foreground)); }
+  .card-brief[open] > summary > svg { transform: rotate(180deg); }
   .card-brief-content { padding: 2px 16px 18px; font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
   .card-brief-content h3 { font-size: 11px; font-weight: 650; margin: 18px 0 8px; }
   .card-brief-content > p:last-of-type { font-size: 11px; color: hsl(var(--muted-foreground)); }
   .brief-logic { border-left: 2px solid hsl(var(--op-line)); padding-left: 12px; }
   .card-brief-content li { margin-top: 8px; }
   .dossier-provenance { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; padding: 0 0 17px; font-size: 9px; color: hsl(var(--muted-foreground)); }
-  .dossier-provenance > span:last-child { margin-left: auto; }
-  .source-dots { display: flex; gap: 2px; }
-  .source-dots i { display: block; width: 4px; height: 4px; border: 1px solid hsl(var(--op-accent)); border-radius: 50%; }
+  .dossier-provenance > a { margin-left: auto; display: flex; align-items: center; gap: 6px; min-height: 40px; text-decoration: underline; text-underline-offset: 3px; }
   .dossier-actions { margin: 0; padding: 6px 24px; background: hsl(var(--op-wash) / .4); border-color: hsl(var(--op-line)); }
   .dossier-actions > a { color: hsl(var(--op-accent)); font-size: 12px; }
   .opportunity-workspace { padding-right: 0; }
@@ -446,7 +444,6 @@
   .dossier-facts > div:last-child small { display: none; }
   .dossier-deadline { display: block; }
   .dossier-deadline > span { display: block; }
-  .dossier-provenance > span:last-child { display: none; }
   .dossier-actions { padding: 6px 18px; }
   .dossier-actions > a { font-size: 11px; gap: 5px; }
   .overview-banner { padding: 12px 20px; }
@@ -931,3 +928,40 @@
 .saved-history .personal-record-history dt { font-size: 10px; }
 .saved-history .personal-record-history dd { font-size: 11px; }
 .saved-history summary { min-height: 44px; }
+
+/* The inline brief keeps source wording and connected preparation close to the feed. */
+.brief-introduction { padding-top: 14px; }
+.brief-introduction > .mini-label { font-size: 9px; color: hsl(var(--op-accent)); }
+.brief-introduction h3 { font-size: 18px; font-weight: 550; letter-spacing: -.4px; margin: 8px 0 12px; }
+.brief-source-summary, .brief-original-wording { white-space: pre-wrap; overflow-wrap: anywhere; }
+.brief-original-wording { margin-top: 8px; color: hsl(var(--muted-foreground)); }
+.brief-inventory { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border: 1px solid hsl(var(--border)); border-radius: 8px; margin-top: 20px; background: hsl(var(--card)); overflow: hidden; }
+.brief-inventory > div { min-width: 0; padding: 12px; border-right: 1px solid hsl(var(--border)); }
+.brief-inventory > div:last-child { border-right: 0; }
+.brief-inventory dt { font-size: 9px; line-height: 1.8; color: hsl(var(--muted-foreground)); min-height: 33px; }
+.brief-inventory dd { font-size: 27px; line-height: 1.3; font-variant-numeric: tabular-nums; letter-spacing: -.6px; margin-top: 5px; }
+.brief-inventory-note { font-size: 11px; line-height: 1.9; color: hsl(var(--muted-foreground)); margin: 10px 0; }
+.brief-connected, .brief-support { border-top: 1px solid hsl(var(--border)); margin-top: 18px; }
+.brief-connected > summary, .brief-support > summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 0; font-size: 11px; color: hsl(var(--op-accent)); line-height: 1.8; list-style: none; cursor: pointer; }
+.brief-connected > summary > svg, .brief-support > summary > svg { flex-shrink: 0; }
+.brief-connected > summary > svg:last-child, .brief-support > summary > svg { margin-left: auto; }
+.brief-connected[open] > summary > svg:last-child, .brief-support[open] > summary > svg { transform: rotate(180deg); }
+.brief-connected .brief-logic { font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.brief-connected > p:last-child { font-size: 11px; color: hsl(var(--muted-foreground)); margin-top: 12px; }
+.brief-documents { margin-top: 20px; }
+.brief-documents h3 { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 550; }
+.brief-document-note { font-size: 11px; color: hsl(var(--muted-foreground)); line-height: 1.9; }
+.brief-documents ol { display: grid; gap: 10px; margin-top: 12px; }
+.brief-documents li { display: flex; align-items: flex-start; gap: 11px; border-left: 2px solid hsl(var(--op-line)); padding: 8px 0 8px 12px; margin-top: 0; }
+.brief-documents li > div { min-width: 0; }
+.brief-document-number { font-family: var(--font-jetbrains-mono); font-size: 9px; color: hsl(var(--muted-foreground)); padding-top: 2px; }
+.brief-document-level { display: block; font-size: 9px; line-height: 1.8; color: hsl(var(--muted-foreground)); margin-bottom: 6px; }
+.brief-documents li p, .brief-support li p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.brief-documents small, .brief-support small { display: block; font-size: 10px; color: hsl(var(--amber)); margin-top: 5px; }
+.brief-support li { border-left: 2px solid hsl(var(--border)); padding-left: 12px; }
+.brief-support > p { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.brief-detail-links { display: grid; gap: 3px; margin-top: 18px; padding-top: 12px; border-top: 1px solid hsl(var(--border)); }
+.brief-detail-links a { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; font-size: 11px; line-height: 1.8; color: hsl(var(--op-accent)); text-decoration: underline; text-underline-offset: 3px; }
+.brief-detail-links svg { flex-shrink: 0; }
+.card-brief > summary:focus-visible, .brief-connected > summary:focus-visible, .brief-support > summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
+@media (max-width:600px) { .brief-inventory > div { padding: 12px 8px; } .dossier-provenance { gap: 6px; } }
