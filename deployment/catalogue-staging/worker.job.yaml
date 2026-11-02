@@ -21,6 +21,8 @@ spec:
               env:
                 # Keep false until the existing source/history/quota checkpoint is reviewed and imported.
                 - {name: SKILVED_STAGING_WORKER_ENABLED, value: 'false'}
+                # Optional bounded reset-aware ticks; this does not create a scheduler.
+                - {name: SKILVED_STAGING_WORKER_CONTROLLER, value: 'false'}
                 - {name: SKILVED_STAGING_PROJECT, value: skilved-staging}
                 - {name: SKILVED_CATALOGUE_PROJECT, value: skilved-staging}
                 - {name: SKILVED_CATALOGUE_MODE, value: cloud}

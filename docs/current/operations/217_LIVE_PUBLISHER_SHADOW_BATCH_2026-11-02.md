@@ -2,6 +2,8 @@
 
 2 November 2026. Follow-up to the [mixed-batch rehearsal and publisher plan](216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md), within the [autonomous delivery target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Later continuity work: [the reset-aware shadow controller](218_RESET_AWARE_SHADOW_CONTROLLER_2026-11-02.md) adds bounded ticks, persistent wake metadata and repeated policy fences. Genuine idle machine ticks retain this batch's deferred job unchanged. A recurring runner and live reset-time execution remain open.
+
 ## Applied source policy
 
 The founder explicitly applies the reviewed source update through a fresh genuine Google sign-in and the normal Source API at 15:57 UTC / 17:57 SAST. The existing source advances from revision 2 to 3, retaining its ID, owner, permissions, existing URLs, exact employer trust, optional crawl choice and two-call daily ceiling. Discovery now covers two apprenticeship listing pages in chunks of ten. No new employer, tenant or email recipient is qualified by that update.

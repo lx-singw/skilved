@@ -8,6 +8,8 @@ The worker job remains disabled in the template. No scheduler is included. Its l
 
 ## Build and local verification
 
+`SKILVED_STAGING_WORKER_CONTROLLER=true` selects a [reset-aware shadow controller tick](../../docs/current/operations/218_RESET_AWARE_SHADOW_CONTROLLER_2026-11-02.md). It attempts at most eleven jobs, uses existing job/source leases and writes a private versioned wake/outcome checkpoint from the current queue. The bounded inventory supports up to 200 jobs and rejects overflow. Stored source/provider deferrals remain authoritative; existing quota accounting is preserved. Omitted/false keeps the original tick; the template leaves controller selection and activation false. This flag does not provision a recurring runner or grant access. Controller notice holds are successful tick outcomes; operational failures remain nonzero. Both launcher modes now recheck the pinned policy/crawl/grant assertion in every worker transaction, including after pacing.
+
 Run from the repository root under Linux/WSL:
 
 ```sh

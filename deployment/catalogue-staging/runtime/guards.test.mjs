@@ -35,6 +35,13 @@ test('worker activation is explicit while quota scope remains the provider key p
     assert.throws(() => stagingEnvironment('worker',{...worker,...change}), {code:'STAGING_CONFIGURATION_REQUIRED'});
   }
 });
+test('controller mode is a separate default-off bounded-tick choice',()=>{
+  assert.equal(stagingEnvironment('worker',worker).controller,false);
+  assert.equal(stagingEnvironment('worker',{...worker,SKILVED_STAGING_WORKER_CONTROLLER:'false'}).controller,false);
+  assert.equal(stagingEnvironment('worker',{...worker,SKILVED_STAGING_WORKER_CONTROLLER:'true'}).controller,true);
+  for(const value of ['TRUE','yes','1','',null,1])assert.throws(()=>stagingEnvironment('worker',{...worker,SKILVED_STAGING_WORKER_CONTROLLER:value}),{code:'STAGING_CONFIGURATION_REQUIRED'});
+  assert.throws(()=>stagingEnvironment('worker',{...worker,SKILVED_STAGING_WORKER_CONTROLLER:'true',SKILVED_STAGING_WORKER_ENABLED:'false'}),{code:'STAGING_CONFIGURATION_REQUIRED'});
+});
 test('worker admission defaults to crawl off and requires the reviewed revision and ingest-only grant', () => {
   const settings=stagingEnvironment('worker',worker);
   const source={id:settings.sourceId,revision:2,paused:false,permission:{method:'recentjobs_html'},automation:{mode:'shadow',employerCrawl:false}};

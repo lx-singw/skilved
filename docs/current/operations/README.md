@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Reset-aware shadow controller and persistent wake checkpoint — 2 November 2026](218_RESET_AWARE_SHADOW_CONTROLLER_2026-11-02.md)
+
 - [Applied publisher policy and controlled live shadow batch — 2 November 2026](217_LIVE_PUBLISHER_SHADOW_BATCH_2026-11-02.md)
 
 - [Mixed RecentJobs batch and source-preserving publisher plan — 2 November 2026](216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md)

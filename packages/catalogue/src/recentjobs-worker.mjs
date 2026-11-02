@@ -68,9 +68,11 @@ export class RecentJobsWorker {
     extractionMode = 'single', metadataExtractor = extractMetadata, requirementsExtractor = extractRequirements,
     validator = validateExtraction, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), thinking = 'low', validationThinking = 'medium',
     provider = 'groq', model, env = process.env, programmeExtraction = false,
-    programmeExtractor = extractProgramme, programmeValidator = validateProgramme } = {}) {
+    programmeExtractor = extractProgramme, programmeValidator = validateProgramme, assertAdmission } = {}) {
     if (typeof principal !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(principal)) fail('WORKER_UNAUTHORIZED');
     this.db = db; this.principal = principal; this.actor = `worker_${hash(principal).slice(0, 40)}`;
+    if (assertAdmission !== undefined && typeof assertAdmission !== 'function') fail('WORKER_CONFIGURATION_REQUIRED');
+    this.assertAdmission = assertAdmission;
     this.now = now; this.fetcher = fetcher; this.extractor = extractor; this.validator = validator; this.sleep = sleep;
     if (!['single','split'].includes(extractionMode)) fail('AI_CONFIGURATION_REQUIRED');
     this.extractionMode = extractionMode; this.metadataExtractor = metadataExtractor; this.requirementsExtractor = requirementsExtractor;
@@ -101,6 +103,9 @@ export class RecentJobsWorker {
         fail('WORKER_FORBIDDEN');
       if (!raw) fail('SOURCE_PAUSED');
       const source = Source.parse(raw);
+      // Trusted launcher/controller assertions run again before every effect,
+      // including after pacing. A startup policy check alone is insufficient.
+      await this.assertAdmission?.(source, grant, this.principal);
       if (this.provider === 'gemini' && source.automation?.mode !== 'shadow') fail('GEMINI_SHADOW_ONLY');
       if (this.extractionMode === 'split' && source.automation?.mode !== 'shadow') fail('SPLIT_EXTRACTION_SHADOW_ONLY');
       if (this.programmeExtraction && source.automation?.mode !== 'shadow') fail('PROGRAMME_EXTRACTION_SHADOW_ONLY');
