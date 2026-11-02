@@ -2,6 +2,8 @@
 
 2 November 2026. Follow-up to the [real private draft and authenticated applicant preview](215_REAL_PRIVATE_DRAFT_AND_APPLICANT_PREVIEW_2026-11-02.md), under the [publisher-wide delivery target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Later verified follow-up: [the source update and live shadow batch](217_LIVE_PUBLISHER_SHADOW_BATCH_2026-11-02.md) apply revision 3 through genuine Source-role access, restore reviewer-only access and run the same twenty-notice publisher workflow with native acquisition and persistent quota deferral. The earlier rehearsal checkpoint below remains its original evidence.
+
 ## Fixed native batch
 
 The first twenty distinct notices across the first two apprenticeship listing pages are frozen in publisher order before detail reads, with no employer, title or date exclusions. Collection finishes at 03:57 UTC / 05:57 SAST on 2 November. Twenty listing cards produce twenty distinct URLs; all twenty details parse. One URL is outside the previous 30 October twenty-notice sample. Failed observations would remain in the denominator rather than being replaced.

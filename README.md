@@ -27,7 +27,7 @@ Start with the [current documentation index](docs/current/00_START_HERE.md). It 
 
 ## Engineering orientation
 
-Latest publisher work: [the fixed twenty-notice batch and source-preserving plan](docs/current/operations/216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md) produce nineteen holds and one natural-quota wait in normal-worker frozen replay. Restart creates no duplicate work. A reusable read-only planner prepares bounded discovery under the same source ID, trust and spent ceiling; live application still requires genuine Source-role access. No new AI call, cloud policy change or publication is claimed by the rehearsal.
+Latest publisher work: [the applied policy and controlled live shadow batch](docs/current/operations/217_LIVE_PUBLISHER_SHADOW_BATCH_2026-11-02.md) use revision 3 of the same source for two-page discovery and twenty current notices. Nineteen stay held and one persists in the real queue until natural quota renewal. Restart creates no duplicate work; no new AI call or draft occurs. Temporary access is removed, all six private drafts/history remain and publication/hosting stay off. Packaged crawling now requires an explicit matching shadow-policy opt-in; the image is tested locally, not deployed. Unattended and mixed-batch positive qualification remain ahead.
 
 Latest orchestration change: [source daily-budget resumption](docs/current/operations/213_SOURCE_BUDGET_RESUMPTION_2026-10-31.md) preserves pending jobs and cached progress until exact SAST midnight. Later worker ticks resume within unchanged quotas and safety checks. Hosting and scheduling remain inactive; no fresh live draft success is implied.
 

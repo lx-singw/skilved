@@ -35,7 +35,7 @@ test('worker activation is explicit while quota scope remains the provider key p
     assert.throws(() => stagingEnvironment('worker',{...worker,...change}), {code:'STAGING_CONFIGURATION_REQUIRED'});
   }
 });
-test('worker admission requires the reviewed revision, optional crawl off and an ingest-only grant', () => {
+test('worker admission defaults to crawl off and requires the reviewed revision and ingest-only grant', () => {
   const settings=stagingEnvironment('worker',worker);
   const source={id:settings.sourceId,revision:2,paused:false,permission:{method:'recentjobs_html'},automation:{mode:'shadow',employerCrawl:false}};
   const grant={active:true,principal,sources:[source.id],roles:['ingest']};
@@ -46,6 +46,22 @@ test('worker admission requires the reviewed revision, optional crawl off and an
   }
   assert.throws(() => stagingWorkerAdmission(settings,source,{...grant,roles:['ingest','publish']},principal), {code:'STAGING_CONFIGURATION_REQUIRED'});
   assert.throws(() => stagingWorkerAdmission(settings,source,grant,'other@skilved-staging.iam.gserviceaccount.com'), {code:'STAGING_CONFIGURATION_REQUIRED'});
+});
+test('explicit crawl selection must match reviewed shadow original verification and cannot enable publication',()=>{
+ const settings=stagingEnvironment('worker',{...worker,SKILVED_STAGING_EMPLOYER_CRAWL:'true'});
+ assert.equal(settings.employerCrawl,true);assert.equal(stagingEnvironment('worker',worker).employerCrawl,false);
+ assert.equal(stagingEnvironment('worker',{...worker,SKILVED_STAGING_EMPLOYER_CRAWL:'false'}).employerCrawl,false);
+ const source={id:settings.sourceId,revision:2,paused:false,permission:{method:'recentjobs_html'},automation:{mode:'shadow',employerCrawl:true,originalVerification:'shadow_v1'}},grant={active:true,principal,sources:[source.id],roles:['ingest']};
+ assert.equal(stagingWorkerAdmission(settings,source,grant,principal),undefined);
+ for(const rejected of [{...source,automation:{...source.automation,employerCrawl:false}},
+  {...source,automation:{...source.automation,originalVerification:undefined}},
+  {...source,automation:{...source.automation,originalVerification:'unsupported'}},
+  {...source,automation:{...source.automation,mode:'automatic'}},{...source,revision:3}])
+  assert.throws(()=>stagingWorkerAdmission(settings,rejected,grant,principal),{code:'STAGING_CONFIGURATION_REQUIRED'});
+ for(const changed of [{...grant,roles:['ingest','publish']},{...grant,active:false},{...grant,sources:['other']}])
+  assert.throws(()=>stagingWorkerAdmission(settings,source,changed,principal),{code:'STAGING_CONFIGURATION_REQUIRED'});
+ assert.throws(()=>stagingWorkerAdmission(stagingEnvironment('worker',worker),source,grant,principal),{code:'STAGING_CONFIGURATION_REQUIRED'});
+ for(const value of ['TRUE','yes','1','',null,1])assert.throws(()=>stagingEnvironment('worker',{...worker,SKILVED_STAGING_EMPLOYER_CRAWL:value}),{code:'STAGING_CONFIGURATION_REQUIRED'});
 });
 test('disabled launchers exit before SDK initialization or web startup', () => {
   for (const file of ['web.mjs','worker.mjs']) {

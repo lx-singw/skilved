@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Applied publisher policy and controlled live shadow batch — 2 November 2026](217_LIVE_PUBLISHER_SHADOW_BATCH_2026-11-02.md)
+
 - [Mixed RecentJobs batch and source-preserving publisher plan — 2 November 2026](216_MIXED_BATCH_AND_PUBLISHER_PLAN_2026-11-02.md)
 
 - [Real private draft and authenticated applicant preview — 2 November 2026](215_REAL_PRIVATE_DRAFT_AND_APPLICANT_PREVIEW_2026-11-02.md)

@@ -39,6 +39,8 @@ spec:
                 - {name: SKILVED_GEMINI_AUTHORITY_EPOCH, value: REPLACE_WITH_REVIEWED_AUTHORITY_EPOCH}
                 - {name: SKILVED_STAGING_SOURCE_ID, value: REPLACE_WITH_EXISTING_REVIEWED_SOURCE_ID}
                 - {name: SKILVED_STAGING_SOURCE_REVISION, value: '0'}
+                # Explicit opt-in must match a reviewed shadow original-verification source.
+                - {name: SKILVED_STAGING_EMPLOYER_CRAWL, value: 'false'}
                 - {name: SKILVED_STAGING_WORKER_PRINCIPAL, value: catalogue-staging-worker@skilved-staging.iam.gserviceaccount.com}
                 - name: GEMINI_API_KEY
                   valueFrom:

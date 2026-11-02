@@ -22,14 +22,18 @@ export function stagingEnvironment(kind, env = process.env) {
       !/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/.test(env.SKILVED_GEMINI_PROJECT_ID ?? '') ||
       !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,95}$/.test(env.SKILVED_STAGING_SOURCE_ID ?? '') ||
       !/^[1-9]\d{0,8}$/.test(env.SKILVED_STAGING_SOURCE_REVISION ?? '') ||
+      !['true','false'].includes(env.SKILVED_STAGING_EMPLOYER_CRAWL === undefined ? 'false' : env.SKILVED_STAGING_EMPLOYER_CRAWL) ||
       !/^[a-z0-9-]+@skilved-staging\.iam\.gserviceaccount\.com$/.test(env.SKILVED_STAGING_WORKER_PRINCIPAL ?? '')) reject();
   return {projectId:STAGING_PROJECT, sourceId:env.SKILVED_STAGING_SOURCE_ID,
-    sourceRevision:Number(env.SKILVED_STAGING_SOURCE_REVISION), principal:env.SKILVED_STAGING_WORKER_PRINCIPAL};
+    sourceRevision:Number(env.SKILVED_STAGING_SOURCE_REVISION), principal:env.SKILVED_STAGING_WORKER_PRINCIPAL,
+    employerCrawl:env.SKILVED_STAGING_EMPLOYER_CRAWL === 'true'};
 }
 export function stagingWorkerAdmission(settings, source, grant, principal) {
   if (principal !== settings.principal || source?.id !== settings.sourceId || source?.revision !== settings.sourceRevision ||
       source?.paused !== false || source?.permission?.method !== 'recentjobs_html' || source?.automation?.mode !== 'shadow' ||
-      source?.automation?.employerCrawl !== false || grant?.active !== true || grant?.principal !== principal ||
+      source?.automation?.employerCrawl !== (settings.employerCrawl ?? false) ||
+      (settings.employerCrawl === true && source?.automation?.originalVerification !== 'shadow_v1') ||
+      grant?.active !== true || grant?.principal !== principal ||
       !Array.isArray(grant?.sources) || !grant.sources.includes(settings.sourceId) ||
       !Array.isArray(grant?.roles) || grant.roles.length !== 1 || grant.roles[0] !== 'ingest') reject();
 }

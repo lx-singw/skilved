@@ -4,7 +4,7 @@ This directory packages the current Next website and the current bounded RecentJ
 
 The website enables catalogue reads from persistent Firestore, with reports, suggestions and AI disabled. Cloud Run must require authenticated invocation. It reads the normal public projection; private drafts are not feed entries. An empty database therefore produces an empty catalogue, not a demonstration listing.
 
-The worker job remains disabled in the template. No scheduler is included. Its launcher requires explicit activation, a reviewed source ID and revision, a verified workload identity, shadow mode, employer crawling off and an ingest-only application grant. Cloud Gemini workers also require a matching quota-authority epoch, checked transactionally before each operation. The ordinary worker retains its budget, freshness and publication checks. Gemini still cannot publish automatically.
+The worker job remains disabled in the template. No scheduler is included. Its launcher requires explicit activation, a reviewed source ID and revision, a verified workload identity, shadow mode and an ingest-only application grant. Employer crawling defaults off. `SKILVED_STAGING_EMPLOYER_CRAWL=true` is a separate explicit opt-in: it must match the exact reviewed source revision's crawl choice and requires `originalVerification: shadow_v1`. An omitted/false flag rejects crawl-enabled sources, and a true flag rejects crawl-disabled or unsupported sources. Cloud Gemini workers also require a matching quota-authority epoch, checked transactionally before each operation. The ordinary worker retains its budget, freshness and publication checks. Gemini still cannot publish automatically.
 
 ## Build and local verification
 
