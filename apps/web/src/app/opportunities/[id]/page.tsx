@@ -9,7 +9,7 @@ import { ApplicationPanel } from "@/components/catalogue/ApplicationPanel"
 import { readOpportunity } from "@/lib/public-catalogue"
 import { PreparationChecklist } from "@/components/catalogue/PreparationChecklist"
 import { OpportunityReport } from "@/components/catalogue/OpportunityReport"
-import { RequirementExplanation, SourceEvidence } from "@/components/catalogue/SourceEvidence"
+import { RequirementExplanation, SourceEvidence, SourceEvidenceSummary } from "@/components/catalogue/SourceEvidence"
 import { catalogueReturnHref } from "@/lib/catalogue-query"
 import { EntryStage } from "@/components/catalogue/EntryStage"
 import { OpportunityContext, OpportunityConditions } from "@/components/catalogue/OpportunityConditions"
@@ -69,6 +69,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
         </section>
         <section id="evidence" className="evidence-workspace">
           <p className="section-caption">04 / Look behind the listing</p><h2>Know what you’re looking at.</h2><p className="section-lede">Inspect the original references, the scope of each check and anything still unresolved.</p>
+          <SourceEvidenceSummary opportunity={o} />
           <details className="evidence-drawer"><summary><span>Open the source file<small>{o.citations.length} source reference{o.citations.length === 1 ? "" : "s"} · checks shown individually</small></span><span>+</span></summary><SourceEvidence opportunity={o} /></details>
           {process.env.SKILVED_CATALOGUE_REPORTS === "true" && <OpportunityReport id={o.id} />}
         </section>
