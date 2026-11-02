@@ -65,7 +65,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
         <section id="your-workspace" className="personal-workspace">
           <p className="section-caption">03 / Make it your next move</p><h2>Keep your place.</h2><p className="section-lede">A shortlist, a personal stage, a way back. Take this one step at a time.</p>
           <SaveOpportunity key={o.id} id={o.id} revision={o.revision} />
-          <details className="export-drawer"><summary>Take the public instructions with you <span>+</span></summary><PublicChecklistExport id={o.id} origin={publicExportSettings().origin} /></details>
+          <details className="export-drawer"><summary><span>Keep a dated public copy<small>Instructions, sources and a way back to the notice</small></span><span>+</span></summary><PublicChecklistExport id={o.id} origin={publicExportSettings().origin} /></details>
         </section>
         <section id="evidence" className="evidence-workspace">
           <p className="section-caption">04 / Look behind the listing</p><h2>Know what you’re looking at.</h2><p className="section-lede">Inspect the original references, the scope of each check and anything still unresolved.</p>

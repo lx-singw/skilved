@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {readFile} from 'node:fs/promises'
+import {loadUi} from "./helpers/load-ui.mjs"
 import {createRequire} from 'node:module'
 import {makeRecord} from '../../../packages/types/tests/fixtures/opportunities.mjs'
-const require=createRequire(import.meta.url),ts=require('typescript'),{projectOpportunity}=require('@skilved/types/opportunities/internal')
-async function load(path,overrides={}){const out={},compiled=ts.transpileModule(await readFile(new URL('../src/'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}});new Function('require','exports',compiled.outputText)(id=>overrides[id]??require(id),out);return out}
+const require=createRequire(import.meta.url),{projectOpportunity}=require('@skilved/types/opportunities/internal')
+async function load(path,overrides={}){return loadUi(path,overrides)}
 const core=await load('lib/public-export.ts'),actions=await load('lib/public-export-actions.ts',{'./public-export':core}),wa=await load('lib/public-export-whatsapp.ts'),sharing=await load('lib/public-export-share.ts')
 const origin='https://skilved.example',canonicalUrl=origin+'/opportunities/public_job',now=()=> '2026-10-24T05:15:00.000Z',base={kind:'checklist',text:'Public rôle — café\nANY Maths OR N2 & 50% + ID?',filename:'skilved-public_job-r1.txt',canonicalUrl}
 const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r});return {promise,resolve}}

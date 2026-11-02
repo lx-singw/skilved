@@ -64,11 +64,15 @@ export function createPublicExportActions(id: string, prepare: ReturnType<typeof
   }
 }
 
-export async function copyPublicText(text: string) {
+export async function copyPublicText(text: string, timeoutMs = 3000) {
   if (!navigator.clipboard?.writeText) throw new Error("PUBLIC_COPY_UNAVAILABLE")
-  await navigator.clipboard.writeText(text)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const written = navigator.clipboard.writeText(text)
+    const stopped = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("PUBLIC_COPY_UNCONFIRMED")), timeoutMs) })
+    await Promise.race([written, stopped])
+  } finally { if (timer !== undefined) clearTimeout(timer) }
 }
-
 /** A click requests a download; it cannot establish that a file was saved. */
 export function downloadPublicText(payload: PublicChecklistExport) {
   const url = URL.createObjectURL(new Blob([payload.text], { type: "text/plain;charset=utf-8" }))

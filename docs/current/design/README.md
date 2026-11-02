@@ -1,10 +1,12 @@
 # Design documentation
 
-Updated: 11 September 2026. Brand foundations, information architecture, component behaviour and accessible design assurance.
+Updated: 2 November 2026. Brand foundations, information architecture, component behaviour and accessible design assurance.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
 ## Documents
+
+- [Public copy and return journey — 2 November 2026](12_PUBLIC_COPY_2026-11-02.md): document preview, reference-only recovery and a canonical way back.
 
 - [Application handoff and recovery — 2 November 2026](11_APPLICATION_HANDOFF_2026-11-02.md): method-specific destinations, document context and changed-link recovery.
 

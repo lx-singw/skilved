@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
-import {readFile} from 'node:fs/promises'
-import {createRequire} from 'node:module'
-const require=createRequire(import.meta.url),ts=require('typescript')
-async function load(path,overrides={}){const out={},compiled=ts.transpileModule(await readFile(new URL('../src/'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}});new Function('require','exports',compiled.outputText)(id=>overrides[id]??require(id),out);return out}
+import {loadUi} from "./helpers/load-ui.mjs"
+async function load(path,overrides={}){return loadUi(path,overrides)}
 const core=await load('lib/public-export.ts'),actions=await load('lib/public-export-actions.ts',{'./public-export':core})
 test('pagehide aborts pending public read; pageshow creates an idle controller without replay; final unmount disposes it',async()=>{
   const before=Object.fromEntries(['window','navigator'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)])),events=new EventTarget(),hooks=[],ref={current:null},views=[];let resolve,reads=0,signal,nativeCalls=0

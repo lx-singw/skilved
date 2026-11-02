@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
-import {readFile} from 'node:fs/promises'
+import {loadUi} from "./helpers/load-ui.mjs"
 import {createRequire} from 'node:module'
 import {test} from 'node:test'
 import {makeRecord} from '../../../packages/types/tests/fixtures/opportunities.mjs'
-const require=createRequire(import.meta.url),ts=require('typescript'),React=require('react'),{renderToStaticMarkup}=require('react-dom/server')
+const require=createRequire(import.meta.url),React=require('react'),{renderToStaticMarkup}=require('react-dom/server')
 const {projectOpportunity}=require('@skilved/types/opportunities/internal')
-async function load(path,overrides={}){const code=ts.transpileModule(await readFile(new URL('../src/'+path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}});const out={};new Function('require','exports',code.outputText)(id=>overrides[id]??require(id),out);return out}
+async function load(path,overrides={}){return loadUi(path,overrides)}
 const core=await load('lib/public-export.ts'),actions=await load('lib/public-export-actions.ts',{'./public-export':core})
 const origin='https://skilved.example',now=()=> '2026-10-24T02:00:00.000Z'
 const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r});return {promise,resolve}}
