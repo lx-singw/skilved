@@ -17,6 +17,7 @@ import {assertExperienceCompleteness,experienceCompletenessPolicy,EXPERIENCE_COM
 import {assertResidenceEvidence, RESIDENCE_EVIDENCE_INSTRUCTION} from './residence-evidence.mjs';
 import {assertMetadataCompleteness, metadataCompletenessPolicy, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
 import {assertIssuerAttribution,issuerAttributionPolicy,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
+import {selectionProcessPolicy,assertSelectionProcessCompleteness} from './selection-process.mjs';
 
 const id = z.string().regex(/^[A-Za-z0-9_-]{1,96}$/);
 const text = z.string().min(1).max(4000);
@@ -104,6 +105,7 @@ export function groqExtractionPayload(candidate) {
     requiredLineNumbers: requirementSourcePolicy(candidate).requiredLineNumbers,
     requirementSourcePolicy: requirementSourcePolicy(candidate),
     practicalEvidencePolicy: practicalEvidencePolicy(candidate),
+    selectionProcessPolicy: selectionProcessPolicy(candidate),
     metadataCompletenessPolicy: metadataCompletenessPolicy(candidate),
     issuerAttributionPolicy: issuerAttributionPolicy(candidate),
     locationEvidenceHints: locationEvidenceHints(candidate),
@@ -208,6 +210,7 @@ function decodeMetadata(input,candidate,schema,extractive) {
   let parsed;try { parsed=ExtractionSchema.omit({requirements:true}).parse(decoded); } catch { fail(); }
   assertIssuerAttribution(candidate,parsed.issuer);
   assertPracticalEvidence(candidate,parsed.practicalConditions);
+  assertSelectionProcessCompleteness(candidate,parsed.practicalConditions);
   assertExperienceEvidence(candidate,parsed.experience);
   assertExperienceCompleteness(candidate,parsed.experience);
   assertResidenceEvidence(candidate,parsed.residence);

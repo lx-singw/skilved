@@ -40,7 +40,7 @@ test('old answers stay on explicit offline legacy replay; live decoding never st
 });
 
 test('ordinary, split and programme contracts all reject redundant values and have new cache versions',()=>{
- assert.equal(GROQ_EXTRACTION_VERSION,'recentjobs_extraction_v30_groq_v8');assert.equal(METADATA_VERSION,'recentjobs_metadata_v22');assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v30');
+ assert.equal(GROQ_EXTRACTION_VERSION,'recentjobs_extraction_v31_groq_v8');assert.equal(METADATA_VERSION,'recentjobs_metadata_v23');assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v31');
  const raw=wire();assert.equal(GroqExtractionSchema.safeParse(raw).success,true);const {applicationCandidateIndex,...programme}=raw;assert.equal(ProgrammeExtractionSchema.safeParse(programme).success,true);
  programme.practicalConditions.value=passage;assert.equal(ProgrammeExtractionSchema.safeParse(programme).success,false);
 });

@@ -1,8 +1,10 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 3 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 4 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+4 November midnight result: [natural renewal, scheduled validation and selection-list completeness](../operations/223_MIDNIGHT_VALIDATION_AND_SELECTION_PROCESS_2026-11-04.md) verify the bounded local runner reaches its saved wake, rechecks both notices and receives one validation response. Omitted recruitment assessments cause a semantic rejection; no draft is added. Independent readback confirms cleanup, preserved accounting, six unchanged private drafts and zero public records. V31 extraction adds reusable exact selection-list retention and early rejection, including an unchanged offline replay of the real answer. Fresh V31 provider qualification remains open. The runner has finished; its next discovery checkpoint is not scheduled by a live process. Hosting/publication stay off.
 
 3 November identity reliability: [bounded transient retries and safe failure diagnostics](../operations/222_WORKER_IDENTITY_DIAGNOSTICS_2026-11-03.md) follow a second failed local wait, again before source/AI work. Cleanup and unchanged catalogue state are independently verified; the earlier sanitized error did not retain its underlying cause. Thirty-six focused checks and rebuilt-image verification pass. Known transient identity failures receive at most three attempts, while authorization, credential/account and invalid-token failures remain hard stops. Replacement overnight evidence remains pending; six private drafts and zero public records remain, with hosting/publication disabled.
 

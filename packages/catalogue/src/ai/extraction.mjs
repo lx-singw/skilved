@@ -18,8 +18,9 @@ import {assertResidenceEvidence, RESIDENCE_EVIDENCE_INSTRUCTION} from './residen
 import {assertMetadataCompleteness, METADATA_COMPLETENESS_INSTRUCTION} from './metadata-completeness.mjs';
 import {noticeMetadataPolicy,assertReferenceCompleteness} from './notice-metadata.mjs';
 import {assertIssuerAttribution,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
+import {assertSelectionProcessCompleteness} from './selection-process.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v30';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v31';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -134,6 +135,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
     ...extracted.requirements.items.map(item => item.fact)];
   if (facts.some(f => hasPromotionalEvidence(candidate,f.quote)||containsPromotionalContent(f.value))) fail('AI_PROMOTIONAL_CONTENT');
   assertPracticalEvidence(candidate,extracted.practicalConditions);
+  assertSelectionProcessCompleteness(candidate,extracted.practicalConditions);
   const snapshotId = hash(`${sourceId}:${candidate.sourceUrl}:${candidate.contentHash}`);
   const evidence = [];
   let sequence = 0;

@@ -23,9 +23,16 @@ test('enabled web catalogue renders checked records and rechecks every applicati
   let child;
   try {
     const now = new Date().toISOString();
-    const html = await readFile(new URL('./fixtures/recentjobs-synthetic.html', import.meta.url), 'utf8');
+    // This scenario checks an open notice. Keep source and model evidence in
+    // the future so the real deadline guard does not invalidate it over time.
+    const future = new Date(Date.now() + 7 * 86400000);
+    const localDate = new Intl.DateTimeFormat('en-CA', {timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(future);
+    const wording = new Intl.DateTimeFormat('en-GB', {timeZone:'Africa/Johannesburg',day:'numeric',month:'long',year:'numeric'}).format(future);
+    const html = (await readFile(new URL('./fixtures/recentjobs-synthetic.html', import.meta.url), 'utf8')).replace('30 October 2026', wording);
     const candidate = parseRecentJobsDetail({ html, url: 'https://recentjobs.co.za/2026/09/26/fictional-apprentice/' });
-    const { record } = mapExtraction(candidate, syntheticExtraction(), { sourceId: 'synthetic_web', now });
+    const extraction = syntheticExtraction(), quote = `Closing date: ${wording}`;
+    extraction.deadline = {state:'stated',value:{...extraction.deadline.value,localDate,originalText:quote},quote};
+    const { record } = mapExtraction(candidate, extraction, { sourceId: 'synthetic_web', now });
     record.lifecycle = 'published';
     record.publication = { approved: true, previouslyPublic: true, disposition: 'clear', reviewedBy: 'synthetic_worker' };
     allFacts(record).forEach(f => { f.review = 'approved'; f.reviewedBy = 'synthetic_worker'; });
@@ -78,7 +85,9 @@ test('enabled web catalogue renders checked records and rechecks every applicati
     assert.match(detail, /No recorded check for this question/);
     assert.doesNotMatch(detail, /synthetic_worker|sourceSnapshotIds|reviewedBy/);
     const route = `/opportunities/${record.id}/apply`;
-    const valid = await get(`${route}?revision=1&destination=https://attacker.example`);
+    const injected = await get(`${route}?revision=1&destination=https://attacker.example`);
+    assert.equal(injected.status, 409); assert.equal(injected.headers.get('location'), null);
+    const valid = await get(`${route}?revision=1`);
     assert.equal(valid.status, 303);
     assert.equal(valid.headers.get('location'), 'https://employer.example/apply');
     assert.equal(valid.headers.get('cache-control'), 'no-store');
@@ -86,8 +95,11 @@ test('enabled web catalogue renders checked records and rechecks every applicati
     projection.opportunity.application.route = { method: 'email', destination: 'jobs+apprentice@employer.example' };
     await ref.set({ json: JSON.stringify(projection) });
     const emailDetail = await (await get(`/opportunities/${record.id}`)).text();
-    assert.match(emailDetail, /Application email:/); assert.match(emailDetail, /Open email application/);
-    const email = await get(`${route}?revision=1&destination=mailto:attacker@example.test`);
+    assert.match(emailDetail, /Application email/); assert.ok(emailDetail.includes('jobs+apprentice@employer.example'));
+    assert.match(emailDetail, /Open email application/);
+    const injectedEmail = await get(`${route}?revision=1&destination=mailto:attacker@example.test`);
+    assert.equal(injectedEmail.status, 409); assert.equal(injectedEmail.headers.get('location'), null);
+    const email = await get(`${route}?revision=1`);
     assert.equal(email.status, 303); assert.equal(email.headers.get('location'), 'mailto:jobs%2Bapprentice@employer.example');
     projection.opportunity.checks.forEach(c => { c.nextCheckAt = '2020-01-01T00:00:00.000Z'; });
     await ref.set({ json: JSON.stringify(projection) });

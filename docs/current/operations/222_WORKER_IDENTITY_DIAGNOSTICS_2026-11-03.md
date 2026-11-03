@@ -2,6 +2,8 @@
 
 3 November 2026. Follow-up to [local credential expiry recovery](221_LOCAL_CREDENTIAL_EXPIRY_RECOVERY_2026-11-03.md), within the [autonomous opportunity target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Completed follow-up: the replacement runner naturally renews credentials, executes its midnight tick and cleans up access. Semantic validation rejects the incomplete candidate, with no draft/publication. See [audited midnight result and selection-process completeness](223_MIDNIGHT_VALIDATION_AND_SELECTION_PROCESS_2026-11-04.md). The waiting section below is the earlier checkpoint; that process has finished.
+
 ## Observed result
 
 The reported-expiry trial stopped at **20:36 UTC / 22:36 SAST**, after 87 authorized read-only probes, before its midnight work. It reported `WORKER_UNAUTHORIZED`, with zero controller ticks, source requests or provider calls. Its cleanup completed successfully. Fresh independent readback at **20:56 UTC / 22:56 SAST** verifies every catalogue collection unchanged, the ingest grant inactive and the trial's IAM delegation removed, preserving original bindings. Six private drafts and zero public records remain.

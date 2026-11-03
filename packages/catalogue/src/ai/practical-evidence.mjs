@@ -15,6 +15,12 @@ mixed lines such as an application-link label followed by a social-group invitat
 copy those invitations into applicant facts. An application link alone is not a practical
 condition: select its supplied application candidate separately. Do not edit a mixed passage
 to remove promotional words; choose other complete evidence or retain uncertainty for review.
+selectionProcessPolicy.blocks identifies complete labelled recruitment/selection assessment lists.
+Retain each entire originalText, including its heading and conditional/optional wording, in
+practicalConditions with the full supporting passage. These describe the recruitment process;
+do not turn an assessment, medical check or security clearance into an entry qualification,
+claim that an applicant has passed it, or invent mandatory participation from optional wording.
+Keep other application conditions too by choosing one wider faithful contiguous passage when possible.
 If required instructions cannot fit one faithful passage, retain uncertainty for review instead
 of silently dropping instructions or joining evidence. Local checks do not replace semantic review.`;
 
