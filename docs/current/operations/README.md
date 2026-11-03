@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Read-only waiting and a bounded local runner — 3 November 2026](220_BOUNDED_LOCAL_RUNNER_2026-11-03.md)
+
 - [Live controller resumption after source-day renewal — 3 November 2026](219_LIVE_CONTROLLER_RESUMPTION_2026-11-03.md)
 
 - [Reset-aware shadow controller and persistent wake checkpoint — 2 November 2026](218_RESET_AWARE_SHADOW_CONTROLLER_2026-11-02.md)

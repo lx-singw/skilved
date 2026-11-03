@@ -2,6 +2,11 @@
 export const STAGING_PROJECT = 'skilved-staging';
 const absent = (env, keys) => keys.every(key => env[key] === undefined);
 const reject = () => { throw Object.assign(new Error('STAGING_CONFIGURATION_REQUIRED'), {code:'STAGING_CONFIGURATION_REQUIRED'}); };
+const bounded = (value, fallback, maximum) => {
+  const text = value === undefined ? String(fallback) : value;
+  if (typeof text !== 'string' || !/^[1-9]\d*$/.test(text) || Number(text) > maximum) reject();
+  return Number(text);
+};
 export function stagingEnvironment(kind, env = process.env) {
   if (!['web', 'worker'].includes(kind) || env.NODE_ENV !== 'production' ||
       env.SKILVED_STAGING_PROJECT !== STAGING_PROJECT || env.SKILVED_CATALOGUE_PROJECT !== STAGING_PROJECT ||
@@ -24,10 +29,15 @@ export function stagingEnvironment(kind, env = process.env) {
       !/^[1-9]\d{0,8}$/.test(env.SKILVED_STAGING_SOURCE_REVISION ?? '') ||
       !['true','false'].includes(env.SKILVED_STAGING_EMPLOYER_CRAWL === undefined ? 'false' : env.SKILVED_STAGING_EMPLOYER_CRAWL) ||
       !['true','false'].includes(env.SKILVED_STAGING_WORKER_CONTROLLER === undefined ? 'false' : env.SKILVED_STAGING_WORKER_CONTROLLER) ||
+      !['true','false'].includes(env.SKILVED_STAGING_WORKER_RUNNER === undefined ? 'false' : env.SKILVED_STAGING_WORKER_RUNNER) ||
+      (env.SKILVED_STAGING_WORKER_RUNNER === 'true' && env.SKILVED_STAGING_WORKER_CONTROLLER !== 'true') ||
       !/^[a-z0-9-]+@skilved-staging\.iam\.gserviceaccount\.com$/.test(env.SKILVED_STAGING_WORKER_PRINCIPAL ?? '')) reject();
   return {projectId:STAGING_PROJECT, sourceId:env.SKILVED_STAGING_SOURCE_ID,
     sourceRevision:Number(env.SKILVED_STAGING_SOURCE_REVISION), principal:env.SKILVED_STAGING_WORKER_PRINCIPAL,
-    employerCrawl:env.SKILVED_STAGING_EMPLOYER_CRAWL === 'true', controller:env.SKILVED_STAGING_WORKER_CONTROLLER === 'true'};
+    employerCrawl:env.SKILVED_STAGING_EMPLOYER_CRAWL === 'true', controller:env.SKILVED_STAGING_WORKER_CONTROLLER === 'true',
+    runner:env.SKILVED_STAGING_WORKER_RUNNER === 'true',
+    runnerMaxSeconds:bounded(env.SKILVED_STAGING_RUNNER_MAX_SECONDS,2700,43200),
+    runnerMaxTicks:bounded(env.SKILVED_STAGING_RUNNER_MAX_TICKS,24,100)};
 }
 export function stagingWorkerAdmission(settings, source, grant, principal) {
   if (principal !== settings.principal || source?.id !== settings.sourceId || source?.revision !== settings.sourceRevision ||

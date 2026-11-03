@@ -81,6 +81,12 @@ export class RecentJobsController {
   async inspect() {
     return this.worker.transaction(this.sourceId, 'worker.controller.inspect', (tx, source) => this.snapshot(tx, source));
   }
+  async probe() {
+    // SDK read-only transactions reject writes, including accidental callback
+    // mutations. The same authority/grant/source/admission checks still apply.
+    return this.worker.transaction(this.sourceId, 'worker.controller.probe',
+      (tx, source) => this.snapshot(tx, source), false, {readOnly:true});
+  }
   async checkpoint(results = []) {
     return this.worker.transaction(this.sourceId, 'worker.controller.checkpoint', async(tx, source) => {
       const ref = this.worker.ref('worker_controllers',this.sourceId);
@@ -103,12 +109,16 @@ export class RecentJobsController {
       return record;
     });
   }
-  async tick() {
+  async tick({signal, shouldStop = () => false} = {}) {
+    if (typeof shouldStop !== 'function') fail('WORKER_CONFIGURATION_REQUIRED');
+    const stopped = () => signal?.aborted || shouldStop();
+    if (stopped()) fail('WORKER_STOP_REQUESTED');
     await this.worker.schedule(this.sourceId);
     const results = [], attempted = new Set();
     for (let n = 0; n < MAX_JOBS; n++) {
+      if (stopped()) break;
       const plan = await this.inspect(), id = plan.dueJobIds.find(id => !attempted.has(id));
-      if (!id) break;
+      if (!id || stopped()) break;
       attempted.add(id);
       try { results.push(await this.worker.runJob(this.sourceId,id)); }
       catch(error) {

@@ -6,6 +6,7 @@ import {getRuntime} from '../src/runtime.mjs';
 import {RecentJobsController,planRecentJobsWake} from '../src/recentjobs-controller.mjs';
 import {RECENTJOBS_INDEX} from '../src/worker-policy.mjs';
 import {syntheticExtraction} from './fixtures/recentjobs-model.mjs';
+import {runRecentJobsController} from '../src/recentjobs-runner.mjs';
 
 const hash = s => createHash('sha256').update(s).digest('hex');
 const payload = row => ({json:JSON.stringify(row)});
@@ -175,4 +176,54 @@ test('a still-ready unclaimable job stops with an operational error rather than 
   await assert.rejects(f.controller.tick(),{code:'CONTROLLER_STATE_INVALID'});
   assert.equal(f.state.requests.length,0);assert.equal(f.state.extractions,0);
   assert.equal((await f.worker.ref('worker_controllers',f.sourceId).get()).exists,false);
+});
+test('idle probes enforce admission without any writes and the SDK rejects attempted read-only mutation',async()=>{
+  const f=await fixture(),audits=(await db.collection('m0_audit').get()).size;
+  assert.equal((await f.controller.probe()).state,'ready');
+  assert.equal((await db.collection('m0_audit').get()).size,audits);
+  const ref=f.worker.ref('worker_controllers',f.sourceId);
+  await assert.rejects(f.worker.transaction(f.sourceId,'authored.readonly',async tx=>tx.set(ref,payload({unexpected:true})),false,{readOnly:true}),/read-only transactions cannot execute writes/);
+  assert.equal((await ref.get()).exists,false);assert.equal((await db.collection('m0_audit').get()).size,audits);
+});
+test('the runner waits through source renewal and completes the same normal job',async()=>{
+  const f=await fixture(),oldRef=f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-09-26`)),budget={sourceId:f.sourceId,date:'2026-09-26',calls:2};
+  await oldRef.set(payload(budget));await f.controller.tick();let elapsed=0;
+  const result=await runRecentJobsController({createController:async()=>f.restart(),maxTicks:1,maxRunMs:2000,
+    now:()=>Date.parse(f.now()),monotonic:()=>elapsed,wait:async ms=>{f.advance(ms);elapsed+=ms;}});
+  assert.equal(result.reason,'max_ticks');assert.equal(result.ticks,1);assert.equal(f.now(),reset);
+  assert.equal(f.state.extractions,1);assert.equal(f.state.validations,1);assert.deepEqual(value(await oldRef.get()),budget);
+  assert.equal((await db.collection('m0_worker_queue').where('sourceId','==',f.sourceId).get()).size,0);
+});
+test('repeated waiting probes preserve jobs, audit and controller metadata until a bounded stop',async()=>{
+  const f=await fixture(),oldRef=f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-09-26`));
+  await oldRef.set(payload({sourceId:f.sourceId,date:'2026-09-26',calls:2}));await f.controller.tick();
+  const ref=f.worker.ref('worker_controllers',f.sourceId),saved=(await ref.get()).data(),audit=(await db.collection('m0_audit').get()).size,requests=f.state.requests.length;
+  let elapsed=0;const result=await runRecentJobsController({createController:async()=>f.restart(),maxRunMs:500,pollMs:100,
+    now:()=>Date.parse(f.now()),monotonic:()=>elapsed,wait:async ms=>{f.advance(ms);elapsed+=ms;}});
+  assert.equal(result.ticks,0);assert.equal(result.reason,'max_runtime');assert.equal(f.state.requests.length,requests);
+  assert.deepEqual((await ref.get()).data(),saved);assert.equal((await db.collection('m0_audit').get()).size,audit);
+});
+test('a revoked grant while waiting stops before further network, spending or checkpoint writes',async()=>{
+  const f=await fixture(),oldRef=f.worker.ref('model_budgets',hash(`${f.sourceId}:2026-09-26`));
+  await oldRef.set(payload({sourceId:f.sourceId,date:'2026-09-26',calls:2}));await f.controller.tick();
+  const requests=f.state.requests.length,ref=f.worker.ref('worker_controllers',f.sourceId),saved=(await ref.get()).data();let elapsed=0;
+  await assert.rejects(runRecentJobsController({createController:async()=>f.restart(),maxRunMs:2000,pollMs:100,
+    now:()=>Date.parse(f.now()),monotonic:()=>elapsed,wait:async ms=>{f.advance(ms);elapsed+=ms;await f.worker.ref('workers',f.worker.actor).set({...f.grant,active:false});}}),{code:'WORKER_FORBIDDEN'});
+  assert.equal(f.state.requests.length,requests);assert.equal(f.state.extractions,0);assert.deepEqual((await ref.get()).data(),saved);
+});
+test('graceful stop drains the admitted discovery job and prevents a subsequent detail claim',async()=>{
+  const f=await fixture(),stopping=new AbortController();f.state.afterFetch=()=>stopping.abort();
+  const result=await runRecentJobsController({createController:async()=>f.restart(),signal:stopping.signal,maxRunMs:2000});
+  assert.equal(result.reason,'signal');assert.equal(result.ticks,1);assert.equal(f.state.extractions,0);
+  const queue=(await db.collection('m0_worker_queue').where('sourceId','==',f.sourceId).get()).docs;
+  assert.equal(queue.length,1);assert.equal(value(await f.worker.ref('worker_jobs',queue[0].id).get()).attempts,0);
+});
+test('runtime exhaustion during a tick drains one job and prevents the rest of the batch',async()=>{
+  const f=await fixture();let elapsed=0;
+  f.state.afterFetch=()=>{f.advance(100);elapsed+=100;};
+  const result=await runRecentJobsController({createController:async()=>f.restart(),maxRunMs:100,
+    now:()=>Date.parse(f.now()),monotonic:()=>elapsed});
+  assert.equal(result.reason,'max_runtime');assert.equal(result.ticks,1);assert.equal(f.state.extractions,0);
+  const queue=(await db.collection('m0_worker_queue').where('sourceId','==',f.sourceId).get()).docs;
+  assert.equal(queue.length,1);assert.equal(value(await f.worker.ref('worker_jobs',queue[0].id).get()).attempts,0);
 });

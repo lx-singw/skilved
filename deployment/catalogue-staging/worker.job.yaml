@@ -23,6 +23,10 @@ spec:
                 - {name: SKILVED_STAGING_WORKER_ENABLED, value: 'false'}
                 # Optional bounded reset-aware ticks; this does not create a scheduler.
                 - {name: SKILVED_STAGING_WORKER_CONTROLLER, value: 'false'}
+                # A bounded loop is separate from a hosted scheduler; leave off.
+                - {name: SKILVED_STAGING_WORKER_RUNNER, value: 'false'}
+                - {name: SKILVED_STAGING_RUNNER_MAX_SECONDS, value: '2700'}
+                - {name: SKILVED_STAGING_RUNNER_MAX_TICKS, value: '24'}
                 - {name: SKILVED_STAGING_PROJECT, value: skilved-staging}
                 - {name: SKILVED_CATALOGUE_PROJECT, value: skilved-staging}
                 - {name: SKILVED_CATALOGUE_MODE, value: cloud}

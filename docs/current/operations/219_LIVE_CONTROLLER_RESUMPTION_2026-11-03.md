@@ -2,6 +2,8 @@
 
 3 November 2026. Follow-up to the [reset-aware controller and idle checkpoint](218_RESET_AWARE_SHADOW_CONTROLLER_2026-11-02.md), within the [autonomous opportunity delivery target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Later continuity follow-up: [read-only waiting and the bounded local runner](220_BOUNDED_LOCAL_RUNNER_2026-11-03.md) test renewable identity and graceful stop without catalogue changes. A separate local trial now waits for this validation window with expiring access; its result and cleanup remain pending.
+
 ## Current result
 
 The normal controller resumes the previously quota-deferred job after natural SAST renewal, continues a new daily publisher cycle and saves its next persistent wake. An incomplete AI answer is rejected and isolated; another extraction is cached as an unapproved candidate awaiting independent validation. There is **no new draft or publication**. All six existing private drafts and their previous facts remain unchanged.

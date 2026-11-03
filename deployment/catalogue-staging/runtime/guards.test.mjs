@@ -42,6 +42,17 @@ test('controller mode is a separate default-off bounded-tick choice',()=>{
   for(const value of ['TRUE','yes','1','',null,1])assert.throws(()=>stagingEnvironment('worker',{...worker,SKILVED_STAGING_WORKER_CONTROLLER:value}),{code:'STAGING_CONFIGURATION_REQUIRED'});
   assert.throws(()=>stagingEnvironment('worker',{...worker,SKILVED_STAGING_WORKER_CONTROLLER:'true',SKILVED_STAGING_WORKER_ENABLED:'false'}),{code:'STAGING_CONFIGURATION_REQUIRED'});
 });
+test('bounded runner opt-in requires controller activation and validates explicit limits',()=>{
+  assert.equal(stagingEnvironment('worker',worker).runner,false);
+  const env={...worker,SKILVED_STAGING_WORKER_CONTROLLER:'true',SKILVED_STAGING_WORKER_RUNNER:'true'};
+  const settings=stagingEnvironment('worker',env);assert.equal(settings.runner,true);assert.equal(settings.runnerMaxSeconds,2700);assert.equal(settings.runnerMaxTicks,24);
+  assert.equal(stagingEnvironment('worker',{...env,SKILVED_STAGING_RUNNER_MAX_SECONDS:'43200',SKILVED_STAGING_RUNNER_MAX_TICKS:'100'}).runnerMaxTicks,100);
+  for(const change of [{SKILVED_STAGING_WORKER_CONTROLLER:'false'},{SKILVED_STAGING_WORKER_ENABLED:'false'},
+    {SKILVED_STAGING_WORKER_RUNNER:'TRUE'},{SKILVED_STAGING_RUNNER_MAX_SECONDS:'0'},
+    {SKILVED_STAGING_RUNNER_MAX_SECONDS:'43201'},{SKILVED_STAGING_RUNNER_MAX_SECONDS:null},
+    {SKILVED_STAGING_RUNNER_MAX_TICKS:'101'},{SKILVED_STAGING_RUNNER_MAX_TICKS:'2.5'}])
+    assert.throws(()=>stagingEnvironment('worker',{...env,...change}),{code:'STAGING_CONFIGURATION_REQUIRED'});
+});
 test('worker admission defaults to crawl off and requires the reviewed revision and ingest-only grant', () => {
   const settings=stagingEnvironment('worker',worker);
   const source={id:settings.sourceId,revision:2,paused:false,permission:{method:'recentjobs_html'},automation:{mode:'shadow',employerCrawl:false}};

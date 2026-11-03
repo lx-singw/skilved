@@ -91,7 +91,8 @@ export class RecentJobsWorker {
     this.catalogue = new Catalogue(db, null, now);
   }
   ref(collection, id) { IdSchema.parse(id); return this.db.collection(`m0_${collection}`).doc(id); }
-  async transaction(sourceId, action, work, publishing = false) {
+  async transaction(sourceId, action, work, publishing = false, {readOnly = false} = {}) {
+    if (typeof readOnly !== 'boolean' || readOnly && publishing) fail('WORKER_CONFIGURATION_REQUIRED');
     IdSchema.parse(sourceId); InstantSchema.parse(this.now());
     return this.db.runTransaction(async tx => {
       if (this.provider === 'gemini') await assertGeminiQuotaAuthority(tx, this.db, this.quotaAuthority, this.now());
@@ -113,9 +114,9 @@ export class RecentJobsWorker {
       if (source.paused || source.permission.method !== 'recentjobs_html' || !source.automation || source.automation.mode === 'disabled') fail('SOURCE_PAUSED');
       if (!source.categories.includes('apprenticeship') || !source.urls.includes(RECENTJOBS_INDEX)) fail('SOURCE_POLICY_REQUIRED');
       const result = await work(tx, source);
-      tx.create(this.ref('audit', randomUUID()), payload({ action, actor: this.actor, actorType: 'worker', subject: sourceId, at: this.now() }));
+      if (!readOnly) tx.create(this.ref('audit', randomUUID()), payload({ action, actor: this.actor, actorType: 'worker', subject: sourceId, at: this.now() }));
       return result;
-    });
+    }, readOnly ? {readOnly:true} : undefined);
   }
   async assertClaim(tx, source, claim, { checkIssuerTrust = true } = {}) {
     const job = value(await tx.get(this.ref('worker_jobs', claim.id)));
