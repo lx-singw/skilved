@@ -2,6 +2,8 @@
 
 3 November 2026. Follow-up to [real controller resumption](219_LIVE_CONTROLLER_RESUMPTION_2026-11-03.md), within the [autonomous opportunity target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Later checkpoint: the overnight process described below failed authorization at **17:13 SAST**, before any tick or source/model request. Its application-grant cleanup required a fresh authenticated recovery. See [actual failure, verified cleanup and credential expiry correction](221_LOCAL_CREDENTIAL_EXPIRY_RECOVERY_2026-11-03.md). The active-wait section is the earlier checkpoint, not current process status.
+
 ## Delivered behavior
 
 `runRecentJobsController` repeatedly obtains a verified controller, probes current work, waits for eligibility and runs bounded ordinary ticks. Each renewed controller must retain the same source ID, revision and machine principal. Ready continuation delays are honored; long waits use intervals of at most one minute. Runtime uses a monotonic bound, with explicit maximum ticks, and malformed work/wake metadata fails rather than spinning. Configuration, identity and authorization errors stop the runner rather than silently granting or retrying access.
