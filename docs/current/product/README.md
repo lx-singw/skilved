@@ -1,12 +1,13 @@
 # Product documentation
 
-Updated: 11 September 2026. Product vision, user journeys, release scope and observable requirements.
+Updated: 3 November 2026. Product vision, user journeys, release scope and observable requirements.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
 ## Documents
 
 - [Discovery-first MVP and post-launch learning](03_DISCOVERY_FIRST_MVP.md)
+- [First users, accounts and the connected career workspace](../planning/17_FIRST_USERS_ACCOUNTS_AND_CAREER_WORKSPACE_DELIVERY_PLAN.md) — detailed proposed rollout, account introduction and complete early user journeys within the existing strategy.
 - [Skilved product strategy](01_PRODUCT_STRATEGY.md)
 - [Skilved product requirements](02_PRODUCT_REQUIREMENTS.md)
 

@@ -1,11 +1,12 @@
 # Planning documentation
 
-Updated: 24 October 2026. Phases, chronological M0 tasks, capacity-sized sprints, delivery status and cross-discipline gates.
+Updated: 3 November 2026. Phases, chronological M0 tasks, capacity-sized sprints, delivery status and cross-discipline gates.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
 ## Documents
 
+- **First users and accounts:** [Detailed rollout and career workspace delivery plan](17_FIRST_USERS_ACCOUNTS_AND_CAREER_WORKSPACE_DELIVERY_PLAN.md) — real-data readiness, a controlled discovery pilot, invited accounts, persistent applications, living plans and later support/institutional workflows. Preserves existing M0 scope and release gates; records recommendations rather than activation or completion.
 - **Current ingestion priority, 29 October:** [autonomous opportunity delivery](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md) — publisher-wide batches, reusable original-source verification, durable orchestration and qualified automatic publication. Individual-notice pilots are supporting evaluations.
 - **Start building:** [Chronological M0 runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md)
 - **Check progress:** [Current M0 delivery status and blockers](05_M0_DELIVERY_STATUS.md)

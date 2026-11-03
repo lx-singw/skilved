@@ -8,6 +8,8 @@ The founder requests the full ambition and delegates planning choices. The docum
 
 ## Start here
 
+3 November user rollout: [first users, accounts and career workspace delivery](planning/17_FIRST_USERS_ACCOUNTS_AND_CAREER_WORKSPACE_DELIVERY_PLAN.md) connects the current real-data qualification work to a controlled discovery pilot, invited real accounts, persistent application preparation, living plans and later support/institutional workflows. It explains the public-discovery and private-account boundary, the chicken-and-egg rationale, complete early journeys, parallel-work limits, release evidence and reconciliation of the new workspace proposal. This is a detailed planning recommendation; existing M0 scope, gate/estimate authorities and disabled hosting/publication remain unchanged.
+
 26 September current implementation: [Groq extraction through automatic feed publication](engineering/16_AUTONOMOUS_RECENTJOBS_PIPELINE.md) uses openai/gpt-oss-120b with strict output and evidence validation. The supplied private key works in live synthetic extraction/validation tests. Employer crawling is optional and off by default; discovery-notice validation does not claim employer reachability. Portal and qualified email routes lead directly to the original method. All 79 catalogue tests, web lint/build and 24 web boundary tests pass. Real-source evaluation, source qualification, cloud identity/grants and scheduled production publication remain open.
 
 26 September founder source decision: [RecentJobs is first](operations/13_RECENTJOBS_FIRST_ADAPTER.md), prioritising cross-employer apprenticeship discovery. Its initial network-free list/detail parser is implemented; canonical draft integration, source conditions, recurring collection and G1 remain open. The [earlier Transnet-first recommendation](operations/11_FIRST_SOURCE_ASSESSMENT_2026-09-26.md) is superseded; other sources and individual employers follow later.
@@ -178,6 +180,7 @@ Phases, conditional timelines, delivery work packages and cross-discipline gates
 - [Next sprint: detailed B01 carry-over and B02 implementation plan](planning/06_NEXT_SPRINT_IMPLEMENTATION_PLAN.md)
 - [Full build roadmap: prototype to enduring career platform](planning/15_BUILD_ROADMAP.md)
 - [Sprint backlog and delivery work packages](planning/16_SPRINT_BACKLOG.md)
+- [First users, accounts and career workspace delivery plan](planning/17_FIRST_USERS_ACCOUNTS_AND_CAREER_WORKSPACE_DELIVERY_PLAN.md)
 
 ## History
 
