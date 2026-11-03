@@ -688,6 +688,51 @@
   .category-profile h3 { font-size: 21px; }
 }
 
+.conditions-file > header .mini-label { color: hsl(var(--op-accent)); }
+.practical-panels .conditions-file h2 { font-size: 24px; line-height: 1.4; letter-spacing: -.65px; margin-top: 8px; }
+.conditions-file > header > p:last-child, .conditions-file > footer p { font-size: 11px; line-height: 1.95; color: hsl(var(--muted-foreground)); margin-top: 14px; }
+.condition-ledger { display: grid; gap: 18px; margin-top: 24px; }
+.condition-entry { min-width: 0; border: 1px solid hsl(var(--op-line)); border-radius: 3px 12px 3px 3px; overflow: hidden; background: hsl(var(--card)); }
+.condition-entry > header { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; background: hsl(var(--op-wash)); border-bottom: 1px solid hsl(var(--op-line)); }
+.condition-entry-mark { display: grid; justify-items: center; flex-shrink: 0; gap: 7px; padding-top: 3px; color: hsl(var(--op-accent)); }
+.condition-entry-mark small { font-size: 8px; font-family: var(--font-jetbrains-mono); }
+.condition-entry h3 { font-size: 13px; font-weight: 600; line-height: 1.8; overflow-wrap: anywhere; }
+.condition-state { font-size: 9px; line-height: 1.8; color: hsl(var(--muted-foreground)); margin-top: 3px; }
+.condition-state-ambiguous .condition-state, .condition-state-conflicting .condition-state { color: hsl(var(--amber)); }
+.condition-location, .condition-text { padding: 20px; }
+.condition-setting { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; padding-bottom: 20px; }
+.conditions-file :is(.condition-setting,.condition-place-fields) > div { padding: 0; border: 0; min-width: 0; }
+.condition-setting dt, .condition-place-fields dt { font-size: 8px; text-transform: uppercase; letter-spacing: .8px; color: hsl(var(--muted-foreground)); }
+.condition-setting dd { font-size: 14px; line-height: 1.8; font-weight: 500; margin-top: 5px; }
+.condition-places { border-top: 1px dashed hsl(var(--border)); padding-top: 18px; }
+.condition-places h4, .condition-relocation h4 { font-size: 10px; font-weight: 600; margin-bottom: 12px; }
+.condition-places li { display: flex; gap: 16px; padding: 14px 0; }
+.condition-places li + li { border-top: 1px solid hsl(var(--border)); }
+.condition-place-number { font-size: 9px; color: hsl(var(--op-accent)); font-family: var(--font-jetbrains-mono); padding-top: 2px; flex-shrink: 0; }
+.condition-place-fields { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1.2fr) minmax(0,.8fr); gap: 16px; width: 100%; }
+.condition-place-fields dd { font-size: 12px; line-height: 1.9; margin-top: 5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.condition-relocation { padding-top: 18px; margin-top: 8px; border-top: 1px dashed hsl(var(--border)); }
+.condition-relocation h4 { margin-bottom: 6px; }
+.condition-relocation p, .condition-value, .condition-original { font-size: 13px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: anywhere; }
+.condition-empty, .condition-unresolved, .condition-source-missing { font-size: 11px; line-height: 1.95; color: hsl(var(--muted-foreground)); }
+.condition-entry > .condition-unresolved { padding: 20px; }
+.condition-reading-note { font-size: 10px; line-height: 1.9; color: hsl(var(--muted-foreground)); margin-top: 13px; }
+.condition-text > a, .condition-evidence-link { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; margin-top: 8px; font-size: 10px; color: hsl(var(--op-accent)); text-decoration: underline; text-underline-offset: 3px; }
+.condition-source { border-top: 1px solid hsl(var(--border)); }
+.condition-source > summary { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 54px; padding: 12px 20px; font-size: 11px; color: hsl(var(--op-accent)); cursor: pointer; list-style: none; }
+.condition-source summary small { display: block; font-size: 9px; line-height: 1.8; color: hsl(var(--muted-foreground)); }
+.condition-source[open] > summary > svg { transform: rotate(180deg); }
+.condition-source > div { padding: 0 20px 18px; }
+.condition-source ul { margin-top: 15px; }
+.condition-source li + li { border-top: 1px solid hsl(var(--border)); }
+.condition-source li a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 0; font-size: 11px; color: hsl(var(--primary)); }
+.condition-source li a > span { min-width: 0; overflow-wrap: anywhere; }
+.condition-source li small { display: block; font-size: 9px; line-height: 1.8; color: hsl(var(--muted-foreground)); }
+.condition-source li svg { flex-shrink: 0; margin-left: auto; }
+.condition-source-missing { margin-top: 14px; }
+.condition-source summary:focus-visible { outline-offset: -4px; }
+.conditions-file > footer { border-top: 1px solid hsl(var(--border)); margin-top: 24px; }
+@media (max-width:600px) { .condition-entry > header { padding: 16px; gap: 11px; } .condition-location, .condition-text { padding: 16px; } .condition-place-fields { grid-template-columns: minmax(0,1fr); gap: 12px; } .condition-places li { gap: 12px; } .condition-source > summary { padding: 12px 16px; } .condition-source > div { padding: 0 16px 16px; } }
 .support-file > header .mini-label { color: hsl(var(--op-accent)); }
 .practical-panels .support-file h2 { font-size: 24px; letter-spacing: -.65px; line-height: 1.4; margin-top: 8px; }
 .support-file > header > p:last-child, .support-file > footer p { font-size: 11px; line-height: 1.95; color: hsl(var(--muted-foreground)); margin-top: 14px; }

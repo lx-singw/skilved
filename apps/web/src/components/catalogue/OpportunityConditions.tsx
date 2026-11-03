@@ -2,23 +2,11 @@ import type { PublicOpportunity } from "@skilved/types/opportunities"
 import { ArrowDownRight, ArrowUpRight, BookOpen, Building2, FileText, GraduationCap, Landmark } from "lucide-react"
 import { contextInventory, contextStates, organisationRoles } from "@/lib/opportunity-context"
 import { OpportunitySupport } from "./OpportunitySupport"
+import { OpportunityPractical } from "./OpportunityPractical"
 
 type PublicFact = PublicOpportunity["practicalConditions"] | PublicOpportunity["location"] | PublicOpportunity["compensation"][number] | PublicOpportunity["organisations"][number]
 
 const roleIcons = { issuer:FileText, employer_host:Building2, training_provider:BookOpen, qualification_issuer:GraduationCap, oversight:Landmark }
-const attendance = { in_person: "In person", hybrid: "Hybrid", remote: "Remote", not_stated: "Not stated" }
-const coverage = { local: "Local", national: "National", international: "International", not_stated: "Not stated" }
-
-function FactWording({ fact, citations }: { fact: PublicFact; citations: PublicOpportunity["citations"] }) {
-  return <>
-    {fact.state !== "stated" && <p>{fact.state === "ambiguous" ? "The notice is unclear about this." : fact.state === "conflicting" ? "The sources disagree about this." : "Not stated in the reviewed notice."}</p>}
-    {fact.originalText && <p className="whitespace-pre-wrap break-words">Wording in the notice: {fact.originalText}</p>}
-    {fact.citations.length > 0 && <ul className="mt-2 space-y-1">{fact.citations.map(id => {
-      const citation = citations.find(item => item.id === id)
-      return citation ? <li key={id}><a href={citation.url} rel="noreferrer noopener" className="break-words text-primary underline">{citation.label}</a></li> : null
-    })}</ul>}
-  </>
-}
 
 function ContextEvidence({fact,citations,label}:{fact:PublicFact;citations:PublicOpportunity["citations"];label:string}) {
   const references=[...new Set(fact.citations)].flatMap(id=>{const ref=citations.find(item=>item.id===id);return ref?[ref]:[]})
@@ -45,25 +33,8 @@ export function OpportunityContext({ opportunity: o }: { opportunity: PublicOppo
 }
 
 export function OpportunityConditions({ opportunity: o }: { opportunity: PublicOpportunity }) {
-  const location = o.location.state === "stated" ? o.location.value : null
   return <>
-    <section className="mt-8" aria-labelledby="conditions-heading">
-      <h2 id="conditions-heading" className="text-xl font-semibold">Experience and practical conditions</h2>
-      <dl className="mt-5 space-y-5">
-        <div><dt className="font-medium">Work or study location and attendance</dt><dd className="mt-1 space-y-2 text-muted-foreground">
-          {location && <>
-            <p className="break-words">Listed places: {location.places.map(place => [place.city, place.province?.replaceAll("_", " "), place.country].filter(Boolean).join(", ")).filter(Boolean).join(" · ") || "Not stated"}</p>
-            <p>Coverage: {coverage[location.coverage]}. Attendance: {attendance[location.attendance]}.</p>
-            <p className="whitespace-pre-wrap break-words">Relocation: {location.relocation ?? "Not stated"}</p>
-          </>}
-          <FactWording fact={o.location} citations={o.citations} />
-        </dd></div>
-        {([["Residence conditions", o.residence], ["Experience", o.experience], ["Duration and other practical conditions", o.practicalConditions]] as const).map(([label, fact]) => <div key={label}>
-          <dt className="font-medium">{label}</dt><dd className="mt-1 space-y-2 text-muted-foreground"><FactWording fact={fact} citations={o.citations} /></dd>
-        </div>)}
-      </dl>
-      <p className="mt-4 text-sm text-muted-foreground">A listed location or national coverage does not establish residence eligibility or relocation support. If attendance, duration or another condition is missing or unclear, check the original notice and ask the issuer through the contact details given there before making arrangements.</p>
-    </section>
+    <OpportunityPractical opportunity={o} />
     <OpportunitySupport opportunity={o} />
   </>
 }

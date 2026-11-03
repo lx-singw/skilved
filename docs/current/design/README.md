@@ -1,10 +1,12 @@
 # Design documentation
 
-Updated: 3 November 2026. Brand foundations, information architecture, component behaviour and accessible design assurance.
+Updated: 4 November 2026. Brand foundations, information architecture, component behaviour and accessible design assurance.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
 ## Documents
+
+- [Practical conditions file — 4 November 2026](25_PRACTICAL_CONDITIONS_FILE_2026-11-04.md): separate places, attendance, residence, experience and arrangements with scoped sources and precise reading links.
 
 - [Pay and support file — 3 November 2026](24_PAY_SUPPORT_FILE_2026-11-03.md): entry-specific amounts, coverage, uncertainty and source inspection with precise feed links.
 

@@ -88,7 +88,7 @@ test("residence and attendance are not inferred from a place or remote arrangeme
   o.location.value.attendance = "remote"
   assert.equal(presentation.placeLabel(o), "Remote")
   const html = render(OpportunityOverview, { opportunity: o })
-  assert.match(html, /href="#conditions-heading">Residence conditions/)
+  assert.match(html, /href="#residence-heading">Residence conditions/)
   assert.doesNotMatch(html, /Everyone eligible|Anyone can apply|Relocation provided/)
 })
 
