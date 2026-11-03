@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Notice recovery and interrupted journeys — 3 November 2026](21_NOTICE_RECOVERY_2026-11-03.md): status-specific notice files, safe results return and explicit retry paths.
+
 - [Public field guide and About page — 3 November 2026](20_PUBLIC_FIELD_GUIDE_2026-11-03.md): illustrated notice anatomy, practical workspace guidance and six category entry routes.
 
 - [Instruction details and preparation inspection — 3 November 2026](19_INSTRUCTION_INSPECTION_2026-11-03.md): qualification and document detail, instruction-scoped references and separate review ticks.

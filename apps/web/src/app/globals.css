@@ -1271,6 +1271,39 @@
 .about-finish .mini-label { font-size: 8px; }
 .about-workspace [id] { scroll-margin-top: 115px; }
 .about-workspace a:focus-visible, .about-question-list summary:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -3px; }
+.recovery-workspace { max-width: 900px; }
+.recovery-back { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.recovery-back:hover { color: hsl(var(--primary)); }
+.recovery-file { margin-top: 20px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 3px 18px 3px 3px; overflow: hidden; }
+.recovery-index { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 16px 32px; border-bottom: 1px solid hsl(var(--border)); background: hsl(var(--muted) / .5); font-family: var(--font-jetbrains-mono); font-size: 9px; letter-spacing: .5px; color: hsl(var(--muted-foreground)); }
+.recovery-index > span:last-child { font-size: 17px; line-height: 1; color: hsl(var(--primary)); }
+.recovery-opening { position: relative; padding: 42px 36px 34px; }
+.recovery-mark { display: flex; align-items: center; justify-content: center; width: 58px; height: 64px; border: 1px solid hsl(var(--border)); border-radius: 2px 12px 2px 2px; color: hsl(var(--primary)); background: hsl(var(--muted) / .5); margin-bottom: 26px; }
+.recovery-opening h1 { max-width: 630px; font-size: clamp(32px, 4vw, 48px); font-weight: 500; line-height: 1.13; letter-spacing: -1.6px; margin-top: 14px; }
+.recovery-description { max-width: 580px; font-size: 14px; line-height: 1.9; color: hsl(var(--muted-foreground)); margin-top: 22px; }
+.recovery-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-top: 28px; }
+.recovery-actions > * { max-width: 100%; }
+.recovery-actions .primary-button { text-align: left; }
+.recovery-actions svg { flex-shrink: 0; }
+.recovery-secondary { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; color: hsl(var(--primary)); }
+.recovery-reading { border-top: 1px solid hsl(var(--border)); padding: 0 36px; }
+.recovery-reading > div { display: grid; grid-template-columns: 140px minmax(0,1fr); gap: 20px; padding: 18px 0; }
+.recovery-reading > div + div { border-top: 1px dashed hsl(var(--border)); }
+.recovery-reading dt { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; padding-top: 3px; color: hsl(var(--muted-foreground)); }
+.recovery-reading dd { font-size: 12px; line-height: 1.9; }
+.recovery-ways { padding-top: 36px; }
+.recovery-ways h2 { font-size: 27px; font-weight: 500; letter-spacing: -.7px; margin-top: 9px; }
+.recovery-destinations { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 22px; border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
+.recovery-destinations > a { display: flex; align-items: flex-start; gap: 14px; padding: 24px 22px 24px 0; min-height: 100px; }
+.recovery-destinations > a + a { border-left: 1px solid hsl(var(--border)); padding-left: 24px; }
+.recovery-destinations > a > svg { flex-shrink: 0; color: hsl(var(--primary)); margin-top: 3px; }
+.recovery-destinations > a > svg:last-child { margin-left: auto; }
+.recovery-destinations strong { display: block; font-size: 13px; font-weight: 550; }
+.recovery-destinations small { display: block; margin-top: 7px; font-size: 11px; line-height: 1.9; color: hsl(var(--muted-foreground)); }
+.recovery-destinations a:hover strong { text-decoration: underline; text-underline-offset: 4px; }
+.recovery-storage { max-width: 670px; font-size: 10px; line-height: 1.9; margin-top: 18px; color: hsl(var(--muted-foreground)); }
+.recovery-workspace :is(a,button):focus-visible { outline-offset: 3px; }
+@media (max-width:600px) { .recovery-file { margin-top: 12px; } .recovery-index { padding: 15px 20px; font-size: 8px; } .recovery-opening { padding: 30px 22px; } .recovery-opening h1 { font-size: 34px; letter-spacing: -1.1px; } .recovery-description { font-size: 13px; } .recovery-actions { align-items: stretch; flex-direction: column; gap: 8px; } .recovery-actions .primary-button { justify-content: flex-start; font-size: 12px; } .recovery-reading { padding: 0 22px; } .recovery-reading > div { grid-template-columns: minmax(0,1fr); gap: 6px; padding: 17px 0; } .recovery-destinations { grid-template-columns: minmax(0,1fr); } .recovery-destinations > a, .recovery-destinations > a + a { border-left: 0; padding: 22px 0; } .recovery-destinations > a + a { border-top: 1px solid hsl(var(--border)); } }
 @media (max-width:1100px) { .about-intro { gap: 26px; } .about-category-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .about-category-route:nth-child(3n) { border-right: 1px solid hsl(var(--border)); } .about-category-route:nth-child(2n) { border-right: 0; } .about-category-route:nth-last-child(-n+3) { border-bottom: 1px solid hsl(var(--border)); } .about-category-route:nth-last-child(-n+2) { border-bottom: 0; } .about-journey li { grid-template-columns: 44px minmax(0,1fr); gap: 15px; } .about-journey li > a { grid-column: 2; justify-content: flex-start; } }
 @media (max-width:800px) { .about-intro { grid-template-columns: minmax(0,1fr); gap: 32px; padding-top: 16px; } .about-intro-copy > p:not(.eyebrow) { max-width: 560px; } .about-notice-anatomy { max-width: 480px; margin-right: 7px; } }
 @media (max-width:600px) { .about-intro h1 { font-size: 43px; letter-spacing: -1.6px; } .about-intro h1 em { letter-spacing: -1.3px; } .about-intro-copy > p:not(.eyebrow) { font-size: 13px; } .about-journey, .about-pathways, .about-questions { padding-top: 28px; } .about-workspace section > header h2, .about-finish h2 { font-size: 25px; } .about-journey h3 { font-size: 14px; } .about-step-number { font-size: 29px; } .about-category-route { padding: 16px 12px; gap: 9px; flex-wrap: wrap; } .about-category-route > svg { display: none; } .about-category-route > span:nth-child(2) { flex-basis: calc(100% - 40px); } .about-category-route strong { font-size: 11px; } .about-question-list summary { font-size: 13px; } .about-question-list details > div { padding-right: 5px; } .about-availability { padding: 20px 17px; gap: 12px; } .about-availability h2 { font-size: 17px; } .about-finish { align-items: flex-start; } }

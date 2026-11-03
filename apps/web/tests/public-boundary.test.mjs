@@ -159,6 +159,16 @@ test("anonymous saved list stays reachable while catalogue reads are disabled", 
   assert.doesNotMatch(html, /href="\/auth|demo_apprenticeship|PRIVATE_/)
 })
 
+test("missing public pages retain a 404 with recovery exits and no removal verdict", async () => {
+  const response = await fetch(base + "/not-a-published-page")
+  assert.equal(response.status, 404)
+  const html = await response.text()
+  assert.ok(html.includes("This path doesn’t lead to a page."))
+  assert.match(html, /href="\/saved"/)
+  assert.ok(html.includes("That alone doesn’t tell you whether an opportunity has closed or been removed."))
+  assert.doesNotMatch(html, /href="\/auth|PRIVATE_ERROR_SENTINEL/)
+})
+
 test("shipped page assets do not contain sample records or private prototype screens", async () => {
   for (const page of ["/", "/about"]) {
     const html = await (await fetch(`${base}${page}`)).text()
