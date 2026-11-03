@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {stagingEnvironment, stagingWorkerAdmission} from './guards.mjs';
 let runtime;
 const stopping = new AbortController(), stop = () => stopping.abort();
+const identityOptions = {signal:stopping.signal,onDiagnostic:detail=>console.error(JSON.stringify({type:'identity_failure',...detail}))};
 try {
   const settings = stagingEnvironment('worker');
   const [{getRuntime}, {workerPrincipal}, {RecentJobsWorker}, {extractionConfiguration}, {RecentJobsController}, {runRecentJobsController}] = await Promise.all([
@@ -12,7 +13,7 @@ try {
   ]);
   const ai = extractionConfiguration();
   runtime = await getRuntime();
-  const principal = await workerPrincipal(runtime.config);
+  const principal = await workerPrincipal(runtime.config,process.env,identityOptions);
   const actor = `worker_${createHash('sha256').update(principal).digest('hex').slice(0,40)}`;
   const [sourceRow, grantRow] = await Promise.all([
     runtime.db.collection('m0_sources').doc(settings.sourceId).get(), runtime.db.collection('m0_workers').doc(actor).get(),
@@ -24,7 +25,7 @@ try {
     process.on('SIGTERM',stop); process.on('SIGINT',stop);
     await runRecentJobsController({signal:stopping.signal,maxTicks:settings.runnerMaxTicks,maxRunMs:settings.runnerMaxSeconds*1000,
       createController:async()=>{
-        const fresh = await workerPrincipal(runtime.config);
+        const fresh = await workerPrincipal(runtime.config,process.env,identityOptions);
         if (fresh !== principal) throw Object.assign(new Error('WORKER_UNAUTHORIZED'),{code:'WORKER_UNAUTHORIZED'});
         return new RecentJobsController(runtime.db,fresh,{...options,sourceId:settings.sourceId,sourceRevision:settings.sourceRevision});
       }, onEvent:event=>console.log(JSON.stringify({sourceId:settings.sourceId,...event}))});

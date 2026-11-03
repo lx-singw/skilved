@@ -2,6 +2,8 @@
 
 3 November 2026. Follow-up to the [bounded local runner](220_BOUNDED_LOCAL_RUNNER_2026-11-03.md), within the [autonomous opportunity target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Later checkpoint: the replacement wait described below stopped at **22:36 SAST**, before any work, with cleanup completed. See [independent readback and shared identity diagnostics](222_WORKER_IDENTITY_DIAGNOSTICS_2026-11-03.md). Its underlying failure cause was not retained by the earlier sanitized identity helper; the waiting section is a historical checkpoint.
+
 ## Actual failure and cleanup
 
 The earlier overnight process stopped at **15:13 UTC / 17:13 SAST**, after thirty read-only probes and before its midnight work. It reported `WORKER_UNAUTHORIZED`; its operator cleanup/readback also received an authentication rejection. No source fetch, provider request or controller tick occurred. The service-account IAM delegation was removed, but the application grant restoration failed. The initial cleanup receipt's `oldGrantRestored` boolean incorrectly described attempted restoration; its accompanying error already showed failure. That boolean is not accepted as cleanup evidence.

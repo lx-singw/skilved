@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Bounded identity retries and safe failure diagnostics — 3 November 2026](222_WORKER_IDENTITY_DIAGNOSTICS_2026-11-03.md)
+
 - [Local credential expiry and failed-wait recovery — 3 November 2026](221_LOCAL_CREDENTIAL_EXPIRY_RECOVERY_2026-11-03.md)
 
 - [Read-only waiting and a bounded local runner — 3 November 2026](220_BOUNDED_LOCAL_RUNNER_2026-11-03.md)
