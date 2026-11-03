@@ -103,7 +103,7 @@ test("support details show separate coverage and exact amounts without adding co
   const html=render(OpportunityConditions,o)
   assert.match(html,/ZAR 0 per month/)
   assert.match(html,/Tuition only &lt;unsafe&gt;; accommodation excluded/)
-  assert.match(html,/Amount or currency not stated/)
+  assert.match(html,/Amount not stated/)
   assert.match(html,/Coverage not stated/)
   assert.doesNotMatch(html,/<unsafe>|Total funding/)
   const {OpportunityOverview}=loadUi("components/catalogue/OpportunityOverview.tsx")

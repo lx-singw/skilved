@@ -1,15 +1,13 @@
 import type { PublicOpportunity } from "@skilved/types/opportunities"
 import { ArrowDownRight, ArrowUpRight, BookOpen, Building2, FileText, GraduationCap, Landmark } from "lucide-react"
-import { supportAmount } from "@/lib/opportunity-presentation"
 import { contextInventory, contextStates, organisationRoles } from "@/lib/opportunity-context"
+import { OpportunitySupport } from "./OpportunitySupport"
 
 type PublicFact = PublicOpportunity["practicalConditions"] | PublicOpportunity["location"] | PublicOpportunity["compensation"][number] | PublicOpportunity["organisations"][number]
 
 const roleIcons = { issuer:FileText, employer_host:Building2, training_provider:BookOpen, qualification_issuer:GraduationCap, oversight:Landmark }
 const attendance = { in_person: "In person", hybrid: "Hybrid", remote: "Remote", not_stated: "Not stated" }
 const coverage = { local: "Local", national: "National", international: "International", not_stated: "Not stated" }
-const support = { salary: "Salary", stipend: "Stipend", tuition: "Tuition", books: "Books", accommodation: "Accommodation", transport: "Transport", allowance: "Allowance", other: "Other support" }
-const periods = { hour: "Per hour", day: "Per day", week: "Per week", month: "Per month", year: "Per year", once: "Once", programme: "For the programme", not_stated: "Period not stated" }
 
 function FactWording({ fact, citations }: { fact: PublicFact; citations: PublicOpportunity["citations"] }) {
   return <>
@@ -66,14 +64,6 @@ export function OpportunityConditions({ opportunity: o }: { opportunity: PublicO
       </dl>
       <p className="mt-4 text-sm text-muted-foreground">A listed location or national coverage does not establish residence eligibility or relocation support. If attendance, duration or another condition is missing or unclear, check the original notice and ask the issuer through the contact details given there before making arrangements.</p>
     </section>
-    <section className="mt-8" aria-labelledby="funding-heading">
-      <h2 id="funding-heading" className="text-xl font-semibold">Pay and support</h2>
-      {o.compensation.length ? <ul className="support-ledger">{o.compensation.map((fact, index) => <li key={index} className="support-ledger-item">
-        {fact.state === "stated" && fact.value && <p className="font-medium">{support[fact.value.kind]} · {periods[fact.value.period]}</p>}
-        {fact.state === "stated" && fact.value && <div className="support-ledger-value"><strong>{supportAmount(fact.value) ?? "Amount or currency not stated"}</strong><p>Coverage: {fact.value.coverage ?? "Coverage not stated"}</p></div>}
-        <FactWording fact={fact} citations={o.citations} />
-      </li>)}</ul> : <p className="mt-3 text-muted-foreground">Pay and support are not stated in the reviewed notice.</p>}
-      <p className="mt-4 text-sm text-muted-foreground">Consider travel, accommodation and other recurring costs. Check the notice for what support covers and when it is paid; ask the issuer using the notice’s contact details if this is unclear. Missing support details do not mean support is offered or excluded.</p>
-    </section>
+    <OpportunitySupport opportunity={o} />
   </>
 }

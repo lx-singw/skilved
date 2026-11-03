@@ -27,7 +27,7 @@ export function OpportunityBrief({ opportunity:o, href }: { opportunity:PublicOp
           : <p className="brief-document-note">No separate document entries are recorded. Check the complete connected wording for what to prepare.</p>}
       </div>
       <details className="brief-support"><summary>Read the support wording<ArrowDownRight size={14} aria-hidden/></summary>
-        {o.compensation.length ? <ul>{o.compensation.map((fact,index)=><li key={index}><p>{fact.originalText??"Support wording not stated"}</p>{fact.state!=="stated"&&<small>{uncertainty(fact.state,"Details not stated")}</small>}</li>)}</ul> : <p>No support wording is recorded. Check the original notice for coverage and conditions.</p>}
+        {o.compensation.length ? <ul>{o.compensation.map((fact,index)=><li key={index}><p>{fact.originalText??"Support wording not stated"}</p>{fact.state!=="stated"&&<small>{uncertainty(fact.state,"Details not stated")}</small>}<Link className="brief-support-entry" href={`${href}#support-entry-${index+1}`} aria-label={`Read support entry ${index+1} in detail`}>Read this entry in detail<ArrowUpRight size={12} aria-hidden/></Link></li>)}</ul> : <p>No support wording is recorded. Check the original notice for coverage and conditions.</p>}
       </details>
       <nav className="brief-detail-links" aria-label={`Read more about ${o.title.value??"this opportunity"}`}><Link href={href+"#preparation"}>Review the full preparation view<ArrowUpRight size={14} aria-hidden/></Link><Link href={href+"#funding-heading"}>Explore support and coverage<ArrowUpRight size={14} aria-hidden/></Link></nav>
     </div>

@@ -88,9 +88,9 @@ test("all feed destinations keep the public filters and cursor while linking to 
  const o=example(),query=new URLSearchParams("category=bursary&province=gauteng&field=engineering&cursor=opaque")
  const html=renderToStaticMarkup(React.createElement(OpportunityPost,{opportunity:o,query}))
  const urls=[...html.matchAll(/href="(\/opportunities\/[^"]+)"/g)].map(m=>new URL(m[1].replaceAll("&amp;","&"),"https://local.example"))
- assert.equal(urls.length,5)
+ assert.equal(urls.length,5+o.compensation.length)
  for(const url of urls){assert.equal(url.pathname,"/opportunities/"+o.id);assert.equal(url.searchParams.get("from"),"/?"+query.toString())}
- assert.deepEqual(urls.map(url=>url.hash).filter(Boolean).sort(),["#evidence","#funding-heading","#preparation"].sort())
+ assert.deepEqual(urls.map(url=>url.hash).filter(Boolean).sort(),["#evidence","#funding-heading","#preparation",...o.compensation.map((_,index)=>`#support-entry-${index+1}`)].sort())
  assert.doesNotMatch(html,/source-dots|\/apply\?|mailto:|writeToken|reportedAppliedAt|PRIVATE_/)
 })
 

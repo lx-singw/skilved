@@ -23,11 +23,13 @@ export function placeLabel(o: PublicOpportunity) {
   if (location.coverage === "national") return "National"
   return location.places.map(p => [p.city, p.province ? provinceLabels[p.province] ?? p.province.replaceAll("_", " ") : null, p.country === "ZA" ? null : p.country].filter(Boolean).join(", ")).join(" · ") || "Location not stated"
 }
+export function supportNumber(value: number) {
+  return value.toLocaleString("en-GB", { maximumSignificantDigits: 21 })
+}
 export function supportAmount(value: NonNullable<PublicOpportunity["compensation"][number]["value"]>) {
   if (value.amount === null || !value.currency) return null
   const periods = { hour: "per hour", day: "per day", week: "per week", month: "per month", year: "per year", once: "once", programme: "for the programme", not_stated: "period not stated" }
-  const number = (amount: number) => amount.toLocaleString("en-GB", { maximumFractionDigits: 20 })
-  return `${value.currency} ${number(value.amount)}${value.maximum !== null && value.maximum !== value.amount ? `–${number(value.maximum)}` : ""} ${periods[value.period]}`
+  return `${value.currency} ${supportNumber(value.amount)}${value.maximum !== null && value.maximum !== value.amount ? `–${supportNumber(value.maximum)}` : ""} ${periods[value.period]}`
 }
 export function opportunityFacts(o: PublicOpportunity) {
   const statedSupport = o.compensation.filter(f => f.state === "stated" && f.value)
