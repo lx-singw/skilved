@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Notice reading map — 3 November 2026](23_NOTICE_READING_MAP_2026-11-03.md): persistent section navigation, current reading area and native keyboard targets.
+
 - [Saved records inside the opportunity feed — 3 November 2026](22_FEED_SAVED_RECORD_2026-11-03.md): personal stage, version review, useful return links and explicit save recovery.
 
 - [Notice recovery and interrupted journeys — 3 November 2026](21_NOTICE_RECOVERY_2026-11-03.md): status-specific notice files, safe results return and explicit retry paths.

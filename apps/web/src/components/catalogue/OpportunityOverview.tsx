@@ -29,11 +29,3 @@ export function ApplicationDate({ opportunity: o }: { opportunity: PublicOpportu
   const facts = opportunityFacts(o)
   return <div className={`application-date ${opportunityIdentity[o.category].theme}`}><NoticeDate opportunity={o} /><p>{facts.deadline}</p>{o.deadline.state !== "stated" && o.deadline.originalText && <p>Wording in the notice: {o.deadline.originalText}</p>}</div>
 }
-export function OpportunityContents() {
-  return <nav className="opportunity-contents" aria-label="In this opportunity">
-    <a href="#opportunity-story"><span>01</span>The opportunity</a>
-    <a href="#preparation"><span>02</span>Requirements</a>
-    <a href="#your-workspace"><span>03</span>Your next move</a>
-    <a href="#evidence"><span>04</span>Evidence</a>
-  </nav>
-}

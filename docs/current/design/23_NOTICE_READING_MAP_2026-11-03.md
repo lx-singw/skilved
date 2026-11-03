@@ -1,0 +1,21 @@
+# Notice reading map
+
+Implemented: 3 November 2026.
+
+The four notice-section links now form a persistent reading map. Its numbered links describe the story/context, requirements, personal workspace and evidence. The map uses the forest/sage notice styling, a compact caption and a current-section underline. The desktop map aligns with the reading column, leaving the application rail alongside it. On narrow screens it becomes a two-by-two layout beneath the main header, with all four links available at once.
+
+The current-section indicator follows the section occupying the largest part of the reading area below the map. This handles the final evidence section when the browser cannot scroll its heading up to the map, and when a source disclosure expands. It does not measure reading completion, eligibility, preparation ticks or review acknowledgement. Before any section enters the reading area, the map invites the reader to choose where to start. The initial server-rendered navigation is unselected and keeps all four native fragment links.
+
+Keyboard targets are visible section containers with `tabIndex={-1}`. Native navigation handles fragments, focus and browser history; the observer does not call focus/scroll methods or rewrite URLs. The existing anchor clearance keeps targets below the persistent header and map. The map is keyed per notice, so a different notice starts with its own observation. It neither writes browser storage nor fetches data, and it does not save a reading trail.
+
+Scroll and resize observations are coalesced through an animation frame. Captured native disclosure toggles and content resize observations update the current reading area after layout changes. Hash changes and page restoration also schedule an update. Cleanup cancels pending frames, disconnects resize observation and removes listeners; it is safe to call once or repeatedly. Native links remain available when resize observation or client enhancement is absent.
+
+Verification passed: web lint, typecheck, a fresh production build and all 296 web tests. Four new tests cover visible-area selection, forward/backward positions, a below-screen opening, a short final section and expanded content; observation coalescing and cleanup; native server-rendered navigation and optional resize observation; and the route's keyboard targets, per-notice key and absence of persistence, requests, URL rewriting and programmatic focus/scroll actions.
+
+Browser checks used a private full-notice example composed from the production route and a projected fictional fixture. Keyboard activation of Requirements placed focus on the preparation container, highlighted that section and left every review tick unchanged. The desktop map occupied the reading column with a measured gap before the application rail. The final evidence section was highlighted near the page bottom and remained highlighted after its source file expanded. Browser back navigation was exercised, and the map followed the restored reading position.
+
+At a measured 389 CSS-pixel viewport, the four links each measured 44 pixels high, document client/scroll width both measured 370 pixels, and no main-content element overflowed horizontally. The preparation target's top was about 205 pixels, below the map's bottom at about 189 pixels. A second narrow layout at 506 CSS pixels also had no document overflow. The viewport override was reset.
+
+Screenshot capture failed through the tab screenshot and combined state/screenshot methods. No screenshot was produced, so screenshot-based visual review remains incomplete; the live local example is the review surface. Dark-mode screenshot review, assistive-technology research, live catalogue connectivity and production deployment were not verified. These checks do not establish whole-product accessibility conformance.
+
+The ignored `/ui-preview/reading-map` route supplies a fictional public projection without reseeding the catalogue or changing service flags. Production source includes no fixture route or fixture data. Selective updates preserved earlier private overrides in the isolated opportunity page. No save/stage mutation, application, source visit, suggestion, report or private receipt action was performed. Parallel product-specification, controller and backend work is outside this sprint.

@@ -3,7 +3,8 @@ import { cache } from "react"
 import { notFound } from "next/navigation"
 import { OpportunityProfile } from "@/components/catalogue/OpportunityLens"
 import { opportunityLens } from "@/lib/opportunity-lens"
-import { OpportunityOverview, OpportunityContents } from "@/components/catalogue/OpportunityOverview"
+import { OpportunityOverview } from "@/components/catalogue/OpportunityOverview"
+import { OpportunityContents } from "@/components/catalogue/OpportunityContents"
 import { Header } from "@/components/layout/Header"
 import { ApplicationPanel } from "@/components/catalogue/ApplicationPanel"
 import { readOpportunity } from "@/lib/public-catalogue"
@@ -41,24 +42,24 @@ export default async function OpportunityPage({ params, searchParams }: { params
   return <><Header /><main id="main-content" className="workspace opportunity-workspace">
     <div className="opportunity-back"><Link href={back ?? "/"}>{back ? "← Back to results" : "← All opportunities"}</Link><span>Explore. Understand. Make your move.</span></div>
     <OpportunityOverview opportunity={o} />
-    <OpportunityContents />
+    <OpportunityContents key={o.id} />
     <div className="opportunity-workspace-grid">
       <div className="opportunity-reading">
-        <section id="opportunity-story" className="story-panel">
+        <section id="opportunity-story" tabIndex={-1} className="story-panel">
           <p className="section-caption">01 / Get the full picture</p><h2>{opportunityLens(o).story}</h2>
           {o.summary.value ? <p className="opportunity-summary">{o.summary.value}</p> : <p className="section-lede">A summary is not stated in this notice. Review the original instructions and source details below.</p>}
           <OpportunityProfile opportunity={o} />
           <OpportunityContext opportunity={o} />
         </section>
-        <div id="preparation"><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} citations={o.citations} /></div>
+        <div id="preparation" tabIndex={-1}><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} citations={o.citations} /></div>
         <div className="reading-notes"><RequirementExplanation opportunity={o} /><EntryStage opportunity={o} /></div>
         <div className="practical-panels"><OpportunityConditions opportunity={o} /></div>
-        <section id="your-workspace" className="personal-workspace">
+        <section id="your-workspace" tabIndex={-1} className="personal-workspace">
           <p className="section-caption">03 / Make it your next move</p><h2>Keep your place.</h2><p className="section-lede">A shortlist, a personal stage, a way back. Take this one step at a time.</p>
           <SaveOpportunity key={o.id} id={o.id} revision={o.revision} />
           <details className="export-drawer"><summary><span>Keep a dated public copy<small>Instructions, sources and a way back to the notice</small></span><span>+</span></summary><PublicChecklistExport id={o.id} origin={publicExportSettings().origin} /></details>
         </section>
-        <section id="evidence" className="evidence-workspace">
+        <section id="evidence" tabIndex={-1} className="evidence-workspace">
           <p className="section-caption">04 / Look behind the listing</p><h2>Know what you’re looking at.</h2><p className="section-lede">Inspect the original references, the scope of each check and anything still unresolved.</p>
           <SourceEvidenceSummary opportunity={o} />
           <details className="evidence-drawer"><summary><span>Open the source file<small>{o.citations.length} source reference{o.citations.length === 1 ? "" : "s"} · checks shown individually</small></span><span>+</span></summary><SourceEvidence opportunity={o} /></details>

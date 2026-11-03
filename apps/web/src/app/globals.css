@@ -236,6 +236,7 @@
   .header-caption { display: none; }
 }
 @media (max-width: 800px) {
+  .opportunity-contents { top: 65px; }
   .desktop-sidebar { display: none; }
   .header-inner { height: 64px; padding: 0 20px; }
   .workspace { margin: 0 auto; width: 100%; max-width: 720px; padding: 25px 20px 100px; }
@@ -353,10 +354,20 @@
   .clarity-mark { display: grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; border: 1px solid hsl(var(--border)); border-radius: 50%; font-weight: 600; }
   .clarity-note strong { color: hsl(var(--foreground)); font-weight: 600; }
   .clarity-note a { display: inline-flex; align-items: center; gap: 4px; color: hsl(var(--primary)); text-decoration: underline; text-underline-offset: 3px; }
-  .opportunity-contents { display: flex; flex-wrap: wrap; gap: 24px; margin: 25px 0; padding: 0 2px 18px; border-bottom: 1px solid hsl(var(--border)); }
-  .opportunity-contents a { display: flex; gap: 9px; align-items: center; font-size: 12px; min-height: 36px; }
-  .opportunity-contents a:hover { color: hsl(var(--primary)); text-decoration: underline; }
-  .opportunity-contents span { color: hsl(var(--muted-foreground)); font-size: 10px; font-family: var(--font-jetbrains-mono); }
+  .opportunity-contents { position: sticky; top: 77px; z-index: 20; width: calc(100% - 308px); margin: 25px 0; padding: 10px 0 0; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); box-shadow: 0 6px 12px hsl(var(--foreground) / .035); }
+  .reading-map-caption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 15px; padding: 0 13px 9px; font-size: 8px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+  .reading-map-caption > span:first-child { text-transform: uppercase; letter-spacing: 1.2px; }
+  .reading-map ol { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-top: 1px solid hsl(var(--border)); }
+  .reading-map li { min-width: 0; }
+  .reading-map li + li { border-left: 1px solid hsl(var(--border)); }
+  .reading-map a { display: flex; gap: 8px; align-items: center; min-height: 58px; padding: 10px 11px; border-bottom: 2px solid transparent; color: hsl(var(--muted-foreground)); }
+  .reading-map a:hover { background: hsl(var(--muted) / .5); color: hsl(var(--primary)); }
+  .reading-map a[aria-current="location"] { background: hsl(var(--muted)); border-bottom-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+  .reading-map-number { font-family: var(--font-jetbrains-mono); font-size: 9px; flex-shrink: 0; }
+  .reading-map-label { font-size: 11px; line-height: 1.6; font-weight: 550; }
+  .reading-map-label small { display: block; font-size: 8px; line-height: 1.7; font-weight: 400; color: hsl(var(--muted-foreground)); }
+  .reading-map a > i { display: none; width: 4px; height: 4px; margin-left: auto; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .reading-map a:focus-visible { outline-offset: -4px; }
   .opportunity-workspace-grid { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 28px; align-items: start; }
   .opportunity-reading { min-width: 0; }
   .opportunity-reading > section, .preparation-workbench { border: 1px solid hsl(var(--border)); border-radius: 12px; padding: 26px; background: hsl(var(--card)); margin-bottom: 22px; }
@@ -442,6 +453,7 @@
   .next-step-note a { display: inline-block; margin-top: 12px; font-size: 10px; text-decoration: underline; }
 }
 @media (max-width: 1150px) {
+  .opportunity-contents { width: 100%; }
   .opportunity-workspace-grid { grid-template-columns: minmax(0,1fr); }
   .opportunity-action-rail { grid-row: 1; position: static; }
   .application-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
@@ -479,8 +491,12 @@
   .overview-facts > div { display: grid; grid-template-columns: 105px 1fr; gap: 15px; }
   .overview-facts dd { font-size: 13px; margin: 0; }
   .clarity-note { padding: 16px 20px; }
-  .opportunity-contents { gap: 4px 16px; display: grid; grid-template-columns: 1fr 1fr; }
-  .opportunity-contents a { font-size: 11px; }
+  .reading-map ol { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .reading-map a { min-height: 44px; padding: 9px 12px; }
+  .reading-map li:nth-child(odd) { border-left: 0; }
+  .reading-map li:nth-child(n+3) { border-top: 1px solid hsl(var(--border)); }
+  .reading-map-caption > span:last-child, .reading-map-label small { display: none; }
+  .reading-map a[aria-current="location"] > i { display: block; }
   .opportunity-reading > section, .preparation-workbench { padding: 21px; }
   .opportunity-reading h2 { font-size: 22px; }
   .opportunity-summary { font-size: 15px; }
