@@ -110,7 +110,7 @@ test("outages offer a retry rather than a zero count or empty-search recovery",a
   "@/lib/public-catalogue":{readCatalogue:async()=>({kind:"error",reason:"unavailable"})},
  })
  const html=renderToStaticMarkup(await ui.PublicCatalogue({query:new URLSearchParams("q=engineering&category=bursary")}))
- assert.match(html,/The catalogue is temporarily unavailable/)
+ assert.match(html,/Your feed couldn’t load this time/)
  assert.match(html,/Reload opportunities/)
  assert.doesNotMatch(html,/0 published notices|Try without the search phrase|No opportunities match/)
 })

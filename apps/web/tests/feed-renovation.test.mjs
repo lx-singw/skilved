@@ -12,10 +12,10 @@ test("the publication-disabled home still offers an anonymous feed and working c
     "@/lib/public-catalogue": { readCatalogue: async () => ({ kind: "error", reason: "unavailable" }) },
     "next/link": link,
   })
-  const html = renderToStaticMarkup(await ui.PublicCatalogue({ query: new URLSearchParams("category=job&province=gauteng&remote=false&cursor=old"), preparing: true }))
+  const html = renderToStaticMarkup(await ui.PublicCatalogue({ query: new URLSearchParams("category=job&province=gauteng&remote=false&cursor=old"), readsDisabled: true }))
   assert.match(html, /Your opportunity feed/)
-  assert.match(html, /Our opportunity catalogue is being prepared/)
-  assert.match(html, /no published listings yet/)
+  assert.match(html, /Public browsing is unavailable here/)
+  assert.doesNotMatch(html, /no published listings yet|0 published notices|Recently updated/)
   assert.match(html, /href="\/\?category=bursary&amp;province=gauteng&amp;remote=false"/)
   assert.doesNotMatch(html, /href="[^"]*cursor=old|href="\/auth|opportunities\/demo|role="article"/)
   assert.match(html, /aria-current="page">Jobs/)

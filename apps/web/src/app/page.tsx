@@ -7,7 +7,7 @@ type HomeProps = { searchParams: Promise<Record<string, string | string[] | unde
 
 async function CatalogueResults({ searchParams }: HomeProps) {
   const result = parseCataloguePageQuery(await searchParams)
-  return <PublicCatalogue query={result.params} preparing={process.env.SKILVED_CATALOGUE_READS !== "true"} />
+  return <PublicCatalogue query={result.params} readsDisabled={process.env.SKILVED_CATALOGUE_READS !== "true"} />
 }
 
 export default function HomePage({ searchParams }: HomeProps) {

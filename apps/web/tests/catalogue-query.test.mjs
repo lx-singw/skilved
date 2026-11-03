@@ -145,7 +145,7 @@ test("feed renders geographic controls and retains filters in pagination without
 })
 
 test("stale cursor, invalid filters and outage each render honest recovery instead of empty results", async () => {
-  for (const [reason, title] of [["stale_cursor", "The results have changed"], ["invalid_cursor", "This results link needs a fresh search"], ["invalid_query", "These filters could not be read"], ["unavailable", "The catalogue is temporarily unavailable"]]) {
+  for (const [reason, title] of [["stale_cursor", "The results have changed"], ["invalid_cursor", "This results link needs a fresh search"], ["invalid_query", "These filters could not be read"], ["unavailable", "Your feed couldn’t load this time"]]) {
     const html = await catalogueView({ kind: "error", reason }, new URLSearchParams(reason === "invalid_query" ? "admin=true" : "province=gauteng&cursor=old"))
     assert.ok(html.includes(title), reason)
     assert.doesNotMatch(html, /No published opportunities yet|No opportunities match these filters/)
