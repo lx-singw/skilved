@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Public field guide and About page — 3 November 2026](20_PUBLIC_FIELD_GUIDE_2026-11-03.md): illustrated notice anatomy, practical workspace guidance and six category entry routes.
+
 - [Instruction details and preparation inspection — 3 November 2026](19_INSTRUCTION_INSPECTION_2026-11-03.md): qualification and document detail, instruction-scoped references and separate review ticks.
 
 - [Intake and organisation role file — 3 November 2026](18_INTAKE_ORGANISATION_ROLES_2026-11-03.md): category-specific intake context, separate role entries and fact-scoped source wording.

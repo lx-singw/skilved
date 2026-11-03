@@ -144,7 +144,9 @@ test("public pages state their limits, retain six-category ambition and avoid un
   assert.doesNotMatch(html, /example\.com|href="\/auth|verified profile|live opportunities|fonts\.googleapis/)
   const about = await fetch(`${base}/about`)
   assert.equal(about.status, 200)
-  assert.match(await about.text(), /not available yet/)
+  const aboutHtml = await about.text()
+  assert.ok(aboutHtml.includes("Accounts, document uploads and application assistance are not available in this workspace."), "About must state unavailable capabilities")
+  assert.ok(aboutHtml.includes("Public browsing is unavailable here."), "About must reflect disabled catalogue access")
 })
 
 test("anonymous saved list stays reachable while catalogue reads are disabled", async () => {
