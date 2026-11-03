@@ -366,7 +366,7 @@
   .review-meter progress::-moz-progress-bar { background: hsl(var(--primary)); }
   .preparation-limits { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.8; margin: 12px 0 18px; }
   .instruction-list { display: grid; gap: 10px; }
-  .instruction-list li { border: 1px solid hsl(var(--border)); border-radius: 8px; }
+  .instruction-list > li { border: 1px solid hsl(var(--border)); border-radius: 8px; }
   .instruction-list label { position: relative; display: flex; gap: 12px; padding: 16px; cursor: pointer; align-items: flex-start; }
   .instruction-list input { position: absolute; opacity: 0; width: 26px; height: 26px; left: 16px; top: 16px; }
   .instruction-number { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; border: 1px solid hsl(var(--border)); border-radius: 5px; font-family: var(--font-jetbrains-mono); font-size: 10px; color: hsl(var(--muted-foreground)); }
@@ -1168,3 +1168,37 @@
 .context-drawer > summary:focus-visible, .context-evidence > summary:focus-visible, .context-evidence a:focus-visible, .context-file footer a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
 @media (max-width:600px) { .context-drawer > summary { padding: 16px 15px; } .context-file { padding: 22px 15px; } .context-intake { padding: 16px 13px; } .context-role-entry { grid-template-columns: 29px minmax(0,1fr); gap: 11px; } .context-role-mark > svg { width: 15px; height: 15px; padding: 6px; } .context-value { font-size: 14px; } .context-evidence > div { padding: 12px; } }
 @media (prefers-reduced-motion:reduce) { .context-drawer > summary > svg { transition: none; } }
+
+/* Instruction inspection sits outside the review checkbox and keeps its own sources. */
+.instruction-wording { white-space: pre-wrap; }
+.instruction-inspection { padding: 0 16px 14px 54px; min-width: 0; }
+.instruction-metadata { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; font-size: 9px; line-height: 1.9; color: hsl(var(--muted-foreground)); }
+.instruction-metadata > span:first-child { padding: 3px 8px; border: 1px solid hsl(var(--border)); border-radius: 4px; background: hsl(var(--background)); }
+.instruction-drawer { margin-top: 9px; }
+.instruction-drawer > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; list-style: none; cursor: pointer; font-size: 11px; line-height: 1.9; color: hsl(var(--primary)); }
+.instruction-drawer > summary::-webkit-details-marker { display: none; }
+.instruction-drawer > summary > span { display: inline-flex; align-items: center; gap: 8px; }
+.instruction-drawer > summary svg { flex-shrink: 0; }
+.instruction-drawer[open] > summary > svg { transform: rotate(45deg); }
+.instruction-dossier { border-top: 1px solid hsl(var(--border)); padding-top: 16px; margin-top: 7px; }
+.instruction-dossier > .mini-label { font-size: 8px; line-height: 1.9; }
+.instruction-dossier > section, .instruction-recorded { margin-top: 20px; }
+.instruction-dossier h3 { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 550; line-height: 1.9; }
+.instruction-dossier h4 { font-size: 10px; font-weight: 550; line-height: 1.9; margin-top: 18px; }
+.instruction-dossier dl { margin-top: 10px; }
+.instruction-dossier dl > div { display: grid; grid-template-columns: minmax(0,.95fr) minmax(0,1.1fr); gap: 15px; border-top: 1px solid hsl(var(--border)); padding: 11px 0; }
+.instruction-dossier dt { font-size: 10px; line-height: 1.9; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.instruction-dossier dd { font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.instruction-recorded > p { font-size: 12px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 10px; }
+.instruction-subjects { display: grid; gap: 7px; margin-top: 10px; }
+.instruction-subjects > li { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; padding: 10px 12px; border-left: 2px solid hsl(var(--border)); background: hsl(var(--background)); font-size: 11px; line-height: 1.9; overflow-wrap: anywhere; }
+.instruction-subjects strong { font-size: 10px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+.instruction-detail-limit { font-size: 11px; line-height: 1.9; color: hsl(var(--muted-foreground)); margin-top: 12px; }
+.instruction-sources ul { display: grid; gap: 3px; margin-top: 10px; }
+.instruction-sources a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: hsl(var(--primary)); font-size: 11px; line-height: 1.9; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.instruction-sources a svg { flex-shrink: 0; }
+.instruction-dossier footer { margin-top: 18px; padding-top: 14px; border-top: 1px solid hsl(var(--border)); }
+.instruction-dossier footer p { font-size: 10px; line-height: 1.9; color: hsl(var(--muted-foreground)); }
+.instruction-dossier footer a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: hsl(var(--primary)); font-size: 10px; line-height: 1.9; text-decoration: underline; text-underline-offset: 3px; }
+.instruction-drawer > summary:focus-visible, .instruction-sources a:focus-visible, .instruction-dossier footer a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+@media (max-width:600px) { .instruction-inspection { padding: 0 14px 14px; } .instruction-dossier dl > div { grid-template-columns: minmax(0,1fr); gap: 4px; } .instruction-subjects > li { grid-template-columns: minmax(0,1fr); gap: 4px; } .instruction-dossier dd { font-size: 12px; } }

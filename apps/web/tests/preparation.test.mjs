@@ -1,27 +1,16 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
 import { test } from "node:test"
 import { loadUi } from "./helpers/load-ui.mjs"
 import { makeRecord, allFixtures } from "../../../packages/types/tests/fixtures/opportunities.mjs"
 
 const require = createRequire(import.meta.url)
-const ts = require("typescript")
 const React = require("react")
 const { renderToStaticMarkup } = require("react-dom/server")
 const { projectOpportunity } = require("@skilved/types/opportunities/internal")
-const root = dirname(dirname(fileURLToPath(import.meta.url)))
 
 async function component(name) {
-  if(name==="OpportunityReport")return loadUi("components/catalogue/OpportunityReport.tsx").OpportunityReport
-  const text = await readFile(join(root, "src/components/catalogue", `${name}.tsx`), "utf8")
-  const compiled = ts.transpileModule(text, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
-  const compiledModule = { exports: {} }
-  // Evaluate only this repository-owned module; source notices are never evaluated.
-  new Function("require", "exports", "module", compiled.outputText)(require, compiledModule.exports, compiledModule)
-  return compiledModule.exports[name]
+  return loadUi(`components/catalogue/${name}.tsx`)[name]
 }
 
 test("preparation supports all categories and internship subtypes without flattening OR requirements", async () => {

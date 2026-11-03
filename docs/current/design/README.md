@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Instruction details and preparation inspection — 3 November 2026](19_INSTRUCTION_INSPECTION_2026-11-03.md): qualification and document detail, instruction-scoped references and separate review ticks.
+
 - [Intake and organisation role file — 3 November 2026](18_INTAKE_ORGANISATION_ROLES_2026-11-03.md): category-specific intake context, separate role entries and fact-scoped source wording.
 
 - [Opportunity issue reporting — 3 November 2026](17_OPPORTUNITY_REPORT_2026-11-03.md): concern-specific prompts, retained drafts and bounded receipt confirmation.

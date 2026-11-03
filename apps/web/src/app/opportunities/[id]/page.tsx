@@ -59,7 +59,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
           <OpportunityProfile opportunity={o} />
           <OpportunityContext opportunity={o} />
         </section>
-        <div id="preparation"><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} /></div>
+        <div id="preparation"><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} citations={o.citations} /></div>
         <div className="reading-notes"><RequirementExplanation opportunity={o} /><EntryStage opportunity={o} /></div>
         <div className="practical-panels"><OpportunityConditions opportunity={o} /></div>
         <section id="your-workspace" className="personal-workspace">
