@@ -2,6 +2,8 @@
 
 2 November 2026. Follow-up to the [applied publisher policy and live batch](217_LIVE_PUBLISHER_SHADOW_BATCH_2026-11-02.md), toward the [autonomous opportunity system](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Verified next-day follow-up: [real controller resumption](219_LIVE_CONTROLLER_RESUMPTION_2026-11-03.md) executes the due job and current publisher cycle through native acquisition and two genuine extraction calls. Location failure stays isolated and a cached candidate remains pending validation; previous drafts/history are preserved and temporary access removed. No recurring runner or publication is activated.
+
 ## Delivered behavior
 
 `RecentJobsController` runs bounded shadow ticks through the normal worker's scheduling, claims, acquisition, extraction, validation and completion/failure methods. Each tick attempts at most eleven distinct jobs. Selection examines the complete bounded source queue, up to 200 jobs; overflow stops execution with an operational error rather than hiding work beyond the ordinary launcher's first fifty rows.

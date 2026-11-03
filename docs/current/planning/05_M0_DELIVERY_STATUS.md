@@ -1,8 +1,10 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 29 October 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 3 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+3 November real resumption: [three native controlled ticks](../operations/219_LIVE_CONTROLLER_RESUMPTION_2026-11-03.md) resume the prior job and complete the current twenty-notice publisher cycle's ready work. One extraction is rejected for location completeness; another is cached as an unapproved candidate waiting for validation at 00:00 SAST on 4 November. Eighteen existing holds and one unsupported original remain. Both new calls are extraction, with the unchanged source ceiling/history, six private drafts and empty public catalogue preserved. Temporary access is removed. Controlled due-time behavior is verified; no new validated draft, recurring runner or public publication is claimed.
 
 2 November continuity: [the bounded reset-aware shadow controller](../operations/218_RESET_AWARE_SHADOW_CONTROLLER_2026-11-02.md) preserves existing job/source/model accounting, persists wake/outcome checkpoints and rechecks pinned policy/access through each tick. Genuine machine idle ticks retain the job's midnight SAST wake with no fetch/model call and no changes to six private drafts or other history. Temporary grants/delegation are removed. Final offline checks cover reset, restart, concurrent claims, policy stops and corrupt/overflow state; the image is locally verified. Persistent recurring execution, hosted identity and positive publication qualification remain open.
 
