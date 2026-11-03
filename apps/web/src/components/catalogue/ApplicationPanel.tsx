@@ -40,6 +40,6 @@ export function ApplicationPanel({ opportunity:o }: { opportunity:PublicOpportun
       <li><strong>Follow the stated method.</strong><p>{method?.step}</p></li>
       <li><strong>Keep your own record.</strong><p>After submitting, keep any receipt from the issuer. You can mark your stage yourself in Saved; opening a route does not mark an application as submitted.</p><a href="#your-workspace">Your personal workspace</a></li>
     </ol></details>}
-    <div className="rail-save-action"><FeedSave id={o.id} revision={o.revision} /><a href="#your-workspace">Your personal workspace<ArrowUpRight size={13} aria-hidden /></a></div>
+    <div className="rail-save-action"><FeedSave id={o.id} revision={o.revision} href="" title={o.title.value ?? "this opportunity"} showRecord={false} /><a href="#your-workspace">Your personal workspace<ArrowUpRight size={13} aria-hidden /></a></div>
   </section>
 }

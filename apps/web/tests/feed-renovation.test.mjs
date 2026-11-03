@@ -26,24 +26,25 @@ test("the publication-disabled home still offers an anonymous feed and working c
   assert.doesNotMatch(html, /<details[^>]+open=/)
 })
 
-test("inline save waits for storage and sends the existing reversible save/remove commands", () => {
+test("inline save waits for storage, saves explicitly and opens retained progress once saved", () => {
   const calls = []
   let progress = { view: null, busy: false, message: "", change: action => { calls.push(action); return Promise.resolve() } }
-  const ui = loadUi("components/catalogue/FeedSave.tsx", { "@/lib/use-local-progress": { useLocalProgress: () => progress } })
-  const render = () => ui.FeedSave({ id: "public_card", revision: 7 })
-  let button = render().props.children[0]
+  const ui = loadUi("components/catalogue/FeedSave.tsx", { "@/lib/use-local-progress": { useLocalProgress: () => progress }, react: { ...React, useRef: value => ({ current: value }), useEffect: () => {} } })
+  const render = () => ui.FeedSave({ id: "public_card", revision: 7, href: "/opportunities/public_card?from=%2F", title: "Public notice" })
+  let button = render().props.children[0].props.children
   assert.equal(button.props.disabled, true)
-  assert.equal(button.props["aria-pressed"], false)
+  assert.match(button.props["aria-label"], /Save Public notice in this browser/)
   progress = { ...progress, view: { status: "ready", snapshot: { items: [] } } }
-  button = render().props.children[0]
+  button = render().props.children[0].props.children
   assert.equal(button.props.disabled, false)
   button.props.onClick()
   assert.deepEqual(calls, [{ type: "save", id: "public_card", revision: 7 }])
-  progress.view.snapshot.items.push({ opportunityId: "public_card" })
-  button = render().props.children[0]
-  assert.equal(button.props["aria-pressed"], true)
-  button.props.onClick()
-  assert.deepEqual(calls[1], { type: "remove", id: "public_card" })
+  progress.view.snapshot.items.push({ opportunityId: "public_card", userStage: "interested", savedAt: "2026-11-03T08:00:00.000Z", lastViewedRevision: 7 })
+  const savedLink = render().props.children[0].props.children
+  assert.equal(savedLink.props.href, "/opportunities/public_card?from=%2F#your-workspace")
+  assert.match(savedLink.props["aria-label"], /Manage saved progress for Public notice/)
+  assert.equal(savedLink.props.onClick, undefined)
+  assert.equal(calls.length, 1)
   progress = { ...progress, view: { status: "unavailable" } }
   const html = renderToStaticMarkup(render())
   assert.match(html, /disabled=""/)

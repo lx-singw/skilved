@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Saved records inside the opportunity feed — 3 November 2026](22_FEED_SAVED_RECORD_2026-11-03.md): personal stage, version review, useful return links and explicit save recovery.
+
 - [Notice recovery and interrupted journeys — 3 November 2026](21_NOTICE_RECOVERY_2026-11-03.md): status-specific notice files, safe results return and explicit retry paths.
 
 - [Public field guide and About page — 3 November 2026](20_PUBLIC_FIELD_GUIDE_2026-11-03.md): illustrated notice anatomy, practical workspace guidance and six category entry routes.

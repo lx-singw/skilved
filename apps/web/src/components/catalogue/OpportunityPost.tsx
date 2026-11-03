@@ -21,6 +21,6 @@ export function OpportunityPost({ opportunity: o, query }: { opportunity: Public
       <OpportunityBrief opportunity={o} href={href}/>
       <div className="dossier-provenance"><FileText size={14} aria-hidden/><span>{o.citations.length ? `${o.citations.length} source reference${o.citations.length === 1 ? "" : "s"} to inspect` : "Source reference not available"}</span><Link href={href+"#evidence"}>{o.citations.length?"Inspect the sources":"See source limits"}<ArrowUpRight size={12} aria-hidden/></Link></div>
     </div>
-    <footer className="post-actions dossier-actions"><Link href={href}>{identity.action}<ArrowUpRight size={18} aria-hidden /></Link><FeedSave id={o.id} revision={o.revision} /></footer>
+    <footer className="post-actions dossier-actions"><Link href={href}>{identity.action}<ArrowUpRight size={18} aria-hidden /></Link><FeedSave id={o.id} revision={o.revision} href={href} title={o.title.value ?? "this opportunity"} closed={o.lifecycle === "closed"} /></footer>
   </article>
 }
