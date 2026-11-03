@@ -1115,3 +1115,56 @@
 .report-response:focus-visible, .report-drawer > summary:focus-visible, .report-description textarea:focus-visible, .report-send:focus-visible, .report-received-actions a:focus-visible, .report-received-actions button:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -3px; }
 @media (max-width:600px) { .report-workbench { padding: 20px 15px; } .report-drawer > summary { padding: 17px 15px; } .report-issue-options { grid-template-columns: minmax(0,1fr); } .report-issue-options > label { min-height: 76px; } .report-description-meta { flex-wrap: wrap; gap: 6px 12px; } .report-send { width: 100%; } .report-response { padding: 17px 14px; } .report-receipt-facts { grid-template-columns: minmax(0,1fr); gap: 13px; } }
 @media (prefers-reduced-motion:reduce) { .report-drawer > summary > svg { transition: none; } }
+
+/* Source-linked intake and organisation roles: each entry keeps its own wording. */
+.context-drawer { border: 1px solid hsl(var(--border)); border-radius: 9px; background: hsl(var(--card)); overflow: hidden; margin-top: 26px; }
+.context-drawer > summary { padding: 18px 20px; min-height: 66px; font-size: 12px; line-height: 1.8; }
+.context-drawer > summary::-webkit-details-marker { display: none; }
+.context-drawer > summary small { display: block; margin-top: 5px; font-size: 9px; font-weight: 400; color: hsl(var(--muted-foreground)); line-height: 1.9; }
+.context-drawer > summary > svg { flex-shrink: 0; color: hsl(var(--primary)); transition: transform .15s ease; }
+.context-drawer[open] > summary { background: hsl(var(--muted)); border-bottom: 1px solid hsl(var(--border)); }
+.context-drawer[open] > summary > svg { transform: rotate(45deg); }
+.context-file { padding: 24px 20px; }
+.context-file > header .mini-label { font-size: 8px; }
+.context-file > header h2 { font-size: 21px; line-height: 1.4; letter-spacing: -.4px; margin-top: 10px; }
+.context-file > header > p:last-child, .context-file footer p { font-size: 11px; line-height: 1.9; color: hsl(var(--muted-foreground)); margin-top: 11px; }
+.context-intake { margin-top: 24px; padding: 18px; background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-left: 3px solid hsl(var(--primary) / .5); border-radius: 5px; }
+.context-issuer { margin-top: 22px; padding-bottom: 22px; border-bottom: 1px solid hsl(var(--border)); }
+.context-row-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 12px; }
+.context-row-heading h3, .context-row-heading h4 { font-size: 11px; font-weight: 550; line-height: 1.9; }
+.context-state { font-size: 9px; line-height: 1.9; color: hsl(var(--muted-foreground)); }
+.context-state-ambiguous .context-state, .context-state-conflicting .context-state { color: hsl(var(--amber)); }
+.context-intake.context-state-ambiguous, .context-intake.context-state-conflicting { border-left-color: hsl(var(--amber)); }
+.context-value { font-size: 15px; line-height: 1.65; letter-spacing: -.15px; font-weight: 500; margin-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.context-role-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 7px; margin: 22px 0 8px; }
+.context-role-heading h3 { font-size: 13px; font-weight: 550; line-height: 1.8; }
+.context-role-heading > span { font-size: 8px; color: hsl(var(--muted-foreground)); }
+.context-role-entry { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 14px; padding: 20px 0; border-bottom: 1px solid hsl(var(--border)); }
+.context-role-entry:last-child { border-bottom: 0; padding-bottom: 8px; }
+.context-role-mark { display: flex; align-items: center; flex-direction: column; gap: 8px; color: hsl(var(--muted-foreground)); }
+.context-role-mark > svg { box-sizing: content-box; padding: 8px; border: 1px solid hsl(var(--border)); border-radius: 6px; }
+.context-role-mark > span { font-family: var(--font-jetbrains-mono); font-size: 8px; }
+.context-role-body { min-width: 0; }
+.context-role-definition { font-size: 10px; line-height: 1.9; color: hsl(var(--muted-foreground)); margin-top: 9px; }
+.context-evidence { margin-top: 10px; }
+.context-evidence > summary { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; list-style: none; cursor: pointer; font-size: 10px; line-height: 1.8; color: hsl(var(--primary)); }
+.context-evidence > summary::-webkit-details-marker { display: none; }
+.context-evidence > summary > svg { flex-shrink: 0; }
+.context-evidence[open] > summary > svg { transform: rotate(45deg); }
+.context-evidence > div { padding: 14px; background: hsl(var(--background)); border: 1px solid hsl(var(--border)); border-radius: 5px; }
+.context-evidence .mini-label { font-size: 7px; }
+.context-original { font-size: 11px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 10px; }
+.context-evidence ul { display: grid; gap: 3px; margin-top: 12px; border-top: 1px solid hsl(var(--border)); padding-top: 8px; }
+.context-evidence a { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; font-size: 10px; color: hsl(var(--primary)); line-height: 1.9; overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
+.context-evidence a svg { flex-shrink: 0; }
+.context-source-missing { font-size: 10px; color: hsl(var(--muted-foreground)); line-height: 1.9; margin-top: 12px; }
+.context-empty { padding: 18px; border: 1px dashed hsl(var(--border)); border-radius: 5px; font-size: 11px; line-height: 1.9; margin-top: 15px; color: hsl(var(--muted-foreground)); }
+.context-internship { border-left: 2px solid hsl(var(--primary) / .4); padding-left: 14px; margin-top: 24px; }
+.context-internship > .mini-label { font-size: 8px; }
+.context-internship h3 { font-size: 14px; font-weight: 500; line-height: 1.8; margin-top: 9px; }
+.context-internship > p:last-child { margin-top: 10px; font-size: 10px; line-height: 1.9; color: hsl(var(--muted-foreground)); }
+.context-file footer { margin-top: 22px; border-top: 1px solid hsl(var(--border)); padding-top: 8px; }
+.context-file footer a { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; min-height: 44px; color: hsl(var(--primary)); margin-top: 8px; text-decoration: underline; text-underline-offset: 3px; }
+.context-drawer > summary:focus-visible, .context-evidence > summary:focus-visible, .context-evidence a:focus-visible, .context-file footer a:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -2px; }
+@media (max-width:600px) { .context-drawer > summary { padding: 16px 15px; } .context-file { padding: 22px 15px; } .context-intake { padding: 16px 13px; } .context-role-entry { grid-template-columns: 29px minmax(0,1fr); gap: 11px; } .context-role-mark > svg { width: 15px; height: 15px; padding: 6px; } .context-value { font-size: 14px; } .context-evidence > div { padding: 12px; } }
+@media (prefers-reduced-motion:reduce) { .context-drawer > summary > svg { transition: none; } }

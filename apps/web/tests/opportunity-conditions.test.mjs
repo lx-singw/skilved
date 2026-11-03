@@ -19,7 +19,7 @@ test("all six categories and both internships show actual route, roles, conditio
     const context = render("OpportunityContext", o), conditions = render("OpportunityConditions", o)
     if (o.category === "internship") assert.match(context, o.internship.subtype === "graduate" ? /Graduate internship/ : /Student \/ work-integrated learning \(WIL\) internship/)
     else assert.doesNotMatch(context, /Internship route|Graduate internship/)
-    assert.match(context, /Issuer: Fictional Learning Workshop/)
+    assert.match(context.replace(/<[^>]*>/g, " "), /Issuer\s+Stated in the notice\s+Fictional Learning Workshop/)
     assert.match(context, /Fictional 2027 intake A/)
     assert.match(conditions, /Listed places: Fictional City, gauteng, ZA/)
     assert.match(conditions, /Coverage: Local. Attendance: In person/)
@@ -53,7 +53,8 @@ test("roles and location attendance stay distinct from residence with fact-speci
   o.location.originalText = "Synthetic national coverage with hybrid attendance; relocation at own expense."
   o.residence = { ...o.intake, value: "Resident in the stated district", originalText: "Synthetic residence restriction: district only." }
   const html = render("OpportunityContext", o), conditions = render("OpportunityConditions", o)
-  for (const label of ["Employer or host: Host A", "Training provider: Provider B", "Qualification issuer: Issuer C", "Oversight body: Body D"]) assert.ok(html.includes(label), label)
+  const roleText = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ")
+  for (const [label, name] of [["Employer or host", "Host A"], ["Training provider", "Provider B"], ["Qualification issuer", "Issuer C"], ["Oversight body", "Body D"]]) assert.ok(roleText.includes(`${label} Stated in the notice ${name}`), label)
   const roles = html.slice(html.indexOf("Organisations and roles"))
   assert.match(roles, /href="https:\/\/host.example\/notice"/)
   assert.doesNotMatch(roles, /https:\/\/issuer.example\/notice/)
@@ -86,7 +87,9 @@ test("projection removes pending facts and rendered public wording escapes marku
     fact.review = "pending"; fact.originalText = "PRIVATE_UNREVIEWED_CONDITION"
   }
   const hidden = projectOpportunity(record).opportunity
-  assert.doesNotMatch(render("OpportunityContext", hidden) + render("OpportunityConditions", hidden), /PRIVATE_UNREVIEWED_CONDITION|Stipend ·|Attendance: In person|Issuer: Fictional/)
+  const hiddenContext = render("OpportunityContext", hidden)
+  assert.doesNotMatch(hiddenContext + render("OpportunityConditions", hidden), /PRIVATE_UNREVIEWED_CONDITION|Stipend ·|Attendance: In person/)
+  assert.doesNotMatch(hiddenContext.slice(hiddenContext.indexOf("Organisations and roles")), /Fictional Learning Workshop/)
   const o = opportunity()
   o.practicalConditions.originalText = '<script>condition</script> & obligations'
   o.citations[0].label = '<img onerror=bad> notice'

@@ -57,7 +57,7 @@ export default async function OpportunityPage({ params, searchParams }: { params
           <p className="section-caption">01 / Get the full picture</p><h2>{opportunityLens(o).story}</h2>
           {o.summary.value ? <p className="opportunity-summary">{o.summary.value}</p> : <p className="section-lede">A summary is not stated in this notice. Review the original instructions and source details below.</p>}
           <OpportunityProfile opportunity={o} />
-          <details className="context-drawer"><summary>Intake, organisations & who is involved <span>+</span></summary><OpportunityContext opportunity={o} /></details>
+          <OpportunityContext opportunity={o} />
         </section>
         <div id="preparation"><PreparationChecklist id={o.id} revision={o.revision} requirements={o.requirements} /></div>
         <div className="reading-notes"><RequirementExplanation opportunity={o} /><EntryStage opportunity={o} /></div>
