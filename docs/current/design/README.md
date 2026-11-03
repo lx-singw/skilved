@@ -1,10 +1,12 @@
 # Design documentation
 
-Updated: 2 November 2026. Brand foundations, information architecture, component behaviour and accessible design assurance.
+Updated: 3 November 2026. Brand foundations, information architecture, component behaviour and accessible design assurance.
 
 Status: current planning specifications. Implemented controls, customer results and legal adoption require their own evidence; document presence does not establish them.
 
 ## Documents
+
+- [Opportunity issue reporting — 3 November 2026](17_OPPORTUNITY_REPORT_2026-11-03.md): concern-specific prompts, retained drafts and bounded receipt confirmation.
 
 - [Suggestion desk and private receipts — 2 November 2026](16_SUGGESTION_DESK_2026-11-02.md): local format guidance, explicit retry recovery and readable private receipt states.
 
