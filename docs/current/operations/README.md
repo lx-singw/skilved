@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Bounded V31 qualification at the next publisher cycle — 4 November 2026](224_V31_PUBLISHER_CYCLE_ARMED_2026-11-04.md)
+
 - [Midnight resumption and selection-process completeness — 4 November 2026](223_MIDNIGHT_VALIDATION_AND_SELECTION_PROCESS_2026-11-04.md)
 
 - [Bounded identity retries and safe failure diagnostics — 3 November 2026](222_WORKER_IDENTITY_DIAGNOSTICS_2026-11-03.md)
