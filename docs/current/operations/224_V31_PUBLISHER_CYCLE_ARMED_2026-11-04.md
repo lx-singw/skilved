@@ -2,6 +2,8 @@
 
 4 November 2026. Follow-up to [midnight validation and selection-process completeness](223_MIDNIGHT_VALIDATION_AND_SELECTION_PROCESS_2026-11-04.md), within the [autonomous opportunity target](../engineering/17_AUTONOMOUS_OPPORTUNITY_SYSTEM.md).
 
+Completed follow-up: the cycle processes twenty discovered notices, receives one V31 extraction that retains all four assessment steps, and preserves the candidate in the quota-deferred validation queue. Cleanup is independently verified. See [cohort results and deferred local validation](225_V31_COHORT_AND_DEFERRED_VALIDATION_2026-11-04.md). This document's waiting state is the earlier checkpoint; that cycle process has finished.
+
 ## Preflight and scope
 
 Fresh cloud readback at **01:23 SAST** matches the completed midnight run's final snapshot. Six private drafts and zero public records remain. The previous ingest grant is inactive; no source work is queued. The same revision-3 publisher policy, original-source relationships, provider authority and historical accounting remain. Current code matches the previously verified V31 worker image's changed extraction modules.
