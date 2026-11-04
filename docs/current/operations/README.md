@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Shared application-layout prototype — 4 November 2026](227_APPLICATION_LAYOUT_PROTOTYPE_2026-11-04.md)
+
 - [Saved-cohort coverage audit of held notices — 4 November 2026](226_HELD_NOTICE_COVERAGE_AUDIT_2026-11-04.md)
 
 - [V31 cohort result and deferred validation — 4 November 2026](225_V31_COHORT_AND_DEFERRED_VALIDATION_2026-11-04.md)
