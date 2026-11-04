@@ -227,6 +227,25 @@ export class FastIngestionStore {
       return{sourceId:source.id,sourceRevision:source.revision,observedAt:at,jobs,summary:summarizeFastIngestion(jobs,at)};
     },{readOnly:true});
   }
+  /** Read before a caller's draft/cache writes; invoke commit only afterwards,
+   * in this same transaction. This lets a bridge settle ownership atomically
+   * with the existing worker's validated draft or failure decision. */
+  async prepareSettlement(tx,claim,at) {
+    if(claim.kind!=='notice')fail('FAST_STAGE_INVALID');
+    const {ref,row}=await this.asserted(tx,claim,at),slotsRef=this.ref('ingestion_slots',this.sourceId),slots=record(await tx.get(slotsRef),Slots);
+    if(slots?.sourceId!==this.sourceId||slots?.active?.[claim.id]?.lease!==claim.lease)fail('STALE_LEASE');
+    return{commit:({outcome,until=null})=>{
+      if(!['validated_private','source_budget','provider_quota','retry','authority','evidence'].includes(outcome)||
+        ['source_budget','provider_quota','retry'].includes(outcome)&&(!InstantSchema.safeParse(until).success||until<=at)||
+        ['validated_private','authority','evidence'].includes(outcome)&&until!==null)fail('FAST_DEFER_INVALID');
+      if(outcome==='validated_private'&&row.stage!=='validate')fail('FAST_STAGE_INVALID');
+      const active={...slots.active};delete active[claim.id];
+      const next={...row,lease:null,leaseUntil:null,updatedAt:at,fetchReservation:null};
+      if(outcome==='validated_private')Object.assign(next,{state:'complete',stage:'complete',outcome,timeline:{...row.timeline,privateReadyAt:at}});
+      else{Object.assign(next,{state:until===null?'held':'queued',nextAt:until??row.nextAt});if(outcome==='retry')delete next.blockedBy;else next.blockedBy=outcome;}
+      tx.set(ref,jobPayload(next));tx.set(slotsRef,payload({sourceId:this.sourceId,active}));this.event(tx,at,'bridge.'+outcome,claim.id);
+    }};
+  }
 }
 
 /** Reports only milestones this coordinator actually stores. A private marker

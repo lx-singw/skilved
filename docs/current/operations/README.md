@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Fast coordinator bridge to the existing opportunity pipeline — 4 November 2026](231_FAST_WORKER_PIPELINE_BRIDGE_2026-11-04.md)
+
 - [Durable minute discovery, opportunity leases and latency milestones — 4 November 2026](230_DURABLE_FAST_INGESTION_COORDINATOR_2026-11-04.md)
 
 - [Production ingestion and publishing speed — 4 November 2026](229_PRODUCTION_INGESTION_FRESHNESS_2026-11-04.md)
