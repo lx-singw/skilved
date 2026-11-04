@@ -16,7 +16,7 @@ export class FastNoticeDispatcher {
   async tick({maxJobs=20,signal}={}) {
     if(!Number.isSafeInteger(maxJobs)||maxJobs<1||maxJobs>20||signal!==undefined&&!(signal instanceof AbortSignal))fail('FAST_DISPATCH_CONFIGURATION_REQUIRED');
     if(signal?.aborted)return{state:'stopped',selected:0,results:[]};
-    const snapshot=await this.worker.fast.snapshot(),at=snapshot.observedAt;
+    const snapshot=await this.worker.fast.dispatchSnapshot(),at=snapshot.observedAt;
     const active=snapshot.jobs.filter(j=>j.state==='leased'&&j.leaseUntil>at).length;
     const due=snapshot.jobs.filter(j=>!j.history&&j.sourceRevision===snapshot.sourceRevision&&
       ['queued','leased'].includes(j.state)&&j.nextAt<=at&&!(j.leaseUntil>at))
@@ -27,7 +27,7 @@ export class FastNoticeDispatcher {
     const results=await Promise.all(selected.map(async job=>{
       if(signal?.aborted)return{id:job.id,state:'stopped'};
       try {
-        const result=await this.worker.runNotice(job.id);
+        const result=await this.worker.runNotice(job.id,{signal});
         if(!['done','held','pending','exception','unavailable'].includes(result?.state))return{id:job.id,state:'failed',reason:'FAST_DISPATCH_RESULT_INVALID'};
         return{id:job.id,state:result.state,
           ...(result.reason?{reason:safeCode(result.reason)}:{})};

@@ -1,10 +1,12 @@
 import{AsyncLocalStorage}from'node:async_hooks';
+import{InstantSchema}from'@skilved/types/opportunities';
 import{createHash,randomUUID}from'node:crypto';
 import{RecentJobsWorker}from'./recentjobs-worker.mjs';
 import{FastIngestionStore}from'./fast-ingestion-store.mjs';
 import{DomainError}from'./config.mjs';
 import{assertGeminiQuotaAuthority}from'./ai/gemini-authority.mjs';
 import{RECENTJOBS_INDEX}from'./worker-policy.mjs';
+import{leaseSupervisionOptions}from'./fast-lease-guard.mjs';
 
 const hash=s=>createHash('sha256').update(s).digest('hex'),payload=x=>({json:JSON.stringify(x)});
 const value=s=>s.exists?JSON.parse(s.data().json):null,fail=code=>{throw new DomainError(code);};
@@ -14,10 +16,11 @@ const authorityFailure=code=>/ISSUER.*(?:UNQUALIFIED|CHANGED)|ORIGIN.*UNQUALIFIE
 /** Default-off single-notice shadow bridge. The existing parser, extraction,
  * validation, model reservations, caches and canonical writer remain unchanged. */
 export class FastRecentJobsWorker extends RecentJobsWorker {
-  constructor(db,principal,{enabled=false,sourceId,sourceRevision,...options}={}) {
+  constructor(db,principal,{enabled=false,sourceId,sourceRevision,leaseSupervision=false,...options}={}) {
     if(enabled!==true)fail('FAST_INGESTION_DISABLED');
     if(options.programmeExtraction||options.extractionMode&&options.extractionMode!=='single')fail('FAST_BRIDGE_SINGLE_ONLY');
     super(db,principal,options);
+    this.leaseSupervision=leaseSupervisionOptions(leaseSupervision);
     this.execution=new AsyncLocalStorage();
     this.fast=new FastIngestionStore(db,principal,{enabled:true,sourceId,sourceRevision,now:this.now,assertAdmission:options.assertAdmission,
       assertTransaction:async(tx,_source,at)=>{if(this.provider==='gemini')await assertGeminiQuotaAuthority(tx,this.db,this.quotaAuthority,at);}});
@@ -32,6 +35,7 @@ export class FastRecentJobsWorker extends RecentJobsWorker {
   }
   async transaction(sourceId,action,work,publishing=false,{readOnly=false}={}) {
     const context=this.context();if(sourceId!==this.fast.sourceId||publishing)fail('FAST_INGESTION_SHADOW_ONLY');
+    if(['worker.complete','worker.failure'].includes(action))await this.fast.stopLeaseRenewals();
     return this.fast.transaction(async(tx,source,at)=>{
       if(this.provider==='gemini')await assertGeminiQuotaAuthority(tx,this.db,this.quotaAuthority,at);
       if(!source.urls.includes(RECENTJOBS_INDEX))fail('SOURCE_POLICY_REQUIRED');
@@ -115,15 +119,30 @@ export class FastRecentJobsWorker extends RecentJobsWorker {
     }
     return result;
   }
-  async runNotice(id) {
+  async superviseLease(claim,work,renew,{signal}={}) {
+    if(!this.leaseSupervision)return work();
+    return this.fast.withLease(claim,work,{...this.leaseSupervision,renew,signal});
+  }
+  async renewExecution(claim) {
+    const context=this.context();
+    return this.fast.transaction(async(tx,source,at)=>{
+      const renewal=await this.fast.prepareRenewal(tx,source,context.fastClaim,at);
+      const job=await super.assertClaim(tx,source,claim),leaseRef=this.ref('worker_leases',source.id),lease=value(await tx.get(leaseRef));
+      if(job.fastNoticeId!==context.fastClaim.id||job.sourceId!==source.id||job.sourceRevision!==source.revision||job.state!=='running'||!InstantSchema.safeParse(lease?.until).success||lease.until<=at)fail('STALE_LEASE');
+      if(job.leaseUntil<=this.now()||lease.until<=this.now())fail('STALE_LEASE');
+      tx.set(this.ref('worker_jobs',claim.id),payload({...job,leaseUntil:renewal.leaseUntil}));
+      tx.set(leaseRef,payload({...lease,until:renewal.leaseUntil}));renewal.commit();return{leaseUntil:renewal.leaseUntil};
+    });
+  }
+  async runNotice(id,{signal}={}) {
     const fastClaim=await this.fast.claimNotice(id);if(!fastClaim)return{state:'unavailable'};
     return this.execution.run({id:hash('fast-single:'+id+':'+this.fast.sourceRevision),fastClaim,priorModelWindows:0},async()=>{
       let claim;
-      try{claim=await this.prepareExecution();return await super.detail(claim);}
+      try{claim=await this.prepareExecution();}
       catch(error){
-        if(!claim){await this.fast.defer(fastClaim,{reason:authorityFailure(error.code)?'authority':'evidence'});return{state:'held',reason:error.code??'FAST_BRIDGE_PREPARATION_FAILED'};}
-        return this.failed(claim,error);
+        await this.fast.defer(fastClaim,{reason:authorityFailure(error.code)?'authority':'evidence'});return{state:'held',reason:error.code??'FAST_BRIDGE_PREPARATION_FAILED'};
       }
+      return this.superviseLease(fastClaim,async()=>{try{return await super.detail(claim);}catch(error){return this.failed(claim,error);}},()=>this.renewExecution(claim),{signal});
     });
   }
   async schedule(){fail('FAST_BRIDGE_ENTRYPOINT_REQUIRED');}

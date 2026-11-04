@@ -1,9 +1,11 @@
 import {createHash,randomUUID} from 'node:crypto';
+import {AsyncLocalStorage} from 'node:async_hooks';
 import {z} from 'zod';
 import {IdSchema,InstantSchema} from '@skilved/types/opportunities';
 import {Source} from './schemas.mjs';
 import {DomainError} from './config.mjs';
 import {assertSourceTarget} from './worker-policy.mjs';
+import {FastLeaseGuard} from './fast-lease-guard.mjs';
 
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const payload=value=>({json:JSON.stringify(value)});
@@ -63,10 +65,13 @@ export class FastIngestionStore {
       assertAdmission!==undefined&&typeof assertAdmission!=='function'||assertTransaction!==undefined&&typeof assertTransaction!=='function')fail('WORKER_CONFIGURATION_REQUIRED');
     Object.assign(this,{db,principal,sourceId,sourceRevision,now,assertAdmission,assertTransaction});
     this.actor='worker_'+hash(principal).slice(0,40);
+    this.leaseContext=new AsyncLocalStorage();
   }
   ref(collection,id){IdSchema.parse(id);return this.db.collection('m0_'+collection).doc(id);}
   async transaction(work,{readOnly=false}={}) {
+    this.leaseContext.getStore()?.assertHealthy();
     return this.db.runTransaction(async tx=>{
+      this.leaseContext.getStore()?.assertHealthy();
       let at=this.now();InstantSchema.parse(at);
       const [sourceRow,grantRow]=await Promise.all([tx.get(this.ref('sources',this.sourceId)),tx.get(this.ref('workers',this.actor))]);
       const grant=grantRow.data(),raw=value(sourceRow);
@@ -80,7 +85,7 @@ export class FastIngestionStore {
       await this.assertAdmission?.(source,grant,this.principal);
       await this.assertTransaction?.(tx,source,at);
       const checkClock=()=>{const current=this.now();InstantSchema.parse(current);if(current<at)fail('FAST_INGESTION_STATE_INVALID');if(grant.expiresAt!==undefined&&grant.expiresAt<=current)fail('WORKER_FORBIDDEN');return current;};
-      at=checkClock();const result=await work(tx,source,at);checkClock();return result;
+      at=checkClock();const result=await work(tx,source,at);checkClock();this.leaseContext.getStore()?.assertHealthy();return result;
     },readOnly?{readOnly:true}:undefined);
   }
   event(tx,at,action,subject){tx.create(this.ref('ingestion_events',randomUUID()),{...payload({version:1,at,action,subject,sourceId:this.sourceId,actor:this.actor}),sourceId:this.sourceId,at,action});}
@@ -118,6 +123,7 @@ export class FastIngestionStore {
   async recordDiscovery(claim,urls,{complete=true,pageReceiptId}={}) {
     if(!Array.isArray(urls)||urls.length>50||typeof complete!=='boolean')fail('FAST_DISCOVERY_INVALID');
     urls=urls.map(url=>assertSourceTarget(url));if(new Set(urls).size!==urls.length)fail('FAST_DISCOVERY_INVALID');
+    if(complete)await this.stopLeaseRenewals();
     return this.transaction(async(tx,source,at)=>{
       if(claim.kind!=='poll'||urls.length>source.automation.maxArticles)fail('FAST_DISCOVERY_INVALID');
       const {ref,row}=await this.asserted(tx,claim,at),ids=urls.map(url=>hash(source.id+':'+url));
@@ -131,6 +137,8 @@ export class FastIngestionStore {
       }
       const notices=await Promise.all(ids.map(id=>tx.get(this.ref('ingestion_notices',id))));
       const jobs=await Promise.all(ids.map(id=>tx.get(this.ref('ingestion_jobs',id))));
+      const active=await this.activeJobs(tx,source);
+      if(active.length+notices.filter(s=>!s.exists).length>500)fail('FAST_INGESTION_QUEUE_CAPACITY');
       let queued=0;
       for(let i=0;i<ids.length;i++) {
         const notice=record(notices[i],Notice),job=record(jobs[i],Job),id=ids[i];
@@ -255,16 +263,37 @@ export class FastIngestionStore {
       return{nextAt:until,firstSeenAt:row.firstSeenAt,modelAdmissionRequired:true};
     });
   }
+  async prepareRenewal(tx,source,claim,at) {
+    const {ref,row}=await this.asserted(tx,claim,at),until=new Date(Date.parse(at)+source.automation.fastIngestion.leaseMs).toISOString();
+    let slotsRef,slots;
+    if(claim.kind==='notice') {
+      slotsRef=this.ref('ingestion_slots',source.id);slots=record(await tx.get(slotsRef),Slots);
+      if(slots?.sourceId!==source.id||slots?.active?.[claim.id]?.lease!==claim.lease)fail('STALE_LEASE');
+    }
+    return{leaseUntil:until,commit:()=>{
+      const commitAt=this.now();if(!InstantSchema.safeParse(commitAt).success||row.leaseUntil<=commitAt||until<=commitAt)fail('STALE_LEASE');
+      if(slots)tx.set(slotsRef,payload({...slots,active:{...slots.active,[claim.id]:{lease:claim.lease,until}}}));
+      tx.set(ref,ownedPayload(claim,{...row,leaseUntil:until,updatedAt:at}));this.event(tx,at,'lease.renew',claim.id);
+    }};
+  }
   async renew(claim) {
-    return this.transaction(async(tx,source,at)=>{
-      const {ref,row}=await this.asserted(tx,claim,at),until=new Date(Date.parse(at)+source.automation.fastIngestion.leaseMs).toISOString();
-      if(claim.kind==='notice') {
-        const slotsRef=this.ref('ingestion_slots',source.id),slots=record(await tx.get(slotsRef),Slots);
-        if(slots?.sourceId!==source.id||slots?.active?.[claim.id]?.lease!==claim.lease)fail('STALE_LEASE');
-        tx.set(slotsRef,payload({...slots,active:{...slots.active,[claim.id]:{lease:claim.lease,until}}}));
-      }
-      tx.set(ref,ownedPayload(claim,{...row,leaseUntil:until,updatedAt:at}));this.event(tx,at,'lease.renew',claim.id);return{leaseUntil:until};
-    });
+    return this.transaction(async(tx,source,at)=>{const renewal=await this.prepareRenewal(tx,source,claim,at);renewal.commit();return{leaseUntil:renewal.leaseUntil};});
+  }
+  async withLease(claim,work,{renew=()=>this.renew(claim),signal,...options}) {
+    if(this.leaseContext.getStore())fail('FAST_LEASE_NESTING_FORBIDDEN');
+    const leaseMs=await this.transaction(async(tx,source,at)=>{await this.asserted(tx,claim,at);return source.automation.fastIngestion.leaseMs;},{readOnly:true});
+    const guard=new FastLeaseGuard({...options,signal,renew,intervalMs:Math.min(10000,Math.floor(leaseMs/3))});
+    return this.leaseContext.run(guard,()=>guard.run(work));
+  }
+  async stopLeaseRenewals(){await this.leaseContext.getStore()?.stopRenewals();}
+  async activeJobs(tx,source) {
+    const rows=await tx.get(this.db.collection('m0_ingestion_jobs').where('sourceId','==',source.id).where('state','in',['queued','leased']).limit(501));
+    if(rows.size>500)fail('FAST_INGESTION_QUEUE_CAPACITY');
+    const jobs=rows.docs.map(row=>record(row,Job));if(jobs.some(j=>j.sourceId!==source.id||!['queued','leased'].includes(j.state)))fail('FAST_INGESTION_STATE_INVALID');return jobs;
+  }
+  async dispatchSnapshot() {
+    return this.transaction(async(tx,source,at)=>({sourceId:source.id,sourceRevision:source.revision,observedAt:at,
+      maxConcurrentJobs:source.automation.fastIngestion.maxConcurrentJobs,jobs:await this.activeJobs(tx,source)}),{readOnly:true});
   }
   async snapshot() {
     return this.transaction(async(tx,source,at)=>{

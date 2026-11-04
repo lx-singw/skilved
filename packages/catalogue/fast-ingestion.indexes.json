@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "m0_ingestion_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sourceId", "order": "ASCENDING" },
+        { "fieldPath": "state", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

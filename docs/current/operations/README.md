@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Supervised fast runtime and active capacity — 4 November 2026](235_SUPERVISED_FAST_RUNTIME_2026-11-04.md)
+
 - [Paced, resumable fast RecentJobs discovery — 4 November 2026](234_PACED_FAST_DISCOVERY_2026-11-04.md)
 
 - [Bounded fast notice dispatch — 4 November 2026](233_BOUNDED_FAST_NOTICE_DISPATCH_2026-11-04.md)

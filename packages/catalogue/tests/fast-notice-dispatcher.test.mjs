@@ -87,7 +87,7 @@ test('a notice that closes while waiting is rejected at reset before further mod
   assert.equal(f.state.extractions,1);assert.equal(f.state.validations,0);assert.deepEqual(await f.budget(),before);assert.equal(await f.budget('2026-10-30'),null);assert.ok((await f.drafts()).every(s=>!s.exists));
 });
 test('pause after selection is rechecked by claims and prevents fetch/model work',async()=>{
-  const f=await fixture(),snapshot=f.worker.fast.snapshot.bind(f.worker.fast);f.worker.fast.snapshot=async()=>{const s=await snapshot();f.source.paused=true;await f.save();return s;};
+  const f=await fixture(),snapshot=f.worker.fast.dispatchSnapshot.bind(f.worker.fast);f.worker.fast.dispatchSnapshot=async()=>{const s=await snapshot();f.source.paused=true;await f.save();return s;};
   const r=await f.dispatcher.tick();assert.equal(r.state,'partial_failure');assert.ok(r.results.every(row=>row.reason==='SOURCE_PAUSED'));assert.equal(f.state.fetches,0);assert.equal(await f.budget(),null);
 });
 test('a rejected execution does not abandon its sibling or expose private error text',async()=>{
@@ -98,6 +98,6 @@ test('a rejected execution does not abandon its sibling or expose private error 
 });
 test('stop signals prevent new admissions before and after a selection read',async()=>{
   const f=await fixture(),first=new AbortController();first.abort();assert.equal((await f.dispatcher.tick({signal:first.signal})).state,'stopped');
-  const second=new AbortController(),snapshot=f.worker.fast.snapshot.bind(f.worker.fast);f.worker.fast.snapshot=async()=>{const s=await snapshot();second.abort();return s;};
+  const second=new AbortController(),snapshot=f.worker.fast.dispatchSnapshot.bind(f.worker.fast);f.worker.fast.dispatchSnapshot=async()=>{const s=await snapshot();second.abort();return s;};
   const r=await f.dispatcher.tick({signal:second.signal});assert.equal(r.state,'stopped');assert.ok(r.results.every(row=>row.state==='stopped'));assert.equal(f.state.fetches,0);assert.equal(await f.budget(),null);
 });

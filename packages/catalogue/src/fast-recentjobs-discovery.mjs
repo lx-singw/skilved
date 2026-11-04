@@ -34,6 +34,9 @@ export class FastRecentJobsDiscovery {
     if(signal!==undefined&&!(signal instanceof AbortSignal))fail('FAST_DISCOVERY_CONFIGURATION_REQUIRED');
     if(signal?.aborted)return{state:'stopped',queued:0};
     const poll=await this.store.poll();if(poll.state!=='ready')return poll;
+    return this.worker.superviseLease(poll.claim,()=>this.acquire(poll,signal),undefined,{signal});
+  }
+  async acquire(poll,signal) {
     const claim=poll.claim;let url=RECENTJOBS_INDEX,pages=0,queued=0,observed=0,cacheHits=0;
     for(let number=1;number<=5;number++){
       this.stopped(signal);assertSourceTarget(url,'index');
