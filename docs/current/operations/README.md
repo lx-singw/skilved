@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Saved-cohort coverage audit of held notices — 4 November 2026](226_HELD_NOTICE_COVERAGE_AUDIT_2026-11-04.md)
+
 - [V31 cohort result and deferred validation — 4 November 2026](225_V31_COHORT_AND_DEFERRED_VALIDATION_2026-11-04.md)
 
 - [Bounded V31 qualification at the next publisher cycle — 4 November 2026](224_V31_PUBLISHER_CYCLE_ARMED_2026-11-04.md)
