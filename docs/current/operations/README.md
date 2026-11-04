@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Production ingestion and publishing speed — 4 November 2026](229_PRODUCTION_INGESTION_FRESHNESS_2026-11-04.md)
+
 - [Application-layout worker integration prepared — 4 November 2026](228_APPLICATION_LAYOUT_WORKER_PREPARATION_2026-11-04.md)
 
 - [Shared application-layout prototype — 4 November 2026](227_APPLICATION_LAYOUT_PROTOTYPE_2026-11-04.md)
