@@ -225,7 +225,7 @@ export class FastIngestionStore {
       if(rows.size>500)fail('FAST_INGESTION_QUEUE_CAPACITY');
       const jobs=rows.docs.map(row=>record(row,Job));
       if(jobs.some(j=>j.sourceId!==source.id))fail('FAST_INGESTION_STATE_INVALID');
-      return{sourceId:source.id,sourceRevision:source.revision,observedAt:at,jobs,summary:summarizeFastIngestion(jobs,at)};
+      return{sourceId:source.id,sourceRevision:source.revision,observedAt:at,maxConcurrentJobs:source.automation.fastIngestion.maxConcurrentJobs,jobs,summary:summarizeFastIngestion(jobs,at)};
     },{readOnly:true});
   }
   /** Read before a caller's draft/cache writes; invoke commit only afterwards,

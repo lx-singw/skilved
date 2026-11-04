@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Bounded fast notice dispatch — 4 November 2026](233_BOUNDED_FAST_NOTICE_DISPATCH_2026-11-04.md)
+
 - [Reviewed, held-only legacy history migration — 4 November 2026](232_HELD_HISTORY_MIGRATION_2026-11-04.md)
 
 - [Fast coordinator bridge to the existing opportunity pipeline — 4 November 2026](231_FAST_WORKER_PIPELINE_BRIDGE_2026-11-04.md)
