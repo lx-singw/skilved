@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Reviewed, held-only legacy history migration — 4 November 2026](232_HELD_HISTORY_MIGRATION_2026-11-04.md)
+
 - [Fast coordinator bridge to the existing opportunity pipeline — 4 November 2026](231_FAST_WORKER_PIPELINE_BRIDGE_2026-11-04.md)
 
 - [Durable minute discovery, opportunity leases and latency milestones — 4 November 2026](230_DURABLE_FAST_INGESTION_COORDINATOR_2026-11-04.md)

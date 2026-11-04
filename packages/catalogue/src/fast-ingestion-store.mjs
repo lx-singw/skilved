@@ -12,6 +12,7 @@ const ownedPayload=(claim,row)=>claim.kind==='notice'?jobPayload(row):payload(ro
 const value=row=>row.exists?JSON.parse(row.data().json):null;
 const fail=code=>{throw new DomainError(code);};
 const Reservation=z.object({token:z.string().uuid(),at:InstantSchema,consumed:z.boolean()}).strict();
+const History=z.object({inventorySha256:z.string().regex(/^[a-f0-9]{64}$/),firstSeenBasis:z.literal('legacy_observation_bound'),sloEligible:z.literal(false)}).strict();
 const Owned={id:IdSchema,sourceId:IdSchema,sourceRevision:z.number().int().positive(),updatedAt:InstantSchema,
   lease:z.string().uuid().nullable(),leaseUntil:InstantSchema.nullable(),principal:z.string().email().nullable(),fetchReservation:Reservation.nullable()};
 const Poll=z.object({...Owned,createdAt:InstantSchema,bucket:z.number().int().nonnegative(),state:z.enum(['leased','complete'])}).strict()
@@ -19,13 +20,13 @@ const Poll=z.object({...Owned,createdAt:InstantSchema,bucket:z.number().int().no
 const Job=z.object({...Owned,url:z.string().url(),firstSeenAt:InstantSchema,state:z.enum(['queued','leased','held','complete']),
   stage:z.enum(['fetch','extract','validate','complete']),nextAt:InstantSchema,attempts:z.number().int().nonnegative().safe(),
   timeline:z.object({startedAt:InstantSchema.optional(),retrievedAt:InstantSchema.optional(),extractedAt:InstantSchema.optional(),privateReadyAt:InstantSchema.optional()}).strict(),
-  blockedBy:z.enum(['source_budget','provider_quota','authority','evidence']).optional(),outcome:z.literal('validated_private').optional()}).strict()
+  blockedBy:z.enum(['source_budget','provider_quota','authority','evidence']).optional(),outcome:z.literal('validated_private').optional(),history:History.optional()}).strict()
   .refine(j=>j.firstSeenAt<=j.updatedAt&&Object.values(j.timeline).every(t=>t>=j.firstSeenAt&&t<=j.updatedAt)&&
     (j.state==='leased'?j.lease!==null&&j.leaseUntil!==null&&j.principal!==null:j.lease===null&&j.leaseUntil===null)&&
     (j.stage==='fetch'||j.timeline.retrievedAt!==undefined)&&
     (!['validate','complete'].includes(j.stage)||j.timeline.extractedAt!==undefined)&&
     (j.stage!=='complete'||j.state==='complete'&&j.timeline.privateReadyAt!==undefined&&j.outcome==='validated_private'));
-const Notice=z.object({id:IdSchema,sourceId:IdSchema,url:z.string().url(),firstSeenAt:InstantSchema,firstPollId:IdSchema}).strict();
+const Notice=z.object({id:IdSchema,sourceId:IdSchema,url:z.string().url(),firstSeenAt:InstantSchema,firstPollId:IdSchema.nullable(),history:History.optional()}).strict().refine(n=>n.firstPollId!==null||n.history!==undefined);
 const Cursor=z.object({sourceId:IdSchema,sourceRevision:z.number().int().positive(),pollId:IdSchema,state:z.enum(['leased','complete'])}).strict();
 const Slots=z.object({sourceId:IdSchema,active:z.record(z.object({lease:z.string().uuid(),until:InstantSchema}).strict())}).strict()
   .refine(s=>Object.keys(s.active).length<=20&&Object.keys(s.active).every(k=>IdSchema.safeParse(k).success));
@@ -85,7 +86,7 @@ export class FastIngestionStore {
       row.principal!==this.principal||row.state!=='leased'||!InstantSchema.safeParse(row.leaseUntil).success||row.leaseUntil<=at||row.updatedAt>at)fail('STALE_LEASE');
     if(claim.kind==='notice') {
       const notice=record(await tx.get(this.ref('ingestion_notices',claim.id)),Notice);
-      if(!notice||notice.id!==claim.id||notice.sourceId!==this.sourceId||notice.firstSeenAt!==row.firstSeenAt||notice.url!==row.url)fail('FAST_INGESTION_STATE_INVALID');
+      if(!notice||notice.id!==claim.id||notice.sourceId!==this.sourceId||notice.firstSeenAt!==row.firstSeenAt||notice.url!==row.url||JSON.stringify(notice.history??null)!==JSON.stringify(row.history??null))fail('FAST_INGESTION_STATE_INVALID');
     }
     return{ref,row};
   }
@@ -140,7 +141,7 @@ export class FastIngestionStore {
       if(stored&&stored.sourceId!==source.id)fail('FAST_INGESTION_STATE_INVALID');
       const slots=Object.fromEntries(Object.entries(stored?.active??{}).filter(([,v])=>v.until>at));
       if(!row||row.sourceId!==source.id||row.sourceRevision!==source.revision||!['queued','leased'].includes(row.state)||row.nextAt>at||row.leaseUntil>at)return null;
-      if(!notice||notice.id!==id||notice.sourceId!==source.id||notice.url!==row.url||notice.firstSeenAt!==row.firstSeenAt||row.id!==id||hash(source.id+':'+assertSourceTarget(row.url))!==id)fail('FAST_INGESTION_STATE_INVALID');
+      if(!notice||notice.id!==id||notice.sourceId!==source.id||notice.url!==row.url||notice.firstSeenAt!==row.firstSeenAt||JSON.stringify(notice.history??null)!==JSON.stringify(row.history??null)||row.id!==id||hash(source.id+':'+assertSourceTarget(row.url))!==id)fail('FAST_INGESTION_STATE_INVALID');
       if(row.updatedAt>at||!Number.isSafeInteger(row.attempts)||row.attempts<0||row.attempts>=Number.MAX_SAFE_INTEGER)fail('FAST_INGESTION_STATE_INVALID');
       if(Object.keys(slots).length>=source.automation.fastIngestion.maxConcurrentJobs)return null;
       const lease=this.lease(source,at),next={...row,...lease,state:'leased',attempts:row.attempts+1,updatedAt:at,fetchReservation:null,
@@ -255,9 +256,9 @@ export function summarizeFastIngestion(rows,at) {
   const jobs=rows.map(r=>Job.parse(r)),ids=new Set();
   for(const j of jobs){if(ids.has(j.id)||j.updatedAt>at)fail('FAST_INGESTION_STATE_INVALID');ids.add(j.id);}
   const completed=jobs.filter(j=>j.outcome==='validated_private'),unfinished=jobs.filter(j=>j.state!=='complete'&&j.state!=='held');
-  const durations=completed.map(j=>Date.parse(j.timeline.privateReadyAt)-Date.parse(j.firstSeenAt)).sort((a,b)=>a-b);
+  const durations=completed.filter(j=>!j.history).map(j=>Date.parse(j.timeline.privateReadyAt)-Date.parse(j.firstSeenAt)).sort((a,b)=>a-b);
   return{observed:jobs.length,queued:jobs.filter(j=>j.state==='queued').length,leased:jobs.filter(j=>j.state==='leased').length,
-    held:jobs.filter(j=>j.state==='held').length,privateReady:completed.length,
+    held:jobs.filter(j=>j.state==='held').length,privateReady:completed.length,historicalAgeBounds:jobs.filter(j=>j.history).length,latencyEligible:jobs.filter(j=>!j.history).length,
     unfinishedOverThreeMinutes:unfinished.filter(j=>Date.parse(at)-Date.parse(j.firstSeenAt)>=180000).length,
     oldestUnfinishedAgeMs:unfinished.length?Math.max(...unfinished.map(j=>Date.parse(at)-Date.parse(j.firstSeenAt))):null,
     p95FirstSeenToPrivateReadyMs:durations.length?durations[Math.ceil(durations.length*0.95)-1]:null,

@@ -65,6 +65,7 @@ export class FastRecentJobsWorker extends RecentJobsWorker {
     const context=this.context();
     return this.transaction(this.fast.sourceId,'worker.fast.prepare',async(tx,source)=>{
       const {row:fastJob}=await this.fast.asserted(tx,context.fastClaim,this.now());
+      if(fastJob.history)fail('FAST_NOTICE_HISTORY_REQUIRES_MIGRATION');
       const legacyQueue=await tx.get(this.db.collection('m0_worker_queue').where('sourceId','==',source.id).limit(1));
       const [legacyLease,draft,hold,projection]=await Promise.all([
         tx.get(super.ref('worker_leases',source.id)),tx.get(super.ref('drafts',hash(source.id+':'+hash(fastJob.url)))),
