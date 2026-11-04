@@ -128,7 +128,7 @@ test("canonical detail renders original instructions before explanation and actu
   assert.ok(html.indexOf("Reviewed explanation") < html.indexOf("Sources and checks"))
   assert.match(html, /Application route linked to the notice/)
   assert.match(html, /Explanation for current instructions/)
-  assert.match(html, /Source-stated stage: Graduate/)
+  assert.match(html.replace(/<[^>]*>/g," ").replace(/\s+/g," "), /Source-stated stage Graduate/)
   assert.match(html, /Synthetic graduate applicants/)
   assert.match(html, /Intake and organisation roles/)
   const instructionSourceStart = html.indexOf('<section class="instruction-sources">')

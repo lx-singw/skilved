@@ -21,9 +21,9 @@ test("category cards retain contextual navigation, original connected instructio
     o.title.value += " <script>unsafe</script>"
     const html = render(OpportunityPost, { opportunity: o, query: new URLSearchParams("category=" + o.category + "&province=gauteng") })
     const links=[...html.matchAll(/href="(\/opportunities\/[^\"]*)"/g)].map(match=>match[1])
-    assert.equal(links.length,6+o.compensation.length)
+    assert.equal(links.length,7+o.compensation.length)
     assert.equal(links.filter(link=>!link.includes("#")).length,2)
-    for(const anchor of ["#preparation","#funding-heading","#evidence","#deadline-heading",...o.compensation.map((_,index)=>`#support-entry-${index+1}`)])assert.equal(links.filter(link=>link.endsWith(anchor)).length,1)
+    for(const anchor of ["#preparation","#funding-heading","#evidence","#deadline-heading","#entry-stage-heading",...o.compensation.map((_,index)=>`#support-entry-${index+1}`)])assert.equal(links.filter(link=>link.endsWith(anchor)).length,1)
     assert.match(html, /from=%2F%3Fcategory%3D/)
     assert.match(html, /ANY of .* OR /)
     assert.match(html, /1 source reference to inspect/)

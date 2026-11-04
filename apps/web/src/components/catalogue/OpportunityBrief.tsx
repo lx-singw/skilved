@@ -2,7 +2,7 @@ import Link from "next/link"
 import { ArrowDownRight, ArrowUpRight, BookOpen, FileText, GitBranch } from "lucide-react"
 import { formatRequirements, type PublicOpportunity } from "@skilved/types/opportunities"
 import { opportunityLens } from "@/lib/opportunity-lens"
-import { requirementRoute, uncertainty } from "@/lib/opportunity-presentation"
+import { opportunityFacts, requirementRoute, uncertainty } from "@/lib/opportunity-presentation"
 
 const titles = { bursary:"Inside the study brief", learnership:"Inside the learning brief", apprenticeship:"Inside the trade brief", internship:"Inside the placement brief", graduate_programme:"Inside the programme brief", job:"Inside the role brief" }
 const levels = {required:"Required as stated",preferred:"Preferred as stated",unclear:"Strength needs confirmation"}
@@ -18,6 +18,7 @@ export function OpportunityBrief({ opportunity:o, href }: { opportunity:PublicOp
       </div>
       <dl className="brief-inventory"><div><dt>Recorded instructions</dt><dd>{o.requirements.requirements.length}</dd></div><div><dt>Document entries</dt><dd>{documents.length}</dd></div><div><dt>Source references</dt><dd>{o.citations.length}</dd></div></dl>
       <p className="brief-inventory-note">Follow the alternatives and conditions in the notice; you may not need every entry.</p>
+      <div className="brief-entry-stage"><p className="mini-label">Entry stage in the notice</p><p>{opportunityFacts(o).stage}</p><Link href={href+"#entry-stage-heading"}>Read stage wording & conditions<ArrowUpRight size={13} aria-hidden/></Link></div>
       <details className="brief-connected"><summary><GitBranch size={15} aria-hidden/>Read the connected requirement wording<ArrowDownRight size={14} aria-hidden/></summary>
         <p className="brief-logic">{formatRequirements(o.requirements)}</p><p>These are the notice’s conditions, not an assessment of your eligibility.</p>
       </details>

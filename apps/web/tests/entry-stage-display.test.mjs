@@ -1,17 +1,14 @@
 import assert from "node:assert/strict"
-import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import { test } from "node:test"
 import { allFixtures, makeRecord } from "../../../packages/types/tests/fixtures/opportunities.mjs"
-const require=createRequire(import.meta.url),ts=require("typescript"),React=require("react")
+import { loadUi } from "./helpers/load-ui.mjs"
+const require=createRequire(import.meta.url),React=require("react")
 const {renderToStaticMarkup}=require("react-dom/server")
 const {projectOpportunity}=require("@skilved/types/opportunities/internal")
 const {PublicOpportunitySchema,ENTRY_STAGE_LABELS}=require("@skilved/types/opportunities")
-const source=await readFile(new URL("../src/components/catalogue/EntryStage.tsx",import.meta.url),"utf8")
-const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}})
-const loaded={exports:{}}
-new Function("require","exports",output.outputText)(require,loaded.exports)
-const render=o=>renderToStaticMarkup(React.createElement(loaded.exports.EntryStage,{opportunity:o}))
+const {EntryStage}=loadUi("components/catalogue/EntryStage.tsx")
+const render=o=>renderToStaticMarkup(React.createElement(EntryStage,{opportunity:o}))
 test("entry stage displays reviewed labels, original wording and only its own citation across all categories",()=>{
  for(const record of allFixtures()){
   record.entryStage={...record.title,id:"stage_assertion",value:Object.keys(ENTRY_STAGE_LABELS),originalText:"Synthetic wording: several source-stated stages."}
@@ -30,18 +27,18 @@ test("missing and uncertain entry stage never choose labels or infer from an exp
  const o=projectOpportunity(makeRecord("job")).opportunity
  delete o.entryStage
  assert.match(render(o),/No reviewed entry stage is stated here/)
- assert.doesNotMatch(render(o),/Source-stated stage:|Experienced/)
+ assert.doesNotMatch(render(o),/entry-stage-labels|Experienced/)
  for(const [state,text] of [["ambiguous","The entry stage is unclear"],["conflicting","Sources disagree"]]){
   o.entryStage={state,value:null,originalText:"Synthetic stage uncertainty.",citations:["citation_fixture"]}
   const html=render(PublicOpportunitySchema.parse(o))
   assert.ok(html.includes(text));assert.match(html,/Synthetic stage uncertainty/);assert.match(html,/confirm unclear conditions with the issuer/)
-  assert.doesNotMatch(html,/Source-stated stage:/)
+  assert.doesNotMatch(html,/entry-stage-labels/)
  }
 })
 test("unreviewed stages stay hidden and public wording/citation labels escape markup",()=>{
  const record=makeRecord()
  record.entryStage={...record.title,id:"stage_assertion",value:["entry_level"],originalText:"PRIVATE_UNREVIEWED_STAGE",review:"pending"}
- assert.doesNotMatch(render(projectOpportunity(record).opportunity),/PRIVATE_UNREVIEWED_STAGE|Source-stated stage:/)
+ assert.doesNotMatch(render(projectOpportunity(record).opportunity),/PRIVATE_UNREVIEWED_STAGE|entry-stage-labels/)
  record.entryStage.review="approved";record.entryStage.originalText='Synthetic <script>wording</script> & conditions.'
  const o=projectOpportunity(record).opportunity;o.citations[0].label="Source <img onerror=bad>"
  const html=render(PublicOpportunitySchema.parse(o))
