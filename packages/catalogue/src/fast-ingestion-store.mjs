@@ -31,6 +31,11 @@ const Cursor=z.object({sourceId:IdSchema,sourceRevision:z.number().int().positiv
 const Slots=z.object({sourceId:IdSchema,active:z.record(z.object({lease:z.string().uuid(),until:InstantSchema}).strict())}).strict()
   .refine(s=>Object.keys(s.active).length<=20&&Object.keys(s.active).every(k=>IdSchema.safeParse(k).success));
 const Pacing=z.object({sourceId:IdSchema,nextAt:InstantSchema,lastAdmittedAt:InstantSchema.nullable()}).strict();
+const DiscoveryList=z.object({adapter:z.literal('recentjobs_html_v1'),sourceUrl:z.string().url(),
+  articles:z.array(z.object({sourceUrl:z.string().url(),title:z.string().min(1).max(500)}).strict()).min(1).max(50),nextPage:z.string().url().nullable()}).strict();
+const DiscoveryPage=z.object({id:IdSchema,sourceId:IdSchema,sourceRevision:z.number().int().positive(),pollId:IdSchema,
+  url:z.string().url(),hash:z.string().regex(/^[a-f0-9]{64}$/),list:DiscoveryList,retrievedAt:InstantSchema}).strict();
+const discoveryPageId=(pollId,url)=>hash(pollId+':page:'+url);
 const record=(snap,schema)=>{if(!snap.exists)return null;try{const row=schema.parse(value(snap));
   if(schema===Job&&['sourceId','state','nextAt','firstSeenAt'].some(k=>snap.data()[k]!==row[k]))fail('FAST_INGESTION_STATE_INVALID');
   return row;}catch{fail('FAST_INGESTION_STATE_INVALID');}};
@@ -51,12 +56,12 @@ export function parseFastIngestionSource(raw) {
 /** Default-off backend coordinator. It owns no fetch/model/publish capability.
  * Job ownership is independent of the source's atomic fetch pacing clock. */
 export class FastIngestionStore {
-  constructor(db,principal,{enabled=false,sourceId,sourceRevision,now=()=>new Date().toISOString(),assertAdmission}={}) {
+  constructor(db,principal,{enabled=false,sourceId,sourceRevision,now=()=>new Date().toISOString(),assertAdmission,assertTransaction}={}) {
     if(enabled!==true)fail('FAST_INGESTION_DISABLED');
     if(!/^[^\s@]+@[^\s@]+$/.test(principal??'')||!IdSchema.safeParse(sourceId).success||
       !Number.isSafeInteger(sourceRevision)||sourceRevision<1||typeof now!=='function'||
-      assertAdmission!==undefined&&typeof assertAdmission!=='function')fail('WORKER_CONFIGURATION_REQUIRED');
-    Object.assign(this,{db,principal,sourceId,sourceRevision,now,assertAdmission});
+      assertAdmission!==undefined&&typeof assertAdmission!=='function'||assertTransaction!==undefined&&typeof assertTransaction!=='function')fail('WORKER_CONFIGURATION_REQUIRED');
+    Object.assign(this,{db,principal,sourceId,sourceRevision,now,assertAdmission,assertTransaction});
     this.actor='worker_'+hash(principal).slice(0,40);
   }
   ref(collection,id){IdSchema.parse(id);return this.db.collection('m0_'+collection).doc(id);}
@@ -73,6 +78,7 @@ export class FastIngestionStore {
       if(source.id!==this.sourceId||source.revision!==this.sourceRevision)fail('SOURCE_CHANGED');
       if(!source.categories.includes('apprenticeship'))fail('SOURCE_POLICY_REQUIRED');
       await this.assertAdmission?.(source,grant,this.principal);
+      await this.assertTransaction?.(tx,source,at);
       const checkClock=()=>{const current=this.now();InstantSchema.parse(current);if(current<at)fail('FAST_INGESTION_STATE_INVALID');if(grant.expiresAt!==undefined&&grant.expiresAt<=current)fail('WORKER_FORBIDDEN');return current;};
       at=checkClock();const result=await work(tx,source,at);checkClock();return result;
     },readOnly?{readOnly:true}:undefined);
@@ -109,12 +115,20 @@ export class FastIngestionStore {
       return{state:'ready',claim:{id,kind:'poll',sourceId:source.id,sourceRevision:source.revision,lease:poll.lease},nextPollAt};
     });
   }
-  async recordDiscovery(claim,urls,{complete=true}={}) {
+  async recordDiscovery(claim,urls,{complete=true,pageReceiptId}={}) {
     if(!Array.isArray(urls)||urls.length>50||typeof complete!=='boolean')fail('FAST_DISCOVERY_INVALID');
     urls=urls.map(url=>assertSourceTarget(url));if(new Set(urls).size!==urls.length)fail('FAST_DISCOVERY_INVALID');
     return this.transaction(async(tx,source,at)=>{
       if(claim.kind!=='poll'||urls.length>source.automation.maxArticles)fail('FAST_DISCOVERY_INVALID');
       const {ref,row}=await this.asserted(tx,claim,at),ids=urls.map(url=>hash(source.id+':'+url));
+      let observedAt=at;
+      if(pageReceiptId!==undefined){
+        if(!IdSchema.safeParse(pageReceiptId).success)fail('FAST_DISCOVERY_RECEIPT_INVALID');
+        const saved=record(await tx.get(this.ref('ingestion_discovery_pages',pageReceiptId)),DiscoveryPage);
+        if(!saved)fail('FAST_DISCOVERY_RECEIPT_INVALID');this.assertDiscoveryPage(source,row,saved,at);
+        if(saved.id!==pageReceiptId||urls.some(url=>!saved.list.articles.some(a=>a.sourceUrl===url)))fail('FAST_DISCOVERY_RECEIPT_INVALID');
+        observedAt=saved.retrievedAt;
+      }
       const notices=await Promise.all(ids.map(id=>tx.get(this.ref('ingestion_notices',id))));
       const jobs=await Promise.all(ids.map(id=>tx.get(this.ref('ingestion_jobs',id))));
       let queued=0;
@@ -122,9 +136,9 @@ export class FastIngestionStore {
         const notice=record(notices[i],Notice),job=record(jobs[i],Job),id=ids[i];
         if(notice&&(notice.sourceId!==source.id||notice.url!==urls[i]||notice.firstSeenAt>at)||job&&!notice)fail('FAST_INGESTION_STATE_INVALID');
         if(!notice) {
-          tx.create(this.ref('ingestion_notices',id),{...payload({id,sourceId:source.id,url:urls[i],firstSeenAt:at,firstPollId:claim.id}),sourceId:source.id,firstSeenAt:at});
+          tx.create(this.ref('ingestion_notices',id),{...payload({id,sourceId:source.id,url:urls[i],firstSeenAt:observedAt,firstPollId:claim.id}),sourceId:source.id,firstSeenAt:observedAt});
           tx.create(this.ref('ingestion_jobs',id),jobPayload({id,sourceId:source.id,sourceRevision:source.revision,url:urls[i],
-            firstSeenAt:at,updatedAt:at,stage:'fetch',state:'queued',nextAt:at,attempts:0,lease:null,leaseUntil:null,
+            firstSeenAt:observedAt,updatedAt:at,stage:'fetch',state:'queued',nextAt:at,attempts:0,lease:null,leaseUntil:null,
             principal:null,fetchReservation:null,timeline:{}}));queued++;
         } else if(!job)fail('FAST_INGESTION_STATE_INVALID');
       }
@@ -132,6 +146,39 @@ export class FastIngestionStore {
       if(complete)tx.set(this.ref('ingestion_cursors',source.id),payload({sourceId:source.id,sourceRevision:source.revision,pollId:claim.id,state:'complete'}));
       this.event(tx,at,'poll.record',claim.id);return{observed:urls.length,queued,alreadyKnown:urls.length-queued};
     });
+  }
+  assertDiscoveryPage(source,poll,page,at) {
+    const number=Number(new URL(assertSourceTarget(page.url,'index')).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
+    if(!source.urls.includes('https://recentjobs.co.za/category/apprenticeships/')||!source.automation.discovery||number>source.automation.discovery.maxPages||
+      page.id!==discoveryPageId(poll.id,page.url)||page.sourceId!==source.id||page.sourceRevision!==source.revision||page.pollId!==poll.id||
+      page.list.sourceUrl!==page.url||page.hash!==hash(JSON.stringify(page.list))||page.retrievedAt<poll.createdAt||page.retrievedAt>at||
+      new Set(page.list.articles.map(a=>a.sourceUrl)).size!==page.list.articles.length)fail('FAST_DISCOVERY_RECEIPT_INVALID');
+    page.list.articles.forEach(a=>assertSourceTarget(a.sourceUrl));
+    if(page.list.nextPage!==null&&page.list.nextPage!==`https://recentjobs.co.za/category/apprenticeships/page/${number+1}/`)fail('FAST_DISCOVERY_RECEIPT_INVALID');
+    return number;
+  }
+  async discoveryPage(claim,url,{capture}={}) {
+    assertSourceTarget(url,'index');
+    return this.transaction(async(tx,source,at)=>{
+      if(claim.kind!=='poll')fail('FAST_DISCOVERY_INVALID');
+      const {row:poll}=await this.asserted(tx,claim,at),id=discoveryPageId(claim.id,url),ref=this.ref('ingestion_discovery_pages',id);
+      const existing=record(await tx.get(ref),DiscoveryPage);
+      const page=capture?DiscoveryPage.parse({id,sourceId:source.id,sourceRevision:source.revision,pollId:claim.id,url,
+        hash:hash(JSON.stringify(capture.list)),list:capture.list,retrievedAt:capture.retrievedAt}):existing;
+      // Validate policy even before acquiring a page that has not been captured.
+      const number=Number(new URL(url).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
+      if(!source.urls.includes('https://recentjobs.co.za/category/apprenticeships/')||!source.automation.discovery||number>source.automation.discovery.maxPages)fail('FAST_DISCOVERY_POLICY_REQUIRED');
+      if(number>1){
+        const previousUrl=number===2?'https://recentjobs.co.za/category/apprenticeships/':`https://recentjobs.co.za/category/apprenticeships/page/${number-1}/`;
+        const previous=record(await tx.get(this.ref('ingestion_discovery_pages',discoveryPageId(claim.id,previousUrl))),DiscoveryPage);
+        if(!previous||previous.list.nextPage!==url)fail('FAST_DISCOVERY_RECEIPT_INVALID');this.assertDiscoveryPage(source,poll,previous,at);
+      }
+      if(existing)this.assertDiscoveryPage(source,poll,existing,at);
+      if(page)this.assertDiscoveryPage(source,poll,page,at);
+      if(capture&&existing&&JSON.stringify(existing)!==JSON.stringify(page))fail('FAST_DISCOVERY_RECEIPT_CONFLICT');
+      if(capture&&!existing){tx.create(ref,payload(page));this.event(tx,at,'poll.capture',claim.id);}
+      return{page:existing??page,source};
+    },{readOnly:!capture});
   }
   async claimNotice(id) {
     IdSchema.parse(id);

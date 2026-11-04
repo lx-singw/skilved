@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Paced, resumable fast RecentJobs discovery — 4 November 2026](234_PACED_FAST_DISCOVERY_2026-11-04.md)
+
 - [Bounded fast notice dispatch — 4 November 2026](233_BOUNDED_FAST_NOTICE_DISPATCH_2026-11-04.md)
 
 - [Reviewed, held-only legacy history migration — 4 November 2026](232_HELD_HISTORY_MIGRATION_2026-11-04.md)

@@ -19,7 +19,8 @@ export class FastRecentJobsWorker extends RecentJobsWorker {
     if(options.programmeExtraction||options.extractionMode&&options.extractionMode!=='single')fail('FAST_BRIDGE_SINGLE_ONLY');
     super(db,principal,options);
     this.execution=new AsyncLocalStorage();
-    this.fast=new FastIngestionStore(db,principal,{enabled:true,sourceId,sourceRevision,now:this.now,assertAdmission:options.assertAdmission});
+    this.fast=new FastIngestionStore(db,principal,{enabled:true,sourceId,sourceRevision,now:this.now,assertAdmission:options.assertAdmission,
+      assertTransaction:async(tx,_source,at)=>{if(this.provider==='gemini')await assertGeminiQuotaAuthority(tx,this.db,this.quotaAuthority,at);}});
   }
   context(){const context=this.execution.getStore();if(!context)fail('FAST_BRIDGE_SCOPE_REQUIRED');return context;}
   ref(collection,id) {
