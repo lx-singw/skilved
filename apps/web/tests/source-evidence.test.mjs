@@ -151,13 +151,14 @@ test("canonical detail renders original instructions before explanation and actu
   o.deadline = { state: "not_stated", value: null, originalText: null, citations: [] }
   PublicOpportunitySchema.parse(o)
   const unknownDeadline = renderToStaticMarkup(await page.default({ params: Promise.resolve({ id: o.id }) }))
-  assert.match(unknownDeadline, /Closing date not stated/)
+  assert.match(unknownDeadline, /A closing date is not stated in the reviewed notice/)
+  assert.match(unknownDeadline, /id="deadline-heading" tabindex="-1"/)
   assert.doesNotMatch(unknownDeadline, /30 October 2026/)
   result = { kind: "status", status: { status: "under_review" } }
   const held = renderToStaticMarkup(await page.default(context))
   assert.match(held, /needs a fresh check/)
   assert.ok(held.includes(`href="/?province=gauteng&amp;remote=false&amp;limit=1#opportunity-${o.id}"`))
-  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|Intake and organisation roles|conditions-file|support-file|Take a public checklist|\/apply\?revision/)
+  assert.doesNotMatch(held, /Sources and checks|Reviewed explanation|Entry stage|Intake and organisation roles|conditions-file|support-file|deadline-file|Take a public checklist|\/apply\?revision/)
   result = { kind: "unavailable" }
   const unavailable = renderToStaticMarkup(await page.default(context))
   assert.match(unavailable, /We couldn’t load this opportunity/)

@@ -22,7 +22,7 @@ test("each application method has a readable destination and only portal/email o
    assert.match(html,new RegExp('/opportunities/'+o.id+'/apply\\?revision=1'))
    assert.match(html,/target="_blank"/)
   }else assert.doesNotMatch(html,/\/apply\?revision=|mailto:/)
-  if(method==="portal"){assert.match(html,/issuer.example/);assert.match(html,/See the full address/);assert.doesNotMatch(html,/href="https:\/\/issuer.example/)}
+  if(method==="portal"){assert.match(html,/issuer.example/);assert.match(html,/See the full address/);assert.doesNotMatch(html,/href="https:\/\/issuer.example\/apply/);assert.match(html,/href="https:\/\/issuer.example\/notice"/)}
   if(method==="email"){assert.match(html,/applications\+public@issuer.example/);assert.match(html,/Copy address/);assert.match(html,/subject line and attachments/)}
   if(method==="post")assert.match(html,/Send the application by post/)
   if(method==="in_person")assert.match(html,/Apply in person/)

@@ -6,6 +6,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Closing wording and timing file — 4 November 2026](27_CLOSING_TIMING_FILE_2026-11-04.md): precise time and timezone fields, scoped source wording and direct feed-to-timing navigation.
+
 - [Feed availability and recovery — 4 November 2026](26_FEED_AVAILABILITY_2026-11-04.md): truthful availability states, deliberate retry, preserved search choices and integrated fictional local review.
 
 - [Practical conditions file — 4 November 2026](25_PRACTICAL_CONDITIONS_FILE_2026-11-04.md): separate places, attendance, residence, experience and arrangements with scoped sources and precise reading links.

@@ -1,15 +1,17 @@
 import { ArrowUpRight } from "lucide-react"
 import type { PublicOpportunity } from "@skilved/types/opportunities"
-import { issuerInitials, opportunityFacts, opportunityIdentity } from "@/lib/opportunity-presentation"
+import { issuerInitials, opportunityIdentity } from "@/lib/opportunity-presentation"
 import { CategoryOverviewFacts } from "./OpportunityLens"
-import { NoticeDate, OpportunityGlyph } from "./OpportunityIdentity"
+import { OpportunityGlyph } from "./OpportunityIdentity"
+
+export { ApplicationDate } from "./OpportunityDeadline"
 
 export function OpportunityOverview({ opportunity: o }: { opportunity: PublicOpportunity }) {
   const identity = opportunityIdentity[o.category]
   const unknowns = [
     o.location.state !== "stated" && {label: "Location", href: "#location-heading"},
     (o.location.state !== "stated" || !o.location.value || o.location.value.attendance === "not_stated") && {label: "Attendance", href: "#location-heading"},
-    o.deadline.state !== "stated" && {label: "Closing date", href: "#application-heading"},
+    o.deadline.state !== "stated" && {label: "Closing date", href: "#deadline-heading"},
     o.entryStage.state !== "stated" && {label: "Entry stage", href: "#entry-stage-heading"},
     (!o.compensation.length || o.compensation.some(f => f.state !== "stated")) && {label: "Pay or support", href: "#funding-heading"},
     o.experience.state !== "stated" && {label: "Experience", href: "#experience-heading"},
@@ -24,8 +26,4 @@ export function OpportunityOverview({ opportunity: o }: { opportunity: PublicOpp
     <CategoryOverviewFacts opportunity={o} />
     {unknowns.length > 0 && <div className="clarity-note"><span className="clarity-mark" aria-hidden>?</span><p><strong>Keep these questions open.</strong> {unknowns.map(item => <a key={item.label} href={item.href}>{item.label}</a>)}</p></div>}
   </header>
-}
-export function ApplicationDate({ opportunity: o }: { opportunity: PublicOpportunity }) {
-  const facts = opportunityFacts(o)
-  return <div className={`application-date ${opportunityIdentity[o.category].theme}`}><NoticeDate opportunity={o} /><p>{facts.deadline}</p>{o.deadline.state !== "stated" && o.deadline.originalText && <p>Wording in the notice: {o.deadline.originalText}</p>}</div>
 }

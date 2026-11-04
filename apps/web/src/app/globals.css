@@ -852,6 +852,26 @@
 /* The handoff stays specific to the application method in the notice. */
 .application-panel.application-handoff { display: block; }
 .application-handoff .application-date { grid-row: auto; margin: 20px 0; }
+.deadline-file > header { display: flex; align-items: flex-start; gap: 9px; color: hsl(var(--op-accent)); margin-bottom: 18px; }
+.deadline-file > header > svg { flex-shrink: 0; margin-top: 3px; }
+.deadline-file h3 { font-size: 13px; font-weight: 550; line-height: 1.6; letter-spacing: -.2px; }
+.deadline-file > header p { font-size: 9px; color: hsl(var(--muted-foreground)); line-height: 1.8; margin-top: 3px; }
+.deadline-fields { display: grid; gap: 0; margin-top: 16px; }
+.deadline-fields > div { border-top: 1px dashed hsl(var(--border)); padding: 11px 0; }
+.deadline-fields dt { font-size: 9px; color: hsl(var(--muted-foreground)); line-height: 1.8; }
+.deadline-fields dd { font-size: 12px; line-height: 1.8; margin-top: 3px; overflow-wrap: anywhere; }
+.deadline-file .deadline-reading-note, .deadline-file .deadline-status-note { font-size: 10px; line-height: 1.9; }
+.deadline-file .deadline-status-note { border-left: 2px solid hsl(var(--op-accent) / .35); padding-left: 10px; }
+.deadline-source { border-top: 1px solid hsl(var(--border)); margin-top: 16px; }
+.deadline-source > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 0; font-size: 11px; cursor: pointer; }
+.deadline-source small { display: block; color: hsl(var(--muted-foreground)); font-size: 9px; line-height: 1.8; margin-top: 3px; }
+.deadline-source > div > p { font-size: 11px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 12px; }
+.deadline-source li + li { border-top: 1px dashed hsl(var(--border)); }
+.deadline-source a { display: flex; align-items: center; justify-content: space-between; gap: 9px; min-height: 44px; padding: 9px 0; color: hsl(var(--primary)); font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.deadline-source a > span { min-width: 0; }
+.deadline-source svg { flex-shrink: 0; }
+.deadline-source .deadline-evidence-link { justify-content: flex-start; font-size: 10px; text-decoration: underline; text-underline-offset: 3px; }
+.dossier-deadline > span > a { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
 .handoff-method { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; }
 .handoff-method > span { display: grid; place-items: center; width: 35px; height: 38px; flex-shrink: 0; border: 1px solid hsl(var(--border)); border-radius: 18px 18px 5px 5px; background: hsl(var(--muted)); color: hsl(var(--primary)); }
 .handoff-method h3 { font-size: 17px; font-weight: 550; line-height: 1.4; letter-spacing: -.4px; padding-top: 2px; }

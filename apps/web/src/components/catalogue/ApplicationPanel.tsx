@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowUpRight, Building2, FileText, Globe2, Mail, MapPin
 import type { PublicOpportunity } from "@skilved/types/opportunities"
 import { ApplicationRouteLink } from "@/components/catalogue/SavedProgress"
 import { FeedSave } from "./FeedSave"
-import { ApplicationDate } from "./OpportunityOverview"
+import { ApplicationDate } from "./OpportunityDeadline"
 import { CopyApplicationDestination } from "./CopyApplicationDestination"
 
 const methods = {
