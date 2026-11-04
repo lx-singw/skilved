@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Application-layout worker integration prepared — 4 November 2026](228_APPLICATION_LAYOUT_WORKER_PREPARATION_2026-11-04.md)
+
 - [Shared application-layout prototype — 4 November 2026](227_APPLICATION_LAYOUT_PROTOTYPE_2026-11-04.md)
 
 - [Saved-cohort coverage audit of held notices — 4 November 2026](226_HELD_NOTICE_COVERAGE_AUDIT_2026-11-04.md)
