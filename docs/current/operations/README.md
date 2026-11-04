@@ -14,6 +14,8 @@ Status: current planning specifications. Implemented controls, customer results 
 
 ## Documents
 
+- [Private local pilot: real feed, detail and browser saves — 4 November 2026](236_PRIVATE_LOCAL_PILOT_2026-11-04.md)
+
 - [Supervised fast runtime and active capacity — 4 November 2026](235_SUPERVISED_FAST_RUNTIME_2026-11-04.md)
 
 - [Paced, resumable fast RecentJobs discovery — 4 November 2026](234_PACED_FAST_DISCOVERY_2026-11-04.md)
