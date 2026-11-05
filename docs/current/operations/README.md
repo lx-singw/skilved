@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November live cutover: [fast shadow source revision 5, held history and verified cleanup](240_LIVE_FAST_SOURCE_CUTOVER_2026-11-05.md) records the completed normal-API adoption, unchanged budgets/private catalogue and restored reviewer-only role. Runtime and public publishing remain inactive.
+
 5 November parser: [installed application-layout worker integration](239_APPLICATION_LAYOUT_WORKER_INTEGRATION_2026-11-05.md) connects the prepared parser to the normal worker, with shadow source opt-in and profile-bound holds. Live activation remains pending.
 
 5 November Source API: [reviewed fast-policy adoption](238_REVIEWED_FAST_SOURCE_ADOPTION_2026-11-05.md) records atomic history-bound cutover, legacy-worker exclusion and the fresh staging/authority audit. Live adoption remains pending Source-role access and quiescence.

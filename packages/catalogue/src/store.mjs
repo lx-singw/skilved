@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { OpportunityRecordSchema, projectOpportunity } from '@skilved/types/opportunities/internal';
-import { IdSchema, parseReadQuery, decodeCursor, encodeCursor, matchesQuery, ListResponseSchema } from '@skilved/types/opportunities';
+import { IdSchema, InstantSchema, parseReadQuery, decodeCursor, encodeCursor, matchesQuery, ListResponseSchema } from '@skilved/types/opportunities';
 import { AliasSchema, resolveAlias } from '@skilved/types/opportunities/storage';
 import { Source, EmployerRelationship, Report, Reason, JobInput } from './schemas.mjs';
 import { readRelationship, relationshipDocument } from './issuer-registry.mjs';
@@ -35,6 +35,8 @@ export class Catalogue {
     const snap = await tx.get(this.ref('operators', uid));
     const operator = snap.data();
     if (!operator?.active || !Array.isArray(operator.roles) || !operator.roles.includes(role)) fail('FORBIDDEN');
+    const expiresAt=operator.roleExpiries?.[role];
+    if(expiresAt!==undefined&&(!InstantSchema.safeParse(expiresAt).success||expiresAt<=this.now()))fail('FORBIDDEN');
   }
   async mutate(token, role, action, subject, reason, work) {
     Reason.parse(reason); const uid = await this.identity(token);

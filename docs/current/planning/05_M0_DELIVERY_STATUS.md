@@ -1,8 +1,10 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 4 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 5 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+5 November live cutover: [the approved fast shadow-source transition](../operations/240_LIVE_FAST_SOURCE_CUTOVER_2026-11-05.md) completes normal Source-role pause, independently reviewed 21-notice held-history import and policy adoption to revision 5. A separate staging readback confirms all history/model accounting unchanged, 21 held/latency-ineligible notices, six private drafts, zero public records and exact reviewer-only restoration, with no worker grant or IAM delegation. The active query is verified; no runtime is started or provider call made. Optional per-role expiry now fences temporary access, with 37 affected checks passing. Fast revision/refresh reconciliation, attached operation, refreshed private results and real batch/publication acceptance remain open.
 
 5 November parser integration: [the application-layout boundary is now installed in the shared worker](../operations/239_APPLICATION_LAYOUT_WORKER_INTEGRATION_2026-11-05.md), with explicit shadow RecentJobs source opt-in, adapter-bound holds and preserved cache/quota behaviour. The prepared acceptance cases now exercise the actual worker. No source is opted in live; Source-role authority, reviewed cutover, fast revision/refresh/restart handling and real publication qualification remain open.
 
