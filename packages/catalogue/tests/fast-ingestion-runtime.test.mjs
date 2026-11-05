@@ -5,10 +5,26 @@ import {getRuntime} from '../src/runtime.mjs';
 import {runFastIngestion} from '../src/fast-ingestion-runtime.mjs';
 import {supervisionFixture,deferred} from './fixtures/fast-supervision.mjs';
 import {originalFixture} from './fixtures/original-notices.mjs';
+import {EventEmitter} from 'node:events';
+import {runFastWorkerCommand} from '../tools/run-fast-recentjobs.mjs';
 let db;
 before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-fast-runtime';db=(await getRuntime()).db;});
 after(async()=>{await db?.terminate();});
 const options=f=>({worker:f.worker,enabled:true,wait:f.clock.wait,monotonic:f.clock.monotonic});
+test('backend launcher runs discovery through canonical private drafting and drains before closing',async()=>{
+  const f=await supervisionFixture(db),empty=deferred(),events=[];let closed=false;
+  f.state.beforeFetch=async url=>{if(url===f.source.urls[0])await empty.promise;};
+  const result=await runFastWorkerCommand(['--enable-shadow',f.source.id,String(f.source.revision)],{
+    signals:new EventEmitter(),output:event=>{events.push(event);if(event.lane==='dispatch'&&event.type==='tick'&&event.selected===0)empty.resolve();},
+    dependencies:{extractionConfiguration:()=>({provider:'groq'}),
+      getRuntime:async()=>({config:{},db:{terminate:async()=>{closed=true;assert.equal(f.clock.timers.size,0);}}}),
+      workerPrincipal:async()=>f.worker.principal,
+      FastRecentJobsWorker:class {constructor(){return f.worker;}},
+      runFastIngestion:args=>runFastIngestion({...args,maxTicks:2,wait:f.clock.wait,monotonic:f.clock.monotonic})}});
+  assert.ok(closed);assert.equal(result.publiclyVisible,false);
+  assert.equal((await f.draft()).publication.approved,false);assert.equal(f.state.validations,1);
+  assert.equal((await f.budget()).calls,2);assert.equal(events.at(-1).type,'complete');
+});
 test('runtime requires explicit supervision and a stopped run admits no work',async()=>{
   await assert.rejects(runFastIngestion(),{code:'FAST_INGESTION_DISABLED'});
   const no=await supervisionFixture(db,{supervised:false});await assert.rejects(runFastIngestion(options(no)),{code:'FAST_RUNTIME_CONFIGURATION_REQUIRED'});assert.equal(no.state.fetches.length,0);

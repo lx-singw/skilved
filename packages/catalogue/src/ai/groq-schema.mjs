@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION, locationEvidenceHints } from './location-evidence.mjs';
 import {assertLocationCompleteness} from './location-completeness.mjs';
+import {assertLocationSpanBoundary} from './location-span-boundary.mjs';
 import {LOCATION_SPAN_INSTRUCTION,locationSpanHints} from './location-span-hints.mjs';
 import {ATTENDANCE_EVIDENCE_INSTRUCTION,attendanceEvidencePolicy} from './attendance-evidence-hints.mjs';
 import { zodToJsonSchema } from 'zod-to-json-schema';
@@ -217,5 +218,6 @@ function decodeMetadata(input,candidate,schema,extractive) {
   assertMetadataCompleteness(candidate,parsed);
   assertLocationEvidence(parsed.location);
   assertLocationCompleteness(candidate,parsed.location);
+  assertLocationSpanBoundary(candidate,parsed.location);
   return parsed;
 }

@@ -6,6 +6,7 @@ import { OpportunityRecordSchema, LocationSchema, RequirementValueSchema } from 
 import { DomainError } from '../config.mjs';
 import { assertLocationEvidence, LOCATION_EVIDENCE_INSTRUCTION } from './location-evidence.mjs';
 import {assertLocationCompleteness} from './location-completeness.mjs';
+import {assertLocationSpanBoundary} from './location-span-boundary.mjs';
 import {LOCATION_SPAN_INSTRUCTION} from './location-span-hints.mjs';
 import {ATTENDANCE_EVIDENCE_INSTRUCTION} from './attendance-evidence-hints.mjs';
 import {containsPromotionalContent,hasPromotionalEvidence} from './source-lines.mjs';
@@ -20,7 +21,7 @@ import {noticeMetadataPolicy,assertReferenceCompleteness} from './notice-metadat
 import {assertIssuerAttribution,ISSUER_ATTRIBUTION_INSTRUCTION} from './issuer-attribution.mjs';
 import {assertSelectionProcessCompleteness} from './selection-process.mjs';
 
-export const EXTRACTION_VERSION = 'recentjobs_extraction_v31';
+export const EXTRACTION_VERSION = 'recentjobs_extraction_v32';
 const text = z.string().trim().min(1).max(4000);
 const state = z.enum(['stated', 'not_stated', 'ambiguous', 'conflicting']);
 const fact = value => z.object({ state, value: value.nullable(), quote: text.nullable() }).strict()
@@ -130,6 +131,7 @@ export function mapExtraction(candidate, input, { sourceId, now }) {
   checkQuote(extracted.location.quote);
   assertLocationEvidence(extracted.location);
   assertLocationCompleteness(candidate,extracted.location);
+  assertLocationSpanBoundary(candidate,extracted.location);
   const facts = [extracted.issuer, extracted.summary, extracted.intake, extracted.location, extracted.residence,
     extracted.experience, extracted.deadline, ...extracted.compensation, extracted.practicalConditions,
     ...extracted.requirements.items.map(item => item.fact)];

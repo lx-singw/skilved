@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November pipeline: [location evidence boundaries and the fast backend launcher](237_LOCATION_EVIDENCE_AND_FAST_LAUNCHER_2026-11-05.md) records the overnight semantic rejection, reusable V32 checks, supervised command integration and remaining live cutover/publication work.
+
 15 October B04 navigation: [catalogue return and changed-results recovery](73_CATALOGUE_RETURN_NAVIGATION_2026-10-15.md) records filter/cursor-preserving detail return and actual mobile browser evidence.
 
 15 October B04 evidence: [visible source checks and reviewed explanations](71_VISIBLE_SOURCE_EVIDENCE_AND_EXPLANATIONS_2026-10-15.md) records scoped outcomes, dates, attribution and synthetic detail verification.

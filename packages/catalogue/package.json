@@ -16,6 +16,7 @@
     "plan:recentjobs": "node tools/plan-recentjobs-programmes.mjs",
     "plan:publisher": "node tools/plan-recentjobs-publisher.mjs",
     "worker:recentjobs": "node tools/run-recentjobs.mjs",
+    "worker:fast": "node tools/run-fast-recentjobs.mjs",
     "check:staging-reads": "node tools/check-staging-reads.mjs",
     "shadow:recentjobs": "node tools/shadow-recentjobs.mjs",
     "checkpoint:shadow": "node tools/export-shadow-checkpoint.mjs",

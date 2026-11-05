@@ -26,7 +26,8 @@ not resolve conflicting places, infer geography, establish attendance/coverage o
 An explicit location label listing places with & is a complete passage to retain. Check every
 listed name even when an earlier summary label names fewer places. A short header cannot
 replace a later complete location list. Preserve qualifiers; do not infer geography.
-Code will not widen or repair the returned location evidence.`;
+Use the shortest complete supporting range; unrelated edge lines are rejected. Retain required
+labels, every claimed value and necessary intervening text. Code never trims or repairs evidence.`;
 
 const label=/^((?:(?:Work|Job|Training) )?Locations?|Worksites?)\s*(?::\s*(.*)|\s*)$/i;
 const blocked=/^(?:Residence(?: requirements)?|Residential address|Contact(?: details| information| address)?|Postal address|Company address|Employer address|Head office address)\s*:?$/i;

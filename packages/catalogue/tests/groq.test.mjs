@@ -198,7 +198,7 @@ test('a data-only ordinary response keeps exact evidence and original routes wit
     assert.match(instruction,/Return one opportunity DATA object/);assert.doesNotMatch(instruction,/Return the strict JSON schema/);
     return geminiAnswer(wire());
   }});
-  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v31_groq_v8');
+  assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_extraction_v32_groq_v8');
   assert.equal(result.extraction.requirements.items[1].fact.quote,'N3 with:\nMathematics\nEngineering Science');
   const mapped=mapExtraction(candidate,result.extraction,{sourceId:'ordinary_shape_test',now:'2026-10-04T10:00:00.000Z'});
   assert.equal(mapped.record.applicationRoute.value.destination,'https://employer.example/apply');assert.equal(mapped.record.publication.approved,false);

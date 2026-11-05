@@ -77,5 +77,5 @@ test('scoped programme extraction inherits both guidance contracts and preserves
  const result=await extractProgramme(c,intake.id,{env,fetchImpl:async(_url,init)=>{
   calls++;const request=JSON.parse(init.body),payload=JSON.parse(request.contents[0].parts[0].text);assert.ok(request.systemInstruction.parts[0].text.includes(SUBMISSION_BLOCK_INSTRUCTION));assert.ok(request.systemInstruction.parts[0].text.includes(ATTENDANCE_EVIDENCE_INSTRUCTION));
   assert.ok(Array.isArray(payload.requirementSourcePolicy.submissionBlocks));assert.equal(payload.attendanceEvidencePolicy.status,'no_label');return answer(raw);
- }});assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_programme_extraction_v31');assert.equal(result.extraction.intake.value,intake.reference.value);
+ }});assert.equal(calls,1);assert.equal(result.provenance.extractionVersion,'recentjobs_programme_extraction_v32');assert.equal(result.extraction.intake.value,intake.reference.value);
 });

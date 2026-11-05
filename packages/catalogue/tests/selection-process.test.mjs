@@ -29,7 +29,7 @@ test('labelled assessment lists retain complete spans and conditional/optional w
  const result=mapExtraction(candidate,extraction(),{sourceId:'selection_test',now:'2026-10-15T10:00:00.000Z'});
  assert.equal(result.record.practicalConditions.value,block+'\n'+warning);assert.equal(result.record.requirements.requirements.length,1);
  assert.equal(result.record.publication.approved,false);
- assert.equal(EXTRACTION_VERSION,'recentjobs_extraction_v31');assert.equal(METADATA_VERSION,'recentjobs_metadata_v23');assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v31');
+ assert.equal(EXTRACTION_VERSION,'recentjobs_extraction_v32');assert.equal(METADATA_VERSION,'recentjobs_metadata_v24');assert.equal(PROGRAMME_EXTRACTION_VERSION,'recentjobs_programme_extraction_v32');
 });
 
 test('missing, partial, paraphrased or eligibility-only retention fails without repairing the answer',()=>{
