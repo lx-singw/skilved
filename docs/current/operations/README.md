@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November applicant feed: [dynamic private reads and local refresh](242_DYNAMIC_PRIVATE_APPLICANT_FEED_2026-11-05.md) replace the fixed preview ID, preserve existing reviewer/source/freshness gates and pick up canonical worker drafts on subsequent reads. The founder's genuine login is verified; ingestion/publication remain inactive.
+
 5 November refresh: [durable private cycles and restart integration](241_DURABLE_PRIVATE_REFRESH_2026-11-05.md) records atomic watches, archived generations, shared quotas/caches, fairness and a verified staging index. Live refresh/runtime activation remains off.
 
 5 November live cutover: [fast shadow source revision 5, held history and verified cleanup](240_LIVE_FAST_SOURCE_CUTOVER_2026-11-05.md) records the completed normal-API adoption, unchanged budgets/private catalogue and restored reviewer-only role. Runtime and public publishing remain inactive.
