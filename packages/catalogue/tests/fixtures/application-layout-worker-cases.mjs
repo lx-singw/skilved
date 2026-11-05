@@ -5,8 +5,7 @@ import {syntheticExtraction} from './recentjobs-model.mjs';
 import {RECENTJOBS_INDEX} from '../../src/worker-policy.mjs';
 import {APPLICATION_LAYOUTS_PROFILE} from '../../src/worker-detail-adapter.mjs';
 
-// Reusable normal-worker acceptance cases. During the pinned-run wait these are
-// executed against the exact prepared integration in an isolated local copy.
+// Reusable normal-worker acceptance cases, now run against the installed integration.
 export function registerApplicationLayoutWorkerCases(test,db,Worker,Source) {
   const payload=v=>({json:JSON.stringify(v)}),value=s=>s.exists?JSON.parse(s.data().json):null;
   const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -35,9 +34,10 @@ export function registerApplicationLayoutWorkerCases(test,db,Worker,Source) {
   }
   async function cacheRows(){return(await db.collection('m0_model_cache').get()).docs.map(d=>[d.id,d.data()]).sort((a,b)=>a[0].localeCompare(b[0]));}
 
-  test('prepared source schema restricts the opt-in to explicit shadow mode',async()=>{
+  test('source schema restricts the opt-in to explicit shadow RecentJobs mode',async()=>{
     const f=await fixture();assert.equal(Source.parse(f.source).automation.applicationLayouts,'shadow_v1');
     for(const mode of ['automatic','disabled'])assert.equal(Source.safeParse({...f.source,automation:{...f.source.automation,mode}}).success,false);
+    assert.equal(Source.safeParse({...f.source,permission:{...f.source.permission,method:'structured_json'}}).success,false);
     for(const applicationLayouts of [false,null,'shadow_v2'])assert.equal(Source.safeParse({...f.source,automation:{...f.source.automation,applicationLayouts}}).success,false);
   });
   test('opt-in email reaches an unapproved private draft and restart reuses real extraction/validation caches',async()=>{

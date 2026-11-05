@@ -33,6 +33,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
     fastIngestion: FastSourcePolicy.optional(),
+    applicationLayouts: z.literal('shadow_v1').optional(),
     originalVerification: z.literal('shadow_v1').optional(),
     missingDateEvidence: z.enum(['shadow_v1','shadow_v2']).optional(),
     issuerRegistry: z.literal('shadow_v1').optional(),
@@ -61,6 +62,8 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   'Registry sources require original verification, no inline issuers and dated notices').refine(source =>
   !source.automation?.originDiscovery || source.automation.issuerRegistry === 'shadow_v1',
   'Origin discovery requires the shadow issuer registry').refine(source =>
+  !source.automation?.applicationLayouts || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html'),
+  'Application layouts require explicit shadow mode').refine(source =>
   !source.automation?.fastIngestion || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html'),
   'Fast ingestion requires shadow RecentJobs mode');
 export const Report = z.object({ opportunityId: IdSchema,

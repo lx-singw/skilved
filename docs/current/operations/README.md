@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November parser: [installed application-layout worker integration](239_APPLICATION_LAYOUT_WORKER_INTEGRATION_2026-11-05.md) connects the prepared parser to the normal worker, with shadow source opt-in and profile-bound holds. Live activation remains pending.
+
 5 November Source API: [reviewed fast-policy adoption](238_REVIEWED_FAST_SOURCE_ADOPTION_2026-11-05.md) records atomic history-bound cutover, legacy-worker exclusion and the fresh staging/authority audit. Live adoption remains pending Source-role access and quiescence.
 
 5 November pipeline: [location evidence boundaries and the fast backend launcher](237_LOCATION_EVIDENCE_AND_FAST_LAUNCHER_2026-11-05.md) records the overnight semantic rejection, reusable V32 checks, supervised command integration and remaining live cutover/publication work.

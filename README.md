@@ -6,6 +6,8 @@ The public MVP includes **bursaries, learnerships, apprenticeships, internships,
 
 ## Current status
 
+5 November pipeline update: [the fast backend launcher](docs/current/operations/237_LOCATION_EVIDENCE_AND_FAST_LAUNCHER_2026-11-05.md), [reviewed history-bound Source API adoption](docs/current/operations/238_REVIEWED_FAST_SOURCE_ADOPTION_2026-11-05.md) and [installed application-layout worker integration](docs/current/operations/239_APPLICATION_LAYOUT_WORKER_INTEGRATION_2026-11-05.md) advance the shared pipeline. The overnight task completed with a location-evidence semantic rejection; V32 now catches that saved failure locally. Fresh staging readback has 21 known notices, no pending legacy jobs and no active worker grant, but the source remains unpaused and operator access is reviewer-only. No live fast-source cutover or public publishing is active. Earlier dated trial notes below are historical evidence, not current scheduled work.
+
 This repository contains a prototype and incomplete implementation scaffolding. Static review found simulated source/verification paths and unfinished authentication/persistence; production readiness is not established. Founder conversations indicate interest, not measured adoption, placements, payments or signed partnerships.
 
 The September 2026 documentation refresh is a planning baseline. It does not deploy services, authorise spending, execute agreements or certify security/compliance.

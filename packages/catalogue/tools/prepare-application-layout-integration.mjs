@@ -12,19 +12,34 @@ function once(text,from,to) {
   return text.replace(from,to);
 }
 export function buildApplicationLayoutIntegration(worker,schema) {
+  const marker="import {parseWorkerDetail,sourceHoldAdapterFields,sourceHoldAdapterMatches} from './worker-detail-adapter.mjs';";
+  const setting="    applicationLayouts: z.literal('shadow_v1').optional(),";
+  if(worker.includes(marker)||schema.includes(setting)) {
+    const required=[marker,
+      'const candidate = parseWorkerDetail(claim.source, { html: response.text, url: response.url, observedOn: dayInSA(this.now()) });',
+      '...sourceHoldAdapterFields(source), reason: code, jobId: job.id,',
+      '!sourceHoldAdapterMatches(source,saved) ||'];
+    if(required.some(s=>worker.split(s).length!==2)||schema.split(setting).length!==2||
+      !schema.includes("!source.automation?.applicationLayouts || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html')")||
+      worker.includes('const candidate = parseRecentJobsDetail('))throw Error('APPLICATION_LAYOUT_INTEGRATION_DRIFT');
+    return{worker,schema,alreadyApplied:true};
+  }
   let next=once(worker,"import { parseRecentJobsList, parseRecentJobsDetail } from './adapters/recentjobs.mjs';","import { parseRecentJobsList } from './adapters/recentjobs.mjs';\nimport {parseWorkerDetail,sourceHoldAdapterFields,sourceHoldAdapterMatches} from './worker-detail-adapter.mjs';");
   next=once(next,'programmeExtraction: this.programmeExtraction, reason: code, jobId: job.id,','programmeExtraction: this.programmeExtraction, ...sourceHoldAdapterFields(source), reason: code, jobId: job.id,');
   next=once(next,'saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction ||','saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction || !sourceHoldAdapterMatches(source,saved) ||');
   next=once(next,'const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });','const candidate = parseWorkerDetail(claim.source, { html: response.text, url: response.url, observedOn: dayInSA(this.now()) });');
   let nextSchema=once(schema,"    originalVerification: z.literal('shadow_v1').optional(),","    applicationLayouts: z.literal('shadow_v1').optional(),\n    originalVerification: z.literal('shadow_v1').optional(),");
-  nextSchema=once(nextSchema,"  'Origin discovery requires the shadow issuer registry').refine(source =>","  'Origin discovery requires the shadow issuer registry').refine(source =>\n  !source.automation?.applicationLayouts || source.automation.mode === 'shadow',\n  'Application layouts require explicit shadow mode').refine(source =>");
-  return{worker:next,schema:nextSchema};
+  nextSchema=once(nextSchema,"  'Origin discovery requires the shadow issuer registry').refine(source =>","  'Origin discovery requires the shadow issuer registry').refine(source =>\n  !source.automation?.applicationLayouts || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html'),\n  'Application layouts require explicit shadow mode').refine(source =>");
+  return{worker:next,schema:nextSchema,alreadyApplied:false};
 }
 
 /** Prepare an unapplied, local-only integration and its emulator entry points. */
 export async function prepareApplicationLayoutIntegration() {
   const before=await Promise.all(paths.map(p=>readFile(join(root,p),'utf8')));
   const built=buildApplicationLayoutIntegration(...before),after=[built.worker,built.schema];
+  if(built.alreadyApplied)return{version:1,createdAt:new Date().toISOString(),
+    files:paths.map((path,i)=>({path,before:hash(before[i]),after:hash(before[i])})),
+    applied:true,activationPending:false,networkRequests:0,providerCalls:0,cloudWrites:0};
   const parent=join(root,'.artifacts/shadow');await mkdir(parent,{recursive:true,mode:0o700});
   const directory=await mkdtemp(join(parent,'application-layout-integration-'));
   for(const folder of ['src','tests'])await mkdir(join(directory,folder),{mode:0o700});
@@ -68,7 +83,7 @@ registerApplicationLayoutWorkerCases(test,proxy,RecentJobsWorker,Source);
   await writeFile(join(directory,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});return manifest;
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
-  if(process.argv.length===3&&process.argv[2]==='--help')console.log('Usage: node packages/catalogue/tools/prepare-application-layout-integration.mjs\nPrepares an UNAPPLIED patch and isolated emulator test entry points under ignored .artifacts/shadow/. Never enables a source, changes the live worker or calls a provider.');
+  if(process.argv.length===3&&process.argv[2]==='--help')console.log('Usage: node packages/catalogue/tools/prepare-application-layout-integration.mjs\nVerifies installed worker/schema integration without changing files. Legacy inputs can still prepare an unapplied private patch. Never enables a source or calls a provider.');
   else try{if(process.argv.length!==2)throw Error('APPLICATION_LAYOUT_INTEGRATION_ARGUMENT_INVALID');console.log(JSON.stringify(await prepareApplicationLayoutIntegration()));}
   catch(error){console.error(JSON.stringify({error:/^APPLICATION_LAYOUT_INTEGRATION_[A-Z_]+$/.test(error.message??'')?error.message:'APPLICATION_LAYOUT_INTEGRATION_FAILED'}));process.exitCode=1;}
 }

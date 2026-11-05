@@ -6,7 +6,8 @@ import { Catalogue } from './store.mjs';
 import { Source } from './schemas.mjs';
 import { DomainError } from './config.mjs';
 import { retrieve } from './fetch.mjs';
-import { parseRecentJobsList, parseRecentJobsDetail } from './adapters/recentjobs.mjs';
+import { parseRecentJobsList } from './adapters/recentjobs.mjs';
+import {parseWorkerDetail,sourceHoldAdapterFields,sourceHoldAdapterMatches} from './worker-detail-adapter.mjs';
 import { planRecentJobsProgrammes } from './adapters/recentjobs-programmes.mjs';
 import { programmeCandidate, mapProgrammeExtraction, extractProgramme, validateProgramme, validateProgrammeAssessment,
   PROGRAMME_EXTRACTION_VERSION, PROGRAMME_VALIDATION_VERSION } from './ai/programme-extraction.mjs';
@@ -405,7 +406,7 @@ export class RecentJobsWorker {
           (job.stage === 'preflight' && SOURCE_HOLD_REASONS.has(code) || !job.stage && code === 'RECENTJOBS_LAYOUT_CHANGED');
         if (sourceHold) tx.set(this.ref('worker_holds', hash(`${source.id}:${job.url}`)), payload({
           sourceId: source.id, sourceRevision: source.revision, url: job.url, version: SOURCE_HOLD_VERSION,
-          programmeExtraction: this.programmeExtraction, reason: code, jobId: job.id,
+          programmeExtraction: this.programmeExtraction, ...sourceHoldAdapterFields(source), reason: code, jobId: job.id,
           snapshotId: job.snapshotId ?? null, contentHash: job.contentHash ?? null, at: this.now(),
           recheckAt: new Date(Date.parse(this.now()) + SOURCE_HOLD_MS).toISOString(),
         }));
@@ -719,7 +720,7 @@ export class RecentJobsWorker {
       await this.assertClaim(tx, source, claim);
       const saved = value(await tx.get(this.ref('worker_holds', hash(`${source.id}:${claim.url}`))));
       if (!saved || saved.sourceId !== source.id || saved.url !== claim.url || saved.sourceRevision !== source.revision ||
-          saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction ||
+          saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction || !sourceHoldAdapterMatches(source,saved) ||
           ![...SOURCE_HOLD_REASONS, 'RECENTJOBS_LAYOUT_CHANGED'].includes(saved.reason) ||
           !InstantSchema.safeParse(saved.at).success || !InstantSchema.safeParse(saved.recheckAt).success ||
           saved.at > this.now() || saved.recheckAt <= this.now() || Date.parse(saved.recheckAt) - Date.parse(saved.at) > SOURCE_HOLD_MS)
@@ -743,7 +744,7 @@ export class RecentJobsWorker {
     await this.robots(claim, claim.url);
     const response = await this.request(claim, claim.url, 'html');
     const sourceRetrievedAt = this.now();
-    const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
+    const candidate = parseWorkerDetail(claim.source, { html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
     const captured = await this.capture(claim, candidate, sourceRetrievedAt);
     if (claim.source.automation.mode === 'shadow' && (candidate.applicationCandidates.length > 1 ||
         candidate.issues.includes('programme_subject_scope_review_required'))) {

@@ -11,7 +11,7 @@ function enabled(source) {
   return true;
 }
 
-/** Reserved integration boundary: no current worker entry point imports it. */
+/** Shared worker boundary; legacy parsing remains the default without source opt-in. */
 export function parseWorkerDetail(source,input) {
   return enabled(source) ? parseRecentJobsApplicationLayouts(input) : parseRecentJobsDetail(input);
 }

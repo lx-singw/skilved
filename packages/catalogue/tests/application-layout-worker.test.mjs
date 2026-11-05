@@ -1,0 +1,10 @@
+import {test,before,after} from 'node:test';
+import {getRuntime} from '../src/runtime.mjs';
+import {RecentJobsWorker} from '../src/recentjobs-worker.mjs';
+import {Source} from '../src/schemas.mjs';
+import {registerApplicationLayoutWorkerCases} from './fixtures/application-layout-worker-cases.mjs';
+let db;
+before(async()=>{process.env.SKILVED_CATALOGUE_MODE='emulator';process.env.SKILVED_CATALOGUE_PROJECT='demo-skilved-layout-worker';db=(await getRuntime()).db;});
+after(async()=>{await db?.terminate();});
+const proxy={collection:(...args)=>db.collection(...args),runTransaction:(...args)=>db.runTransaction(...args)};
+registerApplicationLayoutWorkerCases(test,proxy,RecentJobsWorker,Source);
