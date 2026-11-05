@@ -11,8 +11,6 @@
     --foreground: 149 22% 19%;
     --card: 0 0% 100%;
     --card-foreground: 149 22% 19%;
-    --discovery-background: 44 85% 94%;
-    --discovery-border: 43 38% 78%;
     --muted: 132 15% 92%;
     --muted-foreground: 144 10% 39%;
     --border: 135 17% 86%;
@@ -33,8 +31,6 @@
     --foreground: 135 16% 91%;
     --card: 150 14% 12%;
     --card-foreground: 135 16% 91%;
-    --discovery-background: 43 23% 14%;
-    --discovery-border: 43 20% 29%;
     --muted: 147 14% 18%;
     --muted-foreground: 138 11% 66%;
     --border: 148 13% 24%;
@@ -178,7 +174,7 @@
     .feed-record-return { border-left: 0; border-top: 1px dashed hsl(var(--op-line)); padding: 10px 0 0; }
   }
   .discovery-rail { padding-top: 4px; position: sticky; top: 108px; }
-  .rail-card { background: hsl(var(--discovery-background)); border: 1px solid hsl(var(--discovery-border)); border-radius: 12px; padding: 22px 20px 12px; }
+  .rail-card { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 12px; padding: 22px 20px 12px; }
   .rail-kicker { display: flex; align-items: center; gap: 7px; font-size: 10px; color: hsl(var(--muted-foreground)); }
   .rail-card h2 { font-size: 23px; font-weight: 600; line-height: 1.35; letter-spacing: -.7px; margin-top: 20px; }
   .rail-card > p { font-size: 12px; color: hsl(var(--muted-foreground)); line-height: 1.8; margin: 10px 0 15px; }
