@@ -3,14 +3,15 @@ import { execFileSync } from 'node:child_process';
 const forbiddenEnv = ['GOOGLE_APPLICATION_CREDENTIALS', 'FIRESTORE_EMULATOR_HOST', 'FIREBASE_AUTH_EMULATOR_HOST'];
 const fail = code => Object.assign(new Error(code), { code });
 
-/** Local operator tooling only. Hosted workers continue to use attached ADC. */
-export function gcloudCredentialSource({ run = execFileSync, now = Date.now, env = process.env } = {}) {
+/** Local tooling and explicit local shadow workers. Hosted workers use attached ADC. */
+export function gcloudCredentialSource({ run = execFileSync, now = Date.now, env = process.env, expectedAccount } = {}) {
   const command = args => {
-    try { return run('gcloud', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(); }
+    try { return run('gcloud', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout:30000, maxBuffer:1048576 }).trim(); }
     catch { throw fail('GCLOUD_CREDENTIAL_COMMAND_FAILED'); }
   };
   const account = command(['config', 'get-value', 'account']);
   if (!/^[^\s@]+@[^\s@]+$/.test(account)) throw fail('GCLOUD_ACCOUNT_REQUIRED');
+  if (expectedAccount !== undefined && account !== expectedAccount) throw fail('GCLOUD_ACCOUNT_CHANGED');
   let refreshes = 0;
   const assertAccount = () => {
     if (forbiddenEnv.some(name => env[name] !== undefined)) throw fail('GCLOUD_CREDENTIAL_ENV_CONFLICT');

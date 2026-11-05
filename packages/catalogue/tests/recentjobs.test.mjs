@@ -24,6 +24,7 @@ test('discovery does not classify every category member as an apprenticeship', (
 });
 
 test('unexpected layouts and source URL confusion fail explicitly', () => {
+  assert.throws(()=>parseRecentJobsList({html:'<h1>Access denied</h1>',url:listUrl}),{code:'RECENTJOBS_LAYOUT_CHANGED',message:'RECENTJOBS_LAYOUT_CHANGED'});
   assert.throws(() => parseRecentJobsList({ html: '<h1>Access denied</h1>', url: listUrl }), /LAYOUT_CHANGED/);
   assert.throws(() => parseRecentJobsList({ html: listing(''), url: listUrl }), /LAYOUT_CHANGED/);
   assert.throws(() => parseRecentJobsDetail({ html: detail('<p>One</p>') + detail('<p>Two</p>'), url: detailUrl }), /LAYOUT_CHANGED/);
@@ -31,6 +32,14 @@ test('unexpected layouts and source URL confusion fail explicitly', () => {
     'https://user@recentjobs.co.za/2026/09/26/test/', `${detailUrl}?redirect=evil`, `${detailUrl}#comments`]) {
     assert.throws(() => parseRecentJobsDetail({ html: detail('<p>Test</p>'), url }), /UNSAFE_SOURCE_URL/);
   }
+});
+test('a recognized browser challenge is separate from a notice and arbitrary layout changes',()=>{
+ const challenge='<html><head><title>One moment...</title></head><body>Checking your browser...<script>const endpoint="/.hk-sg-pass";</script></body></html>';
+ for(const [parser,url]of [[parseRecentJobsList,listUrl],[parseRecentJobsDetail,detailUrl]])
+  assert.throws(()=>parser({html:challenge,url}),{code:'RECENTJOBS_SOURCE_CHALLENGE'});
+ assert.throws(()=>parseRecentJobsList({html:'<title>One moment...</title><p>Checking your browser</p>',url:listUrl}),{code:'RECENTJOBS_LAYOUT_CHANGED'});
+ const normal=detail('<p>Checking your browser is ordinary authored text.</p><script>const text="/.hk-sg-pass";</script>','One moment...');
+ assert.equal(parseRecentJobsDetail({html:normal,url:detailUrl}).title,'One moment...');
 });
 
 test('a nested second article body is rejected rather than mixed into the primary notice',()=>{

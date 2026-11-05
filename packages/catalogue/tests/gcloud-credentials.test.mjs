@@ -24,6 +24,11 @@ test('uses reported expiry unchanged and requests a minimum lifetime without exp
   assert.equal(credential.access_token, state.token);
   assert.deepEqual(state.calls.find(c => c.args[1] === 'config-helper').args, ['config', 'config-helper', '--min-expiry=10m', '--format=json']);
   assert.ok(state.calls.every(c => c.options.stdio.join(',') === 'ignore,pipe,pipe'));
+  assert.ok(state.calls.every(c=>c.options.timeout===30000&&c.options.maxBuffer===1048576));
+});
+test('a configured local account must match before any credential metadata is obtained',()=>{
+ const calls=[];assert.throws(()=>gcloudCredentialSource({expectedAccount:'expected@example.test',run:(_bin,args)=>{calls.push(args);return'other@example.test';}}),{code:'GCLOUD_ACCOUNT_CHANGED'});
+ assert.deepEqual(calls,[['config','get-value','account']]);
 });
 
 test('real SDK eager refresh obtains new metadata before the old reported expiry', async () => {

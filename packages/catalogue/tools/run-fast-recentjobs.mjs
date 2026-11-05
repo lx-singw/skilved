@@ -8,7 +8,7 @@ import {FastRecentJobsWorker} from '../src/fast-recentjobs-worker.mjs';
 import {runFastIngestion} from '../src/fast-ingestion-runtime.mjs';
 import {DomainError} from '../src/config.mjs';
 
-export const usage=`Usage: worker:fast --enable-shadow <source-id> <source-revision> [--refresh-private]
+export const usage=`Usage: worker:fast --enable-shadow <source-id> <source-revision> [--refresh-private] [--check]
 Runs the supervised fast discovery/dispatch runtime for at most 24 ticks per lane
 and 45 minutes of new cycles, then drains admitted work. SIGINT/SIGTERM stop admission
 and drain before closing the database. Requires an existing fast shadow source policy,
@@ -17,12 +17,14 @@ No source, migration, credentials, grants, quotas, scheduler or publication are 
 An external service manager must restart this bounded command after a successful run.
 --refresh-private enables durable rechecks of validated fast private drafts at the
 existing source TTL. Imported historical and failed-evidence holds stay gated.
+--check verifies admission and query readiness without polling or refresh activation.
 Historical/cached-stage adoption and source-revision reconciliation remain separate.`;
 
 export async function runFastWorkerCommand(args,{env=process.env,signals=process,
   output=line=>console.log(JSON.stringify(line)),dependencies={}}={}) {
   if(args.length===1&&args[0]==='--help')return{help:usage};
-  if(![3,4].includes(args.length)||args.length===4&&args[3]!=='--refresh-private'||args[0]!=='--enable-shadow'||!IdSchema.safeParse(args[1]).success||
+  const flags=args.slice(3);
+  if(args.length<3||args.length>5||flags.some(flag=>!['--refresh-private','--check'].includes(flag))||new Set(flags).size!==flags.length||args[0]!=='--enable-shadow'||!IdSchema.safeParse(args[1]).success||
       !/^[1-9]\d{0,8}$/.test(args[2]))throw new DomainError('INVALID_COMMAND');
   const deps={getRuntime,extractionConfiguration,workerPrincipal,FastRecentJobsWorker,runFastIngestion,...dependencies};
   const cancel=new AbortController(),stop=()=>cancel.abort();let runtime;
@@ -30,15 +32,17 @@ export async function runFastWorkerCommand(args,{env=process.env,signals=process
   try {
     const ai=deps.extractionConfiguration(env);
     runtime=await deps.getRuntime(env);
-    const principal=await deps.workerPrincipal(runtime?.config,env,{signal:cancel.signal});
+    const principal=await deps.workerPrincipal(runtime?.config,env,{signal:cancel.signal,
+      onDiagnostic:detail=>output({type:'identity_failure',...detail})});
     if(cancel.signal.aborted)throw new DomainError('WORKER_STOP_REQUESTED');
     const worker=new deps.FastRecentJobsWorker(runtime.db,principal,{enabled:true,
-      sourceId:args[1],sourceRevision:Number(args[2]),leaseSupervision:{enabled:true},privateRefresh:args[3]==='--refresh-private',
+      sourceId:args[1],sourceRevision:Number(args[2]),leaseSupervision:{enabled:true},privateRefresh:flags.includes('--refresh-private'),
       provider:ai.provider,model:ai.model,thinking:ai.thinking,validationThinking:ai.validationThinking,env});
     // Also verifies current policy/grant/revision and the active query before polling.
     const snapshot=await worker.fast.dispatchSnapshot();
     if(!worker.privateRefresh&&snapshot?.jobs?.some(j=>j.refresh))throw new DomainError('FAST_REFRESH_OPT_IN_REQUIRED');
     if(worker.privateRefresh)await worker.queueRefreshes({limit:1,checkOnly:true});
+    if(flags.includes('--check')){const result={type:'preflight',ready:true,publiclyVisible:false};output(result);return result;}
     const result=await deps.runFastIngestion({worker,enabled:true,signal:cancel.signal,
       onEvent:output});
     output({type:'complete',...result});return result;

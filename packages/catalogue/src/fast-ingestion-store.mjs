@@ -174,6 +174,15 @@ export class FastIngestionStore {
       this.event(tx,at,'poll.record',claim.id);return{observed:urls.length,queued,alreadyKnown:urls.length-queued};
     });
   }
+  async recordSourceChallenge(claim){
+    return this.transaction(async(tx,_source,at)=>{
+      if(claim?.kind!=='poll')fail('FAST_DISCOVERY_INVALID');
+      const {row}=await this.asserted(tx,claim,at);
+      // Preserve the existing owned lease as a durable retry boundary. Never
+      // release/reset it to turn an unavailable source into an immediate loop.
+      this.event(tx,at,'poll.source_challenged',claim.id);return{nextPollAt:row.leaseUntil};
+    });
+  }
   assertDiscoveryPage(source,poll,page,at) {
     const number=Number(new URL(assertSourceTarget(page.url,'index')).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
     if(!source.urls.includes('https://recentjobs.co.za/category/apprenticeships/')||!source.automation.discovery||number>source.automation.discovery.maxPages||

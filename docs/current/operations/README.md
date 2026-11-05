@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November managed ingestion: [local service lifecycle and source-challenge recovery](243_LOCAL_MANAGED_SHADOW_WORKER_2026-11-05.md) records frozen releases, bounded keyless machine access, native service checks and durable discovery waits. RecentJobs acquisition is currently challenged; public publishing and hosting remain off.
+
 5 November applicant feed: [dynamic private reads and local refresh](242_DYNAMIC_PRIVATE_APPLICANT_FEED_2026-11-05.md) replace the fixed preview ID, preserve existing reviewer/source/freshness gates and pick up canonical worker drafts on subsequent reads. The founder's genuine login is verified; ingestion/publication remain inactive.
 
 5 November refresh: [durable private cycles and restart integration](241_DURABLE_PRIVATE_REFRESH_2026-11-05.md) records atomic watches, archived generations, shared quotas/caches, fairness and a verified staging index. Live refresh/runtime activation remains off.

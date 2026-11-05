@@ -34,7 +34,14 @@ export class FastRecentJobsDiscovery {
     if(signal!==undefined&&!(signal instanceof AbortSignal))fail('FAST_DISCOVERY_CONFIGURATION_REQUIRED');
     if(signal?.aborted)return{state:'stopped',queued:0};
     const poll=await this.store.poll();if(poll.state!=='ready')return poll;
-    return this.worker.superviseLease(poll.claim,()=>this.acquire(poll,signal),undefined,{signal});
+    return this.worker.superviseLease(poll.claim,async()=>{
+      try{return await this.acquire(poll,signal);}
+      catch(error){
+        if(error?.code!=='RECENTJOBS_SOURCE_CHALLENGE')throw error;
+        this.stopped(signal);const retry=await this.store.recordSourceChallenge(poll.claim);
+        return{state:'source_challenged',queued:0,nextPollAt:retry.nextPollAt,publiclyVisible:false};
+      }
+    },undefined,{signal});
   }
   async acquire(poll,signal) {
     const claim=poll.claim;let url=RECENTJOBS_INDEX,pages=0,queued=0,observed=0,cacheHits=0;

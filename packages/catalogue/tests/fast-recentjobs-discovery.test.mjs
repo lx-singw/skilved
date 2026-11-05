@@ -81,6 +81,22 @@ test('unexpected response URL, oversized body and unsupported layout cannot queu
     const f=await fixture();f.state.invalid=invalid;await assert.rejects(f.discovery.poll());assert.equal((await f.jobs()).length,0);assert.equal(await f.budget(),null);
   }
 });
+test('a source challenge records a durable wait across restart without calls, jobs, quota resets or fake freshness',async()=>{
+ const f=await fixture({sizes:[2]}),budget={sourceId:f.id,date:'2026-10-29',calls:2};
+ await f.worker.fast.ref('model_budgets',hash(f.id+':2026-10-29')).set(payload(budget));
+ f.state.invalid={url:pageUrl(1),text:'<title>One moment...</title><p>Checking your browser...</p><script>const endpoint="/.hk-sg-pass";</script>'};
+ const result=await f.discovery.poll();assert.equal(result.state,'source_challenged');assert.equal(result.queued,0);assert.equal(f.state.fetches.length,2);assert.equal((await f.jobs()).length,0);assert.deepEqual(await f.budget(),budget);
+ const blockedUntil=result.nextPollAt;assert.ok(blockedUntil>f.now());assert.equal((await f.restart().poll()).nextPollAt,blockedUntil);assert.equal(f.state.fetches.length,2);
+ const events=(await db.collection('m0_ingestion_events').where('sourceId','==',f.id).get()).docs.map(d=>value(d));assert.equal(events.filter(e=>e.action==='poll.source_challenged').length,1);
+ f.advance(Date.parse(blockedUntil)-Date.parse(f.now()));f.state.invalid=null;const resumed=await f.restart().poll();assert.equal(resumed.state,'complete');assert.equal(resumed.queued,2);assert.ok((await f.jobs()).every(j=>j.firstSeenAt>=blockedUntil));assert.deepEqual(await f.budget(),budget);
+});
+test('a recognized challenge cannot hide revoked access or source pause during the failed request',async()=>{
+ for(const mode of ['grant','pause']){
+  const f=await fixture();f.state.invalid={url:pageUrl(1),text:'<title>One moment...</title><p>Checking your browser...</p><script>"/.hk-sg-pass"</script>'};
+  f.state.hook=async url=>{if(url!==pageUrl(1))return;if(mode==='pause'){f.source.paused=true;await f.save();}else await f.worker.fast.ref('workers',f.worker.actor).update({active:false});};
+  await assert.rejects(f.discovery.poll(),{code:mode==='pause'?'SOURCE_PAUSED':'WORKER_FORBIDDEN'});assert.equal((await db.collection('m0_ingestion_jobs').where('sourceId','==',f.id).get()).size,0);assert.equal(await f.budget(),null);
+ }
+});
 test('pause, worker revocation and Gemini authority revocation after robots fence the index request',async()=>{
   for(const mode of ['pause','grant','authority']){
     const f=await fixture({gemini:mode==='authority'});f.state.hook=async url=>{if(!url.endsWith('/robots.txt'))return;if(mode==='pause'){f.source.paused=true;await f.save();}else if(mode==='grant')await f.worker.fast.ref('workers',f.worker.actor).update({active:false});else await f.authorityRef.set(payload({...f.authority,status:'revoked'}));};

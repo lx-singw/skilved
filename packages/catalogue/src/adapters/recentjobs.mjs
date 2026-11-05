@@ -17,7 +17,7 @@ const classes = node => attr(node, 'class').split(/\s+/);
 const hasClass = (node, name) => classes(node).includes(name);
 const ignored = node => IGNORE_TAGS.has(node.tagName) || classes(node).some(c =>
   /^(?:addtoany|a2a_|adsbygoogle|wp-block-latest-comments|comment-|comments|sharedaddy)/.test(c));
-const fail = code => { throw new Error(code); };
+const fail = code => { throw Object.assign(new Error(code),{code}); };
 const hash = input => createHash('sha256').update(input).digest('hex');
 
 function sourceUrl(input, kind) {
@@ -144,9 +144,17 @@ function detailBinding(root, url) {
   return { post, content, adapter: RECENTJOBS_BOUND_DETAIL_ADAPTER };
 }
 
+function assertNotSourceChallenge(html,root){
+  const title=find(root,n=>n.tagName==='title').map(n=>text(n)).join(' ').trim();
+  const ordinary=find(root,n=>hasClass(n,'articles-wrap')||hasClass(n,'entry-content'));
+  if(!ordinary.length&&/^one moment(?:\.{3}|…)?$/i.test(title)&&/checking your browser/i.test(text(root))&&html.includes('/.hk-sg-pass'))
+    fail('RECENTJOBS_SOURCE_CHALLENGE');
+}
+
 export function parseRecentJobsList({ html, url }) {
   url = sourceUrl(url, 'list');
   const root = document(html);
+  assertNotSourceChallenge(html,root);
   const wrappers = find(root, n => hasClass(n, 'articles-wrap'));
   const wrapper = one(wrappers);
   const cards = posts(wrapper);
@@ -240,7 +248,8 @@ function applicationCandidate(anchor, source) {
 export function parseRecentJobsDetail({ html, url, observedOn = null }) {
   url = sourceUrl(url, 'detail');
   if (observedOn !== null && (typeof observedOn !== 'string' || dateOnly(observedOn) !== observedOn)) fail('RECENTJOBS_INVALID_OBSERVATION_DATE');
-  const { post, content, adapter } = detailBinding(document(html), url);
+  const root=document(html);assertNotSourceChallenge(html,root);
+  const { post, content, adapter } = detailBinding(root, url);
   const title = text(one(find(post, n => n.tagName === 'h1' && hasClass(n, 'entry-title'))));
   const sourceText = text(content);
   if (!title || title.length > 500 || !sourceText || sourceText.length > 20_000) fail('RECENTJOBS_CONTENT_LIMIT');

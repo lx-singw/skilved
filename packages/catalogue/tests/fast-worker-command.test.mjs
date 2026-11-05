@@ -27,10 +27,24 @@ test('private refresh requires its explicit flag and a read-only refresh query p
  const s=setup();await runFastWorkerCommand(['--enable-shadow','example_source','3','--refresh-private'],s);
  assert.equal(s.captured.privateRefresh,true);assert.deepEqual(s.calls,['identity','worker','preflight','refresh-preflight','run','close']);
 });
+test('check-only verifies normal identity, source/grant and query gates without running or activating refresh',async()=>{
+ const s=setup(),result=await runFastWorkerCommand(['--enable-shadow','example_source','3','--refresh-private','--check'],s);
+ assert.equal(result.ready,true);assert.deepEqual(s.calls,['identity','worker','preflight','refresh-preflight','close']);
+ const simple=setup();await runFastWorkerCommand(['--enable-shadow','example_source','3','--check'],simple);assert.ok(!simple.calls.includes('run'));
+ for(const flags of [['--check','--check'],['--refresh-private','extra']])await assert.rejects(runFastWorkerCommand(['--enable-shadow','example_source','3',...flags],setup()),/INVALID_COMMAND/);
+});
 test('failed preflight closes database without discovery or processing',async()=>{
   const s=setup();s.dependencies.FastRecentJobsWorker=class {constructor(){this.fast={dispatchSnapshot:async()=>{throw Error('index missing');}};}};
   await assert.rejects(runFastWorkerCommand(['--enable-shadow','source','3'],s),/index missing/);
   assert.deepEqual(s.calls,['identity','close']);assert.equal(s.signals.listenerCount('SIGINT'),0);
+});
+test('sanitized machine-identity diagnostics reach supervision and failure still closes the database',async()=>{
+ const s=setup(),events=[];
+ s.output=event=>events.push(event);s.dependencies.workerPrincipal=async(_config,_env,{onDiagnostic})=>{
+  await onDiagnostic({stage:'token',attempt:1,status:403,networkCode:null,credentialCode:null,retrying:false});throw Object.assign(Error('WORKER_UNAUTHORIZED'),{code:'WORKER_UNAUTHORIZED'});
+ };
+ await assert.rejects(runFastWorkerCommand(['--enable-shadow','source','3'],s),{code:'WORKER_UNAUTHORIZED'});
+ assert.deepEqual(events,[{type:'identity_failure',stage:'token',attempt:1,status:403,networkCode:null,credentialCode:null,retrying:false}]);assert.deepEqual(s.calls,['close']);
 });
 test('stop signal reaches runtime and database closes only after admitted work drains',async()=>{
   const s=setup();s.dependencies.runFastIngestion=async({signal})=>{
