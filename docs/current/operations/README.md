@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November RSS integration: [publisher-feed transport in the normal shadow worker](245_RSS_TRANSPORT_IN_NORMAL_SHADOW_PIPELINE_2026-11-05.md) connects discovery/detail acquisition to the existing verification and private-drafting pipeline, with durable receipts, fresh per-job provenance and feed-window holds. Live Source/release adoption remains pending; hosting and public publishing remain off.
+
 5 November publisher access: [native RSS access and bound notice review](244_PUBLISHER_RSS_ACCESS_AND_BOUND_REVIEW_2026-11-05.md) records two successful category-feed acquisitions, per-item identity and nine pending candidates/one layout hold. All 56 affected checks pass. The running worker still uses challenged HTML; RSS integration, Source adoption and publication qualification remain ahead.
 
 5 November managed ingestion: [local service lifecycle and source-challenge recovery](243_LOCAL_MANAGED_SHADOW_WORKER_2026-11-05.md) records frozen releases, bounded keyless machine access, native service checks and durable discovery waits. RecentJobs acquisition is currently challenged; public publishing and hosting remain off.

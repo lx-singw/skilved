@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {FastSourcePolicy} from './fast-source-policy.mjs';
+import {usesPublisherFeed} from './publisher-feed-policy.mjs';
 import { CategorySchema, IdSchema, InstantSchema } from '@skilved/types/opportunities';
 export const IssuerRoute = z.object({ name: z.string().trim().min(1).max(200),
   aliases: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
@@ -33,6 +34,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
     fastIngestion: FastSourcePolicy.optional(),
+    publisherFeed: z.literal('rss_shadow_v1').optional(),
     applicationLayouts: z.literal('shadow_v1').optional(),
     originalVerification: z.literal('shadow_v1').optional(),
     missingDateEvidence: z.enum(['shadow_v1','shadow_v2']).optional(),
@@ -65,7 +67,9 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
   !source.automation?.applicationLayouts || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html'),
   'Application layouts require explicit shadow mode').refine(source =>
   !source.automation?.fastIngestion || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html'),
-  'Fast ingestion requires shadow RecentJobs mode');
+  'Fast ingestion requires shadow RecentJobs mode').refine(source=>{
+    try{usesPublisherFeed(source);return true;}catch{return false;}
+  },'RSS requires explicit shadow fast ingestion, the exact feed URL and one-page discovery');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();

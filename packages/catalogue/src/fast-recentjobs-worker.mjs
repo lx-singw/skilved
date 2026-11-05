@@ -6,6 +6,9 @@ import{FastIngestionStore}from'./fast-ingestion-store.mjs';
 import{DomainError}from'./config.mjs';
 import{assertGeminiQuotaAuthority}from'./ai/gemini-authority.mjs';
 import{RECENTJOBS_INDEX}from'./worker-policy.mjs';
+import{dayInSA}from'./south-african-time.mjs';
+import{usesPublisherFeed,RECENTJOBS_CATEGORY_FEED,RSS_SOURCE_PROFILE}from'./publisher-feed-policy.mjs';
+import{parseRecentJobsRss,parseWorkerRssItem}from'./adapters/recentjobs-rss.mjs';
 import{leaseSupervisionOptions}from'./fast-lease-guard.mjs';
 import{fastExecutionId}from'./fast-refresh-records.mjs';
 import{queueDuePrivateRefreshes,assertPrivateRefreshBinding}from'./fast-private-refresh.mjs';
@@ -116,8 +119,21 @@ export class FastRecentJobsWorker extends RecentJobsWorker {
     if(response.url!==url||typeof response.text!=='string'||Buffer.byteLength(response.text)>claim.source.maxBytes)fail('UNSAFE_RESPONSE');
     return response;
   }
-  async capture(claim,candidate,retrievedAt) {
-    const captured=await super.capture(claim,candidate,retrievedAt);
+  async acquireDetail(claim){
+    if(!usesPublisherFeed(claim.source))return super.acquireDetail(claim);
+    // A discovery receipt only proves when a link was seen. Obtain current full
+    // content under the same fetch pacing, grant and robots checks for each job.
+    await this.robots(claim,RECENTJOBS_CATEGORY_FEED);
+    const response=await this.request(claim,RECENTJOBS_CATEGORY_FEED,'rss'),sourceRetrievedAt=this.now();
+    const feed=parseRecentJobsRss({xml:response.text,url:response.url}),index=feed.items.findIndex(item=>item.sourceUrl===claim.url);
+    // Feed-window absence is unavailable evidence, not a closure or deletion.
+    if(index<0)fail('RECENTJOBS_RSS_ITEM_UNAVAILABLE');
+    const item=feed.items[index],candidate=parseWorkerRssItem(claim.source,feed,index,{observedOn:dayInSA(sourceRetrievedAt)});
+    return{candidate,sourceRetrievedAt,acquisition:{profile:RSS_SOURCE_PROFILE,transport:'rss',feedUrl:feed.sourceUrl,feedHash:feed.feedHash,
+      itemHash:item.itemHash,guid:item.guid,publishedAtRaw:item.publishedAtRaw,retrievedAt:sourceRetrievedAt,coverage:feed.coverage}};
+  }
+  async capture(claim,candidate,retrievedAt,acquisition) {
+    const captured=await super.capture(claim,candidate,retrievedAt,acquisition);
     const context=this.context(),stage=await this.fast.transaction(async(tx,source,at)=>(await this.fast.asserted(tx,context.fastClaim,at)).row.stage);
     if(stage==='fetch')await this.fast.checkpoint(context.fastClaim,'retrieved');
     return captured;

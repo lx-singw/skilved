@@ -495,7 +495,7 @@ export class RecentJobsWorker {
         alreadyQueued: cursor.alreadyQueued + jobs.length - queued }));
     });
   }
-  async capture(claim, candidate, retrievedAt = this.now()) {
+  async capture(claim, candidate, retrievedAt = this.now(), acquisition) {
     const recordId = hash(`${claim.sourceId}:${candidate.sourceRecordId}`);
     const snapshotId = hash(`${claim.sourceId}:${candidate.sourceUrl}:${candidate.contentHash}`);
     const text = `${candidate.title}\n${candidate.sourceText}`;
@@ -508,10 +508,13 @@ export class RecentJobsWorker {
       // content snapshot's older timestamp is not a new retrieval, either.
       const sourceRetrievedAt = job.contentHash === candidate.contentHash && job.sourceRetrievedAt != null
         ? job.sourceRetrievedAt : retrievedAt;
+      const sourceAcquisition=job.contentHash===candidate.contentHash&&job.sourceAcquisition?job.sourceAcquisition:acquisition;
       if (['withdrawn', 'closed', 'archived'].includes(old?.lifecycle) || old?.publication.disposition === 'withheld') fail('RESTORE_REQUIRES_REVIEW');
       if (!existing) tx.create(snapRef, payload({ id: snapshotId, sourceId: source.id, sourceRevision: source.revision,
-        url: candidate.sourceUrl, hash: hash(text), contentHash: candidate.contentHash, text, retrievedAt: this.now() }));
-      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, snapshotId, recordId, contentHash: candidate.contentHash, sourceRetrievedAt, stage: 'preflight' }));
+        url: candidate.sourceUrl, hash: hash(text), contentHash: candidate.contentHash, text, retrievedAt: this.now(),
+        ...(sourceAcquisition?{sourceAcquisition}:{}) }));
+      tx.set(this.ref('worker_jobs', claim.id), payload({ ...job, snapshotId, recordId, contentHash: candidate.contentHash, sourceRetrievedAt,
+        ...(sourceAcquisition?{sourceAcquisition}:{}),stage: 'preflight' }));
       if (old?.publication.approved && old.private.queueId !== snapshotId) {
         old.revision++; old.lifecycle = 'review'; old.publication.approved = false;
         old.publication.disposition = 'review_required'; old.publication.reviewedBy = null; old.updatedAt = this.now();
@@ -714,6 +717,11 @@ export class RecentJobsWorker {
     const rows = await Promise.all(this.undatedOriginKeys(candidate).map(k => tx.get(this.ref('worker_notice_origins', k))));
     if (rows.some(r => JSON.stringify(value(r)) !== JSON.stringify(origin))) fail('UNDATED_NOTICE_ORIGIN_CONFLICT');
   }
+  async acquireDetail(claim){
+    await this.robots(claim,claim.url);
+    const response=await this.request(claim,claim.url,'html'),sourceRetrievedAt=this.now();
+    return{candidate:parseWorkerDetail(claim.source,{html:response.text,url:response.url,observedOn:dayInSA(this.now())}),sourceRetrievedAt};
+  }
   async detail(claim) {
     assertSourceTarget(claim.url);
     const hold = await this.transaction(claim.sourceId, 'worker.source_hold.read', async (tx, source) => {
@@ -741,11 +749,8 @@ export class RecentJobsWorker {
     });
     if (hold) return this.finish(claim, { sourceHeld: true, reason: hold.reason, recheckAt: hold.recheckAt,
       originalExceptionJobId: hold.jobId, published: false });
-    await this.robots(claim, claim.url);
-    const response = await this.request(claim, claim.url, 'html');
-    const sourceRetrievedAt = this.now();
-    const candidate = parseWorkerDetail(claim.source, { html: response.text, url: response.url, observedOn: dayInSA(this.now()) });
-    const captured = await this.capture(claim, candidate, sourceRetrievedAt);
+    const {candidate,sourceRetrievedAt,acquisition}=await this.acquireDetail(claim);
+    const captured = await this.capture(claim,candidate,sourceRetrievedAt,acquisition);
     if (claim.source.automation.mode === 'shadow' && (candidate.applicationCandidates.length > 1 ||
         candidate.issues.includes('programme_subject_scope_review_required'))) {
       const plan = planRecentJobsProgrammes(candidate);

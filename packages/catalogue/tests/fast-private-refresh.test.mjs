@@ -92,7 +92,7 @@ test('a draft edit during a refresh fences later effects while retaining admitte
 });
 test('three new admissions yield to a ready refresh and the counter survives competing workers',async()=>{
  const f=await fixture({count:4});await f.worker.runNotice(f.jobs[0].id);await f.due();await f.worker.queueRefreshes();
- const dispatcher=new FastNoticeDispatcher(f.worker,{enabled:true});const first=await dispatcher.tick();assert.equal(first.selected,2);assert.equal((await f.worker.fast.dispatchSnapshot()).newSinceRefresh,3);
+ const dispatcher=new FastNoticeDispatcher(f.worker,{enabled:true});const first=await dispatcher.tick();assert.equal(first.selected,2);assert.equal(first.state,'settled',JSON.stringify(first));assert.equal((await f.worker.fast.dispatchSnapshot()).newSinceRefresh,3,JSON.stringify(first));
  const newJob=(await f.worker.fast.snapshot()).jobs.find(j=>j.state==='queued'&&!j.refresh);assert.equal(await f.worker.fast.claimNotice(newJob.id),null);
  const next=await dispatcher.tick();assert.equal(next.selected,1);assert.equal((await f.worker.fast.dispatchSnapshot()).newSinceRefresh,0);
  assert.equal((await dispatcher.tick()).selected,1);

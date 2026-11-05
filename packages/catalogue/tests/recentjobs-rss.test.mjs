@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {parseRecentJobsRss,reviewRecentJobsRssItem,RECENTJOBS_CATEGORY_FEED as url} from '../src/adapters/recentjobs-rss.mjs';
+import {parseRecentJobsRss,reviewRecentJobsRssItem,parseWorkerRssItem,RECENTJOBS_RSS_WORKER_ADAPTER,RECENTJOBS_CATEGORY_FEED as url} from '../src/adapters/recentjobs-rss.mjs';
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const source={permission:{method:'recentjobs_html'},automation:{mode:'shadow'}};
 const body='<p>Grade 12 with Mathematics OR N3 Electrical</p><p>Closing date: 15 November 2026</p><p>Email a CV to training@issuer.example</p>';
@@ -25,6 +25,12 @@ test('changing a sibling or read time does not invalidate an unchanged item, whi
  const one=reviewRecentJobsRssItem(source,a,0,{observedOn:'2026-11-05'}),two=reviewRecentJobsRssItem(source,b,0,{observedOn:'2026-11-06'});assert.equal(one.contentHash,two.contentHash);
  const c=parseRecentJobsRss({xml:feed(item({content:body+'<p>Different condition</p>'})),url});assert.notEqual(reviewRecentJobsRssItem(source,c,0).contentHash,one.contentHash);
  a.items[0].contentHtml+='<p>Unbound edit</p>';assert.throws(()=>reviewRecentJobsRssItem(source,a,0),{code:'RECENTJOBS_RSS_ITEM_CHANGED'});
+});
+test('worker RSS candidates require Source opt-in and use a distinct stable content identity from review or HTML',()=>{
+ const parsed=parseRecentJobsRss({xml:feed(),url}),opted={...source,urls:[url,'https://recentjobs.co.za/category/apprenticeships/'],automation:{...source.automation,publisherFeed:'rss_shadow_v1',discovery:{maxPages:1},fastIngestion:{version:'shadow_v1'}}};
+ assert.throws(()=>parseWorkerRssItem(source,parsed,0),{code:'SOURCE_POLICY_REQUIRED'});
+ const a=parseWorkerRssItem(opted,parsed,0,{observedOn:'2026-11-05'}),b=parseWorkerRssItem(opted,parsed,0,{observedOn:'2026-11-06'}),review=reviewRecentJobsRssItem(source,parsed,0);
+ assert.equal(a.adapter,RECENTJOBS_RSS_WORKER_ADAPTER);assert.equal(a.review,'pending');assert.equal(a.contentHash,b.contentHash);assert.notEqual(a.contentHash,review.contentHash);assert.equal(a.sourceRecordId,review.sourceRecordId);assert.equal(a.issues.includes('feed_transport_requires_review'),false);
 });
 test('feed routing, self identity and namespace rebinding are strict',()=>{
  for(const wrong of [url+'?page=2','https://other.example/feed/','http://recentjobs.co.za/category/apprenticeships/feed/'])assert.throws(()=>parseRecentJobsRss({xml:feed(),url:wrong}),{code:'RECENTJOBS_RSS_URL_INVALID'});

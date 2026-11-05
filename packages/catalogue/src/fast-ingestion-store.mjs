@@ -7,6 +7,7 @@ import {DomainError} from './config.mjs';
 import {assertSourceTarget} from './worker-policy.mjs';
 import {FastLeaseGuard} from './fast-lease-guard.mjs';
 import {FastSourcePolicy} from './fast-source-policy.mjs';
+import {usesPublisherFeed,RECENTJOBS_CATEGORY_FEED} from './publisher-feed-policy.mjs';
 import {RefreshTicket,RefreshWatch,RefreshFeature,DispatchCounter,dispatchKind,fastExecutionId,refreshHash} from './fast-refresh-records.mjs';
 export {FastSourcePolicy} from './fast-source-policy.mjs';
 
@@ -38,8 +39,12 @@ const Cursor=z.object({sourceId:IdSchema,sourceRevision:z.number().int().positiv
 const Slots=z.object({sourceId:IdSchema,active:z.record(z.object({lease:z.string().uuid(),until:InstantSchema}).strict())}).strict()
   .refine(s=>Object.keys(s.active).length<=20&&Object.keys(s.active).every(k=>IdSchema.safeParse(k).success));
 const Pacing=z.object({sourceId:IdSchema,nextAt:InstantSchema,lastAdmittedAt:InstantSchema.nullable()}).strict();
-const DiscoveryList=z.object({adapter:z.literal('recentjobs_html_v1'),sourceUrl:z.string().url(),
+const HtmlDiscoveryList=z.object({adapter:z.literal('recentjobs_html_v1'),sourceUrl:z.string().url(),
   articles:z.array(z.object({sourceUrl:z.string().url(),title:z.string().min(1).max(500)}).strict()).min(1).max(50),nextPage:z.string().url().nullable()}).strict();
+const RssDiscoveryList=z.object({adapter:z.literal('recentjobs_rss_discovery_v1'),sourceUrl:z.literal(RECENTJOBS_CATEGORY_FEED),
+  feedHash:z.string().regex(/^[a-f0-9]{64}$/),coverage:z.literal('feed_window_only'),
+  articles:z.array(z.object({sourceUrl:z.string().url(),title:z.string().min(1).max(500),itemHash:z.string().regex(/^[a-f0-9]{64}$/),publishedAt:InstantSchema}).strict()).min(1).max(50),nextPage:z.null()}).strict();
+const DiscoveryList=z.discriminatedUnion('adapter',[HtmlDiscoveryList,RssDiscoveryList]);
 const DiscoveryPage=z.object({id:IdSchema,sourceId:IdSchema,sourceRevision:z.number().int().positive(),pollId:IdSchema,
   url:z.string().url(),hash:z.string().regex(/^[a-f0-9]{64}$/),list:DiscoveryList,retrievedAt:InstantSchema}).strict();
 const discoveryPageId=(pollId,url)=>hash(pollId+':page:'+url);
@@ -50,7 +55,6 @@ const record=(snap,schema)=>{if(!snap.exists)return null;try{const row=schema.pa
  * Source policy adoption is separately fenced by the reviewed history receipt. */
 export function parseFastIngestionSource(raw) {
   const input=structuredClone(raw),policy=FastSourcePolicy.parse(input?.automation?.fastIngestion);
-  delete input.automation.fastIngestion;
   const source=Source.parse(input);
   if(source.automation?.mode!=='shadow'||source.permission.method!=='recentjobs_html')fail('FAST_INGESTION_SHADOW_ONLY');
   return{...source,automation:{...source.automation,fastIngestion:policy}};
@@ -136,7 +140,8 @@ export class FastIngestionStore {
       const poll={...(previous??{id,sourceId:source.id,sourceRevision:source.revision,createdAt:at,bucket}),
         ...this.lease(source,at),state:'leased',updatedAt:at,fetchReservation:null};
       tx.set(ref,payload(poll));tx.set(cursorRef,payload({sourceId:source.id,sourceRevision:source.revision,pollId:id,state:'leased'}));this.event(tx,at,'poll.claim',id);
-      return{state:'ready',claim:{id,kind:'poll',sourceId:source.id,sourceRevision:source.revision,lease:poll.lease},nextPollAt};
+      return{state:'ready',claim:{id,kind:'poll',sourceId:source.id,sourceRevision:source.revision,lease:poll.lease},nextPollAt,
+        discoveryUrl:usesPublisherFeed(source)?RECENTJOBS_CATEGORY_FEED:'https://recentjobs.co.za/category/apprenticeships/'};
     });
   }
   async recordDiscovery(claim,urls,{complete=true,pageReceiptId}={}) {
@@ -147,6 +152,7 @@ export class FastIngestionStore {
       if(claim.kind!=='poll'||urls.length>source.automation.maxArticles)fail('FAST_DISCOVERY_INVALID');
       const {ref,row}=await this.asserted(tx,claim,at),ids=urls.map(url=>hash(source.id+':'+url));
       let observedAt=at;
+      if(usesPublisherFeed(source)&&pageReceiptId===undefined)fail('FAST_DISCOVERY_RECEIPT_INVALID');
       if(pageReceiptId!==undefined){
         if(!IdSchema.safeParse(pageReceiptId).success)fail('FAST_DISCOVERY_RECEIPT_INVALID');
         const saved=record(await tx.get(this.ref('ingestion_discovery_pages',pageReceiptId)),DiscoveryPage);
@@ -183,8 +189,18 @@ export class FastIngestionStore {
       this.event(tx,at,'poll.source_challenged',claim.id);return{nextPollAt:row.leaseUntil};
     });
   }
+  async recordFeedUnavailable(claim){
+    return this.transaction(async(tx,source,at)=>{
+      if(claim?.kind!=='poll'||!usesPublisherFeed(source))fail('FAST_DISCOVERY_INVALID');
+      const {row}=await this.asserted(tx,claim,at);
+      this.event(tx,at,'poll.source_unavailable',claim.id);return{nextPollAt:row.leaseUntil};
+    });
+  }
   assertDiscoveryPage(source,poll,page,at) {
-    const number=Number(new URL(assertSourceTarget(page.url,'index')).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
+    const rss=usesPublisherFeed(source);
+    if(rss?(page.url!==RECENTJOBS_CATEGORY_FEED||page.list.adapter!=='recentjobs_rss_discovery_v1'):
+      page.list.adapter!=='recentjobs_html_v1')fail('FAST_DISCOVERY_RECEIPT_INVALID');
+    const number=rss?1:Number(new URL(assertSourceTarget(page.url,'index')).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
     if(!source.urls.includes('https://recentjobs.co.za/category/apprenticeships/')||!source.automation.discovery||number>source.automation.discovery.maxPages||
       page.id!==discoveryPageId(poll.id,page.url)||page.sourceId!==source.id||page.sourceRevision!==source.revision||page.pollId!==poll.id||
       page.list.sourceUrl!==page.url||page.hash!==hash(JSON.stringify(page.list))||page.retrievedAt<poll.createdAt||page.retrievedAt>at||
@@ -194,7 +210,7 @@ export class FastIngestionStore {
     return number;
   }
   async discoveryPage(claim,url,{capture}={}) {
-    assertSourceTarget(url,'index');
+    if(url!==RECENTJOBS_CATEGORY_FEED)assertSourceTarget(url,'index');
     return this.transaction(async(tx,source,at)=>{
       if(claim.kind!=='poll')fail('FAST_DISCOVERY_INVALID');
       const {row:poll}=await this.asserted(tx,claim,at),id=discoveryPageId(claim.id,url),ref=this.ref('ingestion_discovery_pages',id);
@@ -202,7 +218,9 @@ export class FastIngestionStore {
       const page=capture?DiscoveryPage.parse({id,sourceId:source.id,sourceRevision:source.revision,pollId:claim.id,url,
         hash:hash(JSON.stringify(capture.list)),list:capture.list,retrievedAt:capture.retrievedAt}):existing;
       // Validate policy even before acquiring a page that has not been captured.
-      const number=Number(new URL(url).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
+      const rss=usesPublisherFeed(source);
+      if(rss?url!==RECENTJOBS_CATEGORY_FEED:url===RECENTJOBS_CATEGORY_FEED)fail('FAST_DISCOVERY_POLICY_REQUIRED');
+      const number=rss?1:Number(new URL(url).pathname.match(/\/page\/(\d+)\/$/)?.[1]??1);
       if(!source.urls.includes('https://recentjobs.co.za/category/apprenticeships/')||!source.automation.discovery||number>source.automation.discovery.maxPages)fail('FAST_DISCOVERY_POLICY_REQUIRED');
       if(number>1){
         const previousUrl=number===2?'https://recentjobs.co.za/category/apprenticeships/':`https://recentjobs.co.za/category/apprenticeships/page/${number-1}/`;

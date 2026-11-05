@@ -3,6 +3,8 @@ import {FastRecentJobsWorker} from './fast-recentjobs-worker.mjs';
 import {parseRecentJobsList} from './adapters/recentjobs.mjs';
 import {RECENTJOBS_INDEX,assertSourceTarget} from './worker-policy.mjs';
 import {DomainError} from './config.mjs';
+import {usesPublisherFeed,RECENTJOBS_CATEGORY_FEED,publisherFeedUnavailable} from './publisher-feed-policy.mjs';
+import {parseRecentJobsRss,rssDiscoveryList} from './adapters/recentjobs-rss.mjs';
 
 const fail=code=>{throw new DomainError(code);};
 const UA='SkilvedSourceReview/1.0';
@@ -37,6 +39,10 @@ export class FastRecentJobsDiscovery {
     return this.worker.superviseLease(poll.claim,async()=>{
       try{return await this.acquire(poll,signal);}
       catch(error){
+        if(poll.discoveryUrl===RECENTJOBS_CATEGORY_FEED&&publisherFeedUnavailable(error?.code)){
+          this.stopped(signal);const retry=await this.store.recordFeedUnavailable(poll.claim);
+          return{state:'source_unavailable',queued:0,reason:error.code,nextPollAt:retry.nextPollAt,publiclyVisible:false};
+        }
         if(error?.code!=='RECENTJOBS_SOURCE_CHALLENGE')throw error;
         this.stopped(signal);const retry=await this.store.recordSourceChallenge(poll.claim);
         return{state:'source_challenged',queued:0,nextPollAt:retry.nextPollAt,publiclyVisible:false};
@@ -44,17 +50,17 @@ export class FastRecentJobsDiscovery {
     },undefined,{signal});
   }
   async acquire(poll,signal) {
-    const claim=poll.claim;let url=RECENTJOBS_INDEX,pages=0,queued=0,observed=0,cacheHits=0;
+    const claim=poll.claim;let url=poll.discoveryUrl??RECENTJOBS_INDEX,pages=0,queued=0,observed=0,cacheHits=0;
     for(let number=1;number<=5;number++){
-      this.stopped(signal);assertSourceTarget(url,'index');
+      this.stopped(signal);if(url!==RECENTJOBS_CATEGORY_FEED)assertSourceTarget(url,'index');
       let {page,source}=await this.store.discoveryPage(claim,url);
       if(!page){
         const robotsUrl=new URL('/robots.txt',url).href;
         const robots=await this.request(claim,source,robotsUrl,'text',signal),policy=robotsParser(robotsUrl,robots.text);
         if(policy.isAllowed(url,UA)!==true)fail('ROBOTS_DISALLOWED');
         const delay=policy.getCrawlDelay(UA);if(delay&&delay*1000>source.automation.minRequestIntervalMs)fail('ROBOTS_DELAY_EXCEEDS_POLICY');
-        const response=await this.request(claim,source,url,'html',signal),retrievedAt=this.worker.now();
-        const list=parseRecentJobsList({html:response.text,url:response.url});this.stopped(signal);
+        const rss=usesPublisherFeed(source),response=await this.request(claim,source,url,rss?'rss':'html',signal),retrievedAt=this.worker.now();
+        const list=rss?rssDiscoveryList(parseRecentJobsRss({xml:response.text,url:response.url})):parseRecentJobsList({html:response.text,url:response.url});this.stopped(signal);
         ({page,source}=await this.store.discoveryPage(claim,url,{capture:{list,retrievedAt}}));
       }else cacheHits++;
       pages++;const last=page.list.nextPage===null||number===source.automation.discovery.maxPages;

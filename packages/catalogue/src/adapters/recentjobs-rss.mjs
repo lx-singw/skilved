@@ -4,9 +4,11 @@ import {parse,parseFragment,serialize} from 'parse5';
 import {DateSchema} from '@skilved/types/opportunities';
 import {parseWorkerDetail} from '../worker-detail-adapter.mjs';
 import {DomainError} from '../config.mjs';
+import {usesPublisherFeed,RECENTJOBS_CATEGORY_FEED} from '../publisher-feed-policy.mjs';
 
-export const RECENTJOBS_CATEGORY_FEED='https://recentjobs.co.za/category/apprenticeships/feed/';
+export {RECENTJOBS_CATEGORY_FEED} from '../publisher-feed-policy.mjs';
 export const RECENTJOBS_RSS_ADAPTER='recentjobs_category_rss_review_v1';
+export const RECENTJOBS_RSS_WORKER_ADAPTER='recentjobs_category_rss_shadow_v1';
 const CONTENT_NS='http://purl.org/rss/1.0/modules/content/',ATOM_NS='http://www.w3.org/2005/Atom';
 const hash=value=>createHash('sha256').update(value).digest('hex'),fail=code=>{throw new DomainError(code);};
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -37,7 +39,7 @@ function inspectNamespaces(node,root=false,depth=0){
  }
 }
 
-/** Pure, bounded RSS intake for engineering review. No discovery queue, cache,
+/** Pure, bounded RSS intake. No discovery queue, cache,
  * model, canonical record, source policy or publication is changed here. */
 export function parseRecentJobsRss({xml,url}={}){
  if(url!==RECENTJOBS_CATEGORY_FEED)fail('RECENTJOBS_RSS_URL_INVALID');
@@ -83,8 +85,8 @@ function reviewFrame(item){
  return serialize(root);
 }
 
-/** Review-only derived frame. Its marker/hash explicitly distinguish RSS data
- * from fetched WordPress HTML. This is not imported by the running worker. */
+/** Review-only derived frame. Its marker/hash distinguish RSS data from fetched
+ * WordPress HTML. The normal worker uses the separate opted-in profile below. */
 export function reviewRecentJobsRssItem(source,feed,index,{observedOn=null}={}){
  if(source?.permission?.method!=='recentjobs_html'||source.automation?.mode!=='shadow'||!Number.isSafeInteger(index)||index<0||index>=feed?.items?.length)fail('RECENTJOBS_RSS_REVIEW_CONFIGURATION_REQUIRED');
  const item=feed.items[index];
@@ -97,4 +99,19 @@ export function reviewRecentJobsRssItem(source,feed,index,{observedOn=null}={}){
  const rssEvidence={feedUrl:feed.sourceUrl,itemHash:item.itemHash,guid:item.guid,publishedAtRaw:item.publishedAtRaw};
  const bound={...candidate,adapter:RECENTJOBS_RSS_ADAPTER,rssEvidence};
  return{...bound,contentHash:hash(JSON.stringify(bound)),observedOn:day,review:'pending',issues:[...issues,'feed_transport_requires_review']};
+}
+
+/** Explicit Source opt-in only; the usual preflight, independent validation,
+ * original-source checks and shadow writer still decide the result. */
+export function parseWorkerRssItem(source,feed,index,options){
+ if(!usesPublisherFeed(source))fail('SOURCE_POLICY_REQUIRED');
+ const {contentHash,observedOn,review,issues,adapter,...fields}=reviewRecentJobsRssItem(source,feed,index,options);
+ const bound={...fields,adapter:RECENTJOBS_RSS_WORKER_ADAPTER};
+ return{...bound,contentHash:hash(JSON.stringify(bound)),observedOn,review,issues:issues.filter(issue=>issue!=='feed_transport_requires_review')};
+}
+
+export function rssDiscoveryList(feed){
+ if(feed.adapter!==RECENTJOBS_RSS_ADAPTER||feed.sourceUrl!==RECENTJOBS_CATEGORY_FEED)fail('RECENTJOBS_RSS_ITEM_CHANGED');
+ return{adapter:'recentjobs_rss_discovery_v1',sourceUrl:feed.sourceUrl,feedHash:feed.feedHash,coverage:'feed_window_only',
+  articles:feed.items.map(({sourceUrl,title,itemHash,publishedAt})=>({sourceUrl,title,itemHash,publishedAt})),nextPage:null};
 }
