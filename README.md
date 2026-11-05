@@ -6,6 +6,8 @@ The public MVP includes **bursaries, learnerships, apprenticeships, internships,
 
 ## Current status
 
+5 November publisher access: [the advertised apprenticeship RSS feed is accessible in two native probes](docs/current/operations/244_PUBLISHER_RSS_ACCESS_AND_BOUND_REVIEW_2026-11-05.md). A reusable read-only review adapter yields nine pending candidates and one layout hold from ten notices; all 56 affected checks pass. No AI call, Source change or publication occurs. The running HTML worker is still challenged; reviewed RSS integration is next.
+
 5 November local ingestion: [the managed shadow-worker path](docs/current/operations/243_LOCAL_MANAGED_SHADOW_WORKER_2026-11-05.md) freezes runtime code/contracts, verifies delegated machine identity and runs independently under the WSL user manager. Access is bounded through 6 November at 19:40 SAST; the two-call source allowance and shadow policy remain unchanged. RecentJobs currently returns a browser-check page, so discovery waits without creating records or spending AI quota. All 249 combined checks pass. Reliable publisher access and real automatic-publication qualification remain open.
 
 5 November local feed: [current private drafts now reach the applicant viewer on refresh](docs/current/operations/242_DYNAMIC_PRIVATE_APPLICANT_FEED_2026-11-05.md), replacing the fixed one-record binding. Genuine reviewer sign-in is verified; six staging drafts yield one eligible dated preview. Twenty focused checks and generated-viewer type checking pass. The local feed refreshes every visible minute; this does not activate ingestion or public publishing.

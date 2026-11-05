@@ -57,3 +57,15 @@ test('PDF transport preserves binary bytes and the existing MIME, size, redirect
   {socketAddress:'10.0.0.1',responses:[response]},{responses:[{status:302,headers:{location:'https://other.example/a'}}]}])
   await assert.rejects(retrieve(source,source.urls[0],transport(options).io,'pdf'));
 });
+test('explicit RSS reads accept XML media types without accepting browser challenges or weakening transport bounds',async()=>{
+ for(const mime of ['application/rss+xml; charset=UTF-8','application/xml','text/xml']){
+  const t=transport({responses:[{status:200,headers:{'content-type':mime},body:'<rss version="2.0"/>'}]});
+  assert.equal((await retrieve(source,source.urls[0],t.io,'rss')).text,'<rss version="2.0"/>');
+ }
+ for(const options of [{responses:[{status:200,headers:{'content-type':'text/html'},body:'<title>One moment...</title>'}]},
+  {responses:[{status:200,headers:{'content-type':'application/rss+xml','content-encoding':'gzip'}}]},
+  {responses:[{status:200,headers:{'content-type':'application/rss+xml'},body:'x'.repeat(101)}]},
+  {responses:[{status:302,headers:{location:'https://unapproved.example/feed/'}}]},
+  {socketAddress:'127.0.0.1',responses:[{status:200,headers:{'content-type':'application/rss+xml'}}]}])
+  await assert.rejects(retrieve(source,source.urls[0],transport(options).io,'rss'));
+});

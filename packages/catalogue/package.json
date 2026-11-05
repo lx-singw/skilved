@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@skilved/types": "workspace:*",
+    "fast-xml-parser": "5.11.1",
     "firebase-admin": "^13.0.0",
     "google-auth-library": "10.9.1",
     "ipaddr.js": "^2.2.0",

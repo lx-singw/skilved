@@ -18,7 +18,8 @@ export async function retrieve(source, initialUrl, io = { lookup, request: https
   if (source.paused) throw new DomainError('SOURCE_PAUSED');
   const formats = { json: ['application/json', /^application\/(?:[a-z0-9.+-]+\+)?json(?:;|$)/i],
     html: ['text/html', /^text\/html(?:;|$)/i], text: ['text/plain', /^text\/plain(?:;|$)/i],
-    pdf: ['application/pdf', /^application\/pdf(?:;|$)/i] };
+    pdf: ['application/pdf', /^application\/pdf(?:;|$)/i],
+    rss: ['application/rss+xml, application/xml;q=0.9, text/xml;q=0.8', /^(?:application\/(?:rss\+xml|xml)|text\/xml)(?:;|$)/i] };
   if (!formats[format]) throw new DomainError('UNSUPPORTED_FORMAT');
   const [accept, mime] = formats[format];
   const controller = new AbortController();

@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November publisher access: [native RSS access and bound notice review](244_PUBLISHER_RSS_ACCESS_AND_BOUND_REVIEW_2026-11-05.md) records two successful category-feed acquisitions, per-item identity and nine pending candidates/one layout hold. All 56 affected checks pass. The running worker still uses challenged HTML; RSS integration, Source adoption and publication qualification remain ahead.
+
 5 November managed ingestion: [local service lifecycle and source-challenge recovery](243_LOCAL_MANAGED_SHADOW_WORKER_2026-11-05.md) records frozen releases, bounded keyless machine access, native service checks and durable discovery waits. RecentJobs acquisition is currently challenged; public publishing and hosting remain off.
 
 5 November applicant feed: [dynamic private reads and local refresh](242_DYNAMIC_PRIVATE_APPLICANT_FEED_2026-11-05.md) replace the fixed preview ID, preserve existing reviewer/source/freshness gates and pick up canonical worker drafts on subsequent reads. The founder's genuine login is verified; ingestion/publication remain inactive.
