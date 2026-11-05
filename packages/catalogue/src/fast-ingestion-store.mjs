@@ -7,6 +7,7 @@ import {DomainError} from './config.mjs';
 import {assertSourceTarget} from './worker-policy.mjs';
 import {FastLeaseGuard} from './fast-lease-guard.mjs';
 import {FastSourcePolicy} from './fast-source-policy.mjs';
+import {RefreshTicket,RefreshWatch,RefreshFeature,DispatchCounter,dispatchKind,fastExecutionId,refreshHash} from './fast-refresh-records.mjs';
 export {FastSourcePolicy} from './fast-source-policy.mjs';
 
 const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -24,9 +25,11 @@ const Poll=z.object({...Owned,createdAt:InstantSchema,bucket:z.number().int().no
 const Job=z.object({...Owned,url:z.string().url(),firstSeenAt:InstantSchema,state:z.enum(['queued','leased','held','complete']),
   stage:z.enum(['fetch','extract','validate','complete']),nextAt:InstantSchema,attempts:z.number().int().nonnegative().safe(),
   timeline:z.object({startedAt:InstantSchema.optional(),retrievedAt:InstantSchema.optional(),extractedAt:InstantSchema.optional(),privateReadyAt:InstantSchema.optional()}).strict(),
-  blockedBy:z.enum(['source_budget','provider_quota','authority','evidence']).optional(),outcome:z.literal('validated_private').optional(),history:History.optional()}).strict()
+  blockedBy:z.enum(['source_budget','provider_quota','authority','evidence']).optional(),outcome:z.literal('validated_private').optional(),history:History.optional(),
+  refresh:RefreshTicket.optional(),cycleAttempts:z.number().int().nonnegative().safe().optional()}).strict()
   .refine(j=>j.firstSeenAt<=j.updatedAt&&Object.values(j.timeline).every(t=>t>=j.firstSeenAt&&t<=j.updatedAt)&&
     (j.state==='leased'?j.lease!==null&&j.leaseUntil!==null&&j.principal!==null:j.lease===null&&j.leaseUntil===null)&&
+    (!j.refresh||!j.history&&j.cycleAttempts!==undefined&&j.cycleAttempts<=j.attempts&&j.refresh.requestedAt>=j.firstSeenAt&&j.refresh.requestedAt<=j.updatedAt)&&
     (j.stage==='fetch'||j.timeline.retrievedAt!==undefined)&&
     (!['validate','complete'].includes(j.stage)||j.timeline.extractedAt!==undefined)&&
     (j.stage!=='complete'||j.state==='complete'&&j.timeline.privateReadyAt!==undefined&&j.outcome==='validated_private'));
@@ -52,16 +55,18 @@ export function parseFastIngestionSource(raw) {
   if(source.automation?.mode!=='shadow'||source.permission.method!=='recentjobs_html')fail('FAST_INGESTION_SHADOW_ONLY');
   return{...source,automation:{...source.automation,fastIngestion:policy}};
 }
+export const parseFastJob=recordSnapshot=>record(recordSnapshot,Job);
+export const encodeFastJob=job=>{Job.parse(job);return jobPayload(job);};
 
 /** Default-off backend coordinator. It owns no fetch/model/publish capability.
  * Job ownership is independent of the source's atomic fetch pacing clock. */
 export class FastIngestionStore {
-  constructor(db,principal,{enabled=false,sourceId,sourceRevision,now=()=>new Date().toISOString(),assertAdmission,assertTransaction}={}) {
+  constructor(db,principal,{enabled=false,sourceId,sourceRevision,privateRefresh=false,now=()=>new Date().toISOString(),assertAdmission,assertTransaction}={}) {
     if(enabled!==true)fail('FAST_INGESTION_DISABLED');
     if(!/^[^\s@]+@[^\s@]+$/.test(principal??'')||!IdSchema.safeParse(sourceId).success||
-      !Number.isSafeInteger(sourceRevision)||sourceRevision<1||typeof now!=='function'||
+      !Number.isSafeInteger(sourceRevision)||sourceRevision<1||typeof privateRefresh!=='boolean'||typeof now!=='function'||
       assertAdmission!==undefined&&typeof assertAdmission!=='function'||assertTransaction!==undefined&&typeof assertTransaction!=='function')fail('WORKER_CONFIGURATION_REQUIRED');
-    Object.assign(this,{db,principal,sourceId,sourceRevision,now,assertAdmission,assertTransaction});
+    Object.assign(this,{db,principal,sourceId,sourceRevision,privateRefresh,now,assertAdmission,assertTransaction});
     this.actor='worker_'+hash(principal).slice(0,40);
     this.leaseContext=new AsyncLocalStorage();
   }
@@ -71,7 +76,7 @@ export class FastIngestionStore {
     return this.db.runTransaction(async tx=>{
       this.leaseContext.getStore()?.assertHealthy();
       let at=this.now();InstantSchema.parse(at);
-      const [sourceRow,grantRow]=await Promise.all([tx.get(this.ref('sources',this.sourceId)),tx.get(this.ref('workers',this.actor))]);
+      const [sourceRow,grantRow,featureRow]=await Promise.all([tx.get(this.ref('sources',this.sourceId)),tx.get(this.ref('workers',this.actor)),tx.get(this.ref('ingestion_refresh_features',this.sourceId))]);
       const grant=grantRow.data(),raw=value(sourceRow);
       if(!grant?.active||grant.principal!==this.principal||!grant.sources?.includes(this.sourceId)||
         grant.roles?.length!==1||grant.roles[0]!=='ingest'||grant.expiresAt!==undefined&&
@@ -79,6 +84,7 @@ export class FastIngestionStore {
       if(!raw||raw.paused)fail('SOURCE_PAUSED');
       const source=parseFastIngestionSource(raw);
       if(source.id!==this.sourceId||source.revision!==this.sourceRevision)fail('SOURCE_CHANGED');
+      if(featureRow.exists){const feature=RefreshFeature.parse(value(featureRow));if(feature.sourceId!==source.id||feature.sourceRevision!==source.revision||feature.activatedAt>at)fail('SOURCE_CHANGED');if(!this.privateRefresh)fail('FAST_REFRESH_OPT_IN_REQUIRED');}
       if(!source.categories.includes('apprenticeship'))fail('SOURCE_POLICY_REQUIRED');
       await this.assertAdmission?.(source,grant,this.principal);
       await this.assertTransaction?.(tx,source,at);
@@ -87,6 +93,21 @@ export class FastIngestionStore {
     },readOnly?{readOnly:true}:undefined);
   }
   event(tx,at,action,subject){tx.create(this.ref('ingestion_events',randomUUID()),{...payload({version:1,at,action,subject,sourceId:this.sourceId,actor:this.actor}),sourceId:this.sourceId,at,action});}
+  async activatePrivateRefresh(){
+    if(!this.privateRefresh)fail('FAST_REFRESH_OPT_IN_REQUIRED');
+    return this.transaction(async(tx,source,at)=>{
+      const ref=this.ref('ingestion_refresh_features',source.id),saved=await tx.get(ref);
+      if(saved.exists)return{state:'verified'};
+      const completed=await tx.get(this.db.collection('m0_ingestion_jobs').where('sourceId','==',source.id).where('state','==','complete').limit(1));
+      if(!completed.empty)fail('FAST_REFRESH_HISTORY_ADOPTION_REQUIRED');
+      const active=await this.activeJobs(tx,source);
+      if(active.some(j=>j.state==='leased'&&j.leaseUntil>at))fail('FAST_REFRESH_ACTIVE_WORK');
+      const cursor=record(await tx.get(this.ref('ingestion_cursors',source.id)),Cursor);
+      if(cursor?.state==='leased'){const poll=record(await tx.get(this.ref('ingestion_polls',cursor.pollId)),Poll);if(poll?.leaseUntil>at)fail('FAST_REFRESH_ACTIVE_WORK');}
+      tx.create(ref,payload(RefreshFeature.parse({version:'private_v1',sourceId:source.id,sourceRevision:source.revision,activatedAt:at})));
+      this.event(tx,at,'refresh.activate',source.id);return{state:'activated'};
+    });
+  }
   lease(source,at){return{lease:randomUUID(),leaseUntil:new Date(Date.parse(at)+source.automation.fastIngestion.leaseMs).toISOString(),principal:this.principal};}
   async asserted(tx,claim,at) {
     if(!claim||claim.sourceId!==this.sourceId||claim.sourceRevision!==this.sourceRevision||!z.string().uuid().safeParse(claim.lease).success||!['poll','notice'].includes(claim.kind)||!IdSchema.safeParse(claim.id).success)fail('STALE_LEASE');
@@ -194,13 +215,22 @@ export class FastIngestionStore {
       if(stored&&stored.sourceId!==source.id)fail('FAST_INGESTION_STATE_INVALID');
       const slots=Object.fromEntries(Object.entries(stored?.active??{}).filter(([,v])=>v.until>at));
       if(!row||row.sourceId!==source.id||row.sourceRevision!==source.revision||!['queued','leased'].includes(row.state)||row.nextAt>at||row.leaseUntil>at)return null;
+      if(row.refresh&&!this.privateRefresh)return null;
       if(!notice||notice.id!==id||notice.sourceId!==source.id||notice.url!==row.url||notice.firstSeenAt!==row.firstSeenAt||JSON.stringify(notice.history??null)!==JSON.stringify(row.history??null)||row.id!==id||hash(source.id+':'+assertSourceTarget(row.url))!==id)fail('FAST_INGESTION_STATE_INVALID');
       if(row.updatedAt>at||!Number.isSafeInteger(row.attempts)||row.attempts<0||row.attempts>=Number.MAX_SAFE_INTEGER)fail('FAST_INGESTION_STATE_INVALID');
       if(Object.keys(slots).length>=source.automation.fastIngestion.maxConcurrentJobs)return null;
+      let counter;
+      if(this.privateRefresh){
+        counter=await this.dispatchCounter(tx,source);
+        const kind=dispatchKind(await this.activeJobs(tx,source),source.revision,at,counter.newSinceRefresh);
+        if(kind!==(row.refresh?'refresh':'new'))return null;
+      }
       const lease=this.lease(source,at),next={...row,...lease,state:'leased',attempts:row.attempts+1,updatedAt:at,fetchReservation:null,
+        ...(row.refresh?{cycleAttempts:row.cycleAttempts+1}:{}),
         timeline:{...row.timeline,startedAt:row.timeline.startedAt??at}};
       slots[id]={lease:lease.lease,until:lease.leaseUntil};tx.set(ref,jobPayload(next));tx.set(slotsRef,payload({sourceId:source.id,active:slots}));this.event(tx,at,'notice.claim',id);
-      return{id,kind:'notice',sourceId:source.id,sourceRevision:source.revision,lease:lease.lease,stage:next.stage,firstSeenAt:next.firstSeenAt,modelAdmissionRequired:true};
+      if(counter)tx.set(this.ref('ingestion_dispatch',source.id),payload({...counter,newSinceRefresh:row.refresh?0:Math.min(3,counter.newSinceRefresh+1)}));
+      return{id,kind:'notice',sourceId:source.id,sourceRevision:source.revision,lease:lease.lease,stage:next.stage,firstSeenAt:next.firstSeenAt,modelAdmissionRequired:true,...(row.refresh?{refresh:row.refresh}:{})};
     });
   }
   async reserveFetch(claim) {
@@ -291,7 +321,26 @@ export class FastIngestionStore {
   }
   async dispatchSnapshot() {
     return this.transaction(async(tx,source,at)=>({sourceId:source.id,sourceRevision:source.revision,observedAt:at,
-      maxConcurrentJobs:source.automation.fastIngestion.maxConcurrentJobs,jobs:await this.activeJobs(tx,source)}),{readOnly:true});
+      maxConcurrentJobs:source.automation.fastIngestion.maxConcurrentJobs,jobs:await this.activeJobs(tx,source),
+      ...(this.privateRefresh?{privateRefresh:true,newSinceRefresh:(await this.dispatchCounter(tx,source)).newSinceRefresh}:{})}),{readOnly:true});
+  }
+  async dispatchCounter(tx,source){const saved=value(await tx.get(this.ref('ingestion_dispatch',source.id)));const counter=DispatchCounter.parse(saved??{sourceId:source.id,sourceRevision:source.revision,newSinceRefresh:0});if(counter.sourceId!==source.id||counter.sourceRevision!==source.revision)fail('SOURCE_CHANGED');return counter;}
+  async prepareRefreshWatch(tx,source,row,at){
+    if(!this.privateRefresh)return null;
+    const ref=this.ref('ingestion_refresh_watches',row.id),saved=await tx.get(ref);
+    if(saved.exists){const watch=RefreshWatch.parse(value(saved));if(['sourceId','state','nextAt'].some(k=>saved.data()[k]!==watch[k])||watch.sourceId!==source.id||watch.sourceRevision!==source.revision||watch.noticeId!==row.id||watch.state!=='scheduled'||watch.generation!==(row.refresh?.generation??0)||watch.executionId!==fastExecutionId(row))fail('FAST_REFRESH_BINDING_CHANGED');}
+    else if(row.refresh)fail('FAST_REFRESH_BINDING_CHANGED');
+    return(next,recordId,draftJson,executionJson,decisionJson)=>{
+      if(row.history||typeof draftJson!=='string'||typeof executionJson!=='string'||typeof decisionJson!=='string')fail('FAST_REFRESH_BINDING_CHANGED');
+      const decision=JSON.parse(decisionJson);
+      if(decision.sourceId!==source.id||decision.sourceRevision!==source.revision||decision.recordId!==recordId||
+        !InstantSchema.safeParse(decision.nextCheckAt).success||decision.nextCheckAt<=at)fail('FAST_REFRESH_BINDING_CHANGED');
+      const watch=RefreshWatch.parse({version:'private_v1',sourceId:source.id,sourceRevision:source.revision,noticeId:row.id,
+        generation:row.refresh?.generation??0,executionId:fastExecutionId(row),recordId,state:'waiting',
+        nextAt:decision.nextCheckAt,updatedAt:at,
+        jobSha256:refreshHash(jobPayload(next).json),draftSha256:refreshHash(draftJson),executionSha256:refreshHash(executionJson)});
+      tx.set(ref,{...payload(watch),sourceId:source.id,state:watch.state,nextAt:watch.nextAt});
+    };
   }
   async snapshot() {
     return this.transaction(async(tx,source,at)=>{
@@ -319,6 +368,7 @@ export class FastIngestionStore {
       if(outcome==='validated_private')Object.assign(next,{state:'complete',stage:'complete',outcome,timeline:{...row.timeline,privateReadyAt:at}});
       else{Object.assign(next,{state:until===null?'held':'queued',nextAt:until??row.nextAt});if(outcome==='retry')delete next.blockedBy;else next.blockedBy=outcome;}
       tx.set(ref,jobPayload(next));tx.set(slotsRef,payload({sourceId:this.sourceId,active}));this.event(tx,at,'bridge.'+outcome,claim.id);
+      return next;
     }};
   }
 }
@@ -329,12 +379,16 @@ export function summarizeFastIngestion(rows,at) {
   InstantSchema.parse(at);if(!Array.isArray(rows)||rows.length>500)fail('FAST_INGESTION_STATE_INVALID');
   const jobs=rows.map(r=>Job.parse(r)),ids=new Set();
   for(const j of jobs){if(ids.has(j.id)||j.updatedAt>at)fail('FAST_INGESTION_STATE_INVALID');ids.add(j.id);}
-  const completed=jobs.filter(j=>j.outcome==='validated_private'),unfinished=jobs.filter(j=>j.state!=='complete'&&j.state!=='held');
-  const durations=completed.filter(j=>!j.history).map(j=>Date.parse(j.timeline.privateReadyAt)-Date.parse(j.firstSeenAt)).sort((a,b)=>a-b);
+  const completed=jobs.filter(j=>j.outcome==='validated_private'),unfinished=jobs.filter(j=>!j.refresh&&j.state!=='complete'&&j.state!=='held');
+  const refreshWaiting=jobs.filter(j=>j.refresh&&['queued','leased'].includes(j.state));
+  const durations=completed.filter(j=>!j.history&&!j.refresh).map(j=>Date.parse(j.timeline.privateReadyAt)-Date.parse(j.firstSeenAt)).sort((a,b)=>a-b);
   return{observed:jobs.length,queued:jobs.filter(j=>j.state==='queued').length,leased:jobs.filter(j=>j.state==='leased').length,
-    held:jobs.filter(j=>j.state==='held').length,privateReady:completed.length,historicalAgeBounds:jobs.filter(j=>j.history).length,latencyEligible:jobs.filter(j=>!j.history).length,
+    held:jobs.filter(j=>j.state==='held').length,privateReady:completed.length,historicalAgeBounds:jobs.filter(j=>j.history).length,latencyEligible:jobs.filter(j=>!j.history&&!j.refresh).length,
     unfinishedOverThreeMinutes:unfinished.filter(j=>Date.parse(at)-Date.parse(j.firstSeenAt)>=180000).length,
     oldestUnfinishedAgeMs:unfinished.length?Math.max(...unfinished.map(j=>Date.parse(at)-Date.parse(j.firstSeenAt))):null,
     p95FirstSeenToPrivateReadyMs:durations.length?durations[Math.ceil(durations.length*0.95)-1]:null,
-    publicVisibilityMeasured:false,p95FirstSeenToPublicMs:null,livePublishingSloVerified:false};
+    publicVisibilityMeasured:false,p95FirstSeenToPublicMs:null,livePublishingSloVerified:false,
+    ...(jobs.some(j=>j.refresh)?{refreshCycles:jobs.filter(j=>j.refresh).length,refreshedPrivateReady:completed.filter(j=>j.refresh).length,
+      refreshHeld:jobs.filter(j=>j.refresh&&j.state==='held').length,
+      oldestRefreshWaitMs:refreshWaiting.length?Math.max(...refreshWaiting.map(j=>Date.parse(at)-Date.parse(j.refresh.requestedAt))):null}:{})};
 }

@@ -1,5 +1,7 @@
 # Autonomous opportunity system: delivery target
 
+5 November refresh integration: [private watches, generations and restart handling](../operations/241_DURABLE_PRIVATE_REFRESH_2026-11-05.md) now connect completed fast private notices to timed rechecks under explicit backend opt-in, preserved canonical IDs/charges and transactional fairness. The native due-watch query is qualified against its READY staging index. Historical holds and source revision changes still need reviewed adoption; no runtime or automatic publisher is activated.
+
 5 November live source adoption: [revision 5 and 21 held historical notices](../operations/240_LIVE_FAST_SOURCE_CUTOVER_2026-11-05.md) are now independently verified in staging through the normal reviewed Source-role APIs. Reviewer-only access is restored; source/provider charges, caches and private drafts are unchanged. There is no active worker grant or running fast publisher. Revision/refresh reconciliation, attached runtime and real batch/automatic-publication acceptance remain required.
 
 5 November parser integration: [the shared worker now imports the application-layout boundary](../operations/239_APPLICATION_LAYOUT_WORKER_INTEGRATION_2026-11-05.md), retaining legacy behaviour unless a shadow RecentJobs source explicitly opts in. Profile-bound holds, actual cache reuse and budgets are covered by installed-worker acceptance tests. No staging source, role, grant, quota or publication changes are implied.

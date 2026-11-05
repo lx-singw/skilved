@@ -1,5 +1,7 @@
 # Operations documentation
 
+5 November refresh: [durable private cycles and restart integration](241_DURABLE_PRIVATE_REFRESH_2026-11-05.md) records atomic watches, archived generations, shared quotas/caches, fairness and a verified staging index. Live refresh/runtime activation remains off.
+
 5 November live cutover: [fast shadow source revision 5, held history and verified cleanup](240_LIVE_FAST_SOURCE_CUTOVER_2026-11-05.md) records the completed normal-API adoption, unchanged budgets/private catalogue and restored reviewer-only role. Runtime and public publishing remain inactive.
 
 5 November parser: [installed application-layout worker integration](239_APPLICATION_LAYOUT_WORKER_INTEGRATION_2026-11-05.md) connects the prepared parser to the normal worker, with shadow source opt-in and profile-bound holds. Live activation remains pending.

@@ -16,6 +16,7 @@ export async function runFastIngestion({worker,enabled=false,signal,maxTicks=24,
   if(enabled!==true)fail('FAST_INGESTION_DISABLED');
   if(!(worker instanceof FastRecentJobsWorker)||!worker.leaseSupervision||!integer(maxTicks,1,100)||!integer(maxRunMs,1,43200000)||
     typeof wait!=='function'||typeof monotonic!=='function'||typeof onEvent!=='function'||signal!==undefined&&!(signal instanceof AbortSignal))fail('FAST_RUNTIME_CONFIGURATION_REQUIRED');
+  if(worker.privateRefresh&&!signal?.aborted){await worker.queueRefreshes({limit:1,checkOnly:true});await worker.fast.activatePrivateRefresh();}
   const discovery=new FastRecentJobsDiscovery(worker,{enabled:true}),dispatcher=new FastNoticeDispatcher(worker,{enabled:true});
   const identity=()=>[worker.fast.sourceId,worker.fast.sourceRevision,worker.principal],expected=identity();
   const started=monotonic(),cancel=new AbortController(),idleWaiters=new Set();let lastElapsed=0,fatal,halt,wakeVersion=0,dispatchWait;
@@ -63,6 +64,10 @@ export async function runFastIngestion({worker,enabled=false,signal,maxTicks=24,
           if(cancel.signal.aborted)continue;
           target=Date.parse(InstantSchema.parse(result.nextPollAt));
         }else{
+          if(worker.privateRefresh){
+            const refresh=await worker.queueRefreshes();
+            await onEvent({type:'refresh',lane:name,state:refresh.state,scheduled:refresh.scheduled,blocked:refresh.blocked});
+          }
           const result=await dispatcher.tick({signal:cancel.signal});ticks[name]++;
           if(result.state==='partial_failure')fail(result.results.find(r=>r.state==='failed')?.reason??'FAST_RUNTIME_EXECUTION_FAILED');
           await onEvent({type:'tick',lane:name,ticks:ticks[name],state:result.state,selected:result.selected});

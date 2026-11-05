@@ -7,6 +7,15 @@
         { "fieldPath": "sourceId", "order": "ASCENDING" },
         { "fieldPath": "state", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "m0_ingestion_refresh_watches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sourceId", "order": "ASCENDING" },
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "nextAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

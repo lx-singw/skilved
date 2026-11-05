@@ -5,7 +5,7 @@ import {runFastWorkerCommand} from '../tools/run-fast-recentjobs.mjs';
 
 function setup(){
   const calls=[],signals=new EventEmitter();let captured;
-  class Worker {constructor(db,principal,options){captured=options;calls.push('worker');this.fast={dispatchSnapshot:async()=>{calls.push('preflight');}};}}
+  class Worker {constructor(db,principal,options){captured=options;this.privateRefresh=options.privateRefresh;calls.push('worker');this.fast={dispatchSnapshot:async()=>{calls.push('preflight');}};this.queueRefreshes=async options=>{assert.deepEqual(options,{limit:1,checkOnly:true});calls.push('refresh-preflight');};}}
   const dependencies={extractionConfiguration:()=>({provider:'groq'}),
     getRuntime:async()=>({config:{},db:{terminate:async()=>{calls.push('close');}}}),
     workerPrincipal:async()=>{calls.push('identity');return'worker@example.test';},FastRecentJobsWorker:Worker,
@@ -22,6 +22,10 @@ test('launcher verifies identity and active query before invoking supervised run
   assert.deepEqual(s.calls,['identity','worker','preflight','run','close']);
   assert.equal(s.captured.sourceRevision,3);assert.deepEqual(s.captured.leaseSupervision,{enabled:true});
   assert.equal(s.signals.listenerCount('SIGTERM'),0);
+});
+test('private refresh requires its explicit flag and a read-only refresh query preflight',async()=>{
+ const s=setup();await runFastWorkerCommand(['--enable-shadow','example_source','3','--refresh-private'],s);
+ assert.equal(s.captured.privateRefresh,true);assert.deepEqual(s.calls,['identity','worker','preflight','refresh-preflight','run','close']);
 });
 test('failed preflight closes database without discovery or processing',async()=>{
   const s=setup();s.dependencies.FastRecentJobsWorker=class {constructor(){this.fast={dispatchSnapshot:async()=>{throw Error('index missing');}};}};
