@@ -25,7 +25,9 @@ The applicant copy comes from committed UI snapshot `3b9ab3a`; private-only acce
 
 ## Session and local lifetime
 
-The pilot is running for a bounded eight-hour local session from startup. Google tokens stay in gateway memory, with an HttpOnly, same-site cookie; they are not written into environment files or proof artifacts. Access expires no later than the Firebase token expiry or one hour after login. Sign in again at `/signin` when prompted. A new verified login replaces the prior local session without expanding roles.
+The original pilot stopped automatically after eight hours. On **5 November**, that server-lifetime timer was removed after it caused `ERR_CONNECTION_REFUSED`; both loopback services were restarted and the browser and a Windows HTTP request reached the sign-in page again. The server now runs until explicitly stopped or its host/WSL session ends. It is not an installed service and does not automatically start after reboot.
+
+Google tokens still stay only in gateway memory, with an HttpOnly, same-site cookie; they are not written into environment files or proof artifacts. Access still expires no later than the Firebase token expiry or one hour after login. The server restart requires fresh Google sign-in. A new verified login replaces the prior local session without expanding roles. Browser saves were not cleared by recovery.
 
 Browser saves stay with this browser and localhost origin. They have no account backup or cross-device sync, and clearing site data can remove them. The database remains the real remote staging Firestore; this is **a local interface to private staging data**, not a fully offline or locally hosted database. An internet connection and existing reviewer access are required for current reads.
 
@@ -44,5 +46,7 @@ The copied current applicant UI passes Next route generation and TypeScript chec
 Browser screenshot capture was unavailable, so no image is claimed as visual evidence; the authenticated DOM states, user confirmation, gateway route responses and private verification artifacts supply the checks above. The previous 121 backend checks remain prior evidence, not a new test run for this local-viewer change.
 
 The **23:40 SAST validation task**, pinned worker/bootstrap files and live source policy remain unchanged. Hosting and public publication stay off. Browsing this pilot does not spend the pending job's source/model allowance.
+
+The 5 November recovery changes only the ignored local gateway's process-lifetime timer and this runbook. The selected staging draft still matches the viewer's expected unapproved record. Existing unauthenticated route/bridge checks are repeated; fresh authenticated rendering remains subject to the founder signing in again. Private recovery proof/logs are under `.artifacts/groq/local-pilot-recovery-2026-11-05/`. No catalogue mutation, model call, publication or browser-storage reset is performed.
 
 The next product milestone is a dependable, regularly refreshed **private user feed**: connect eligible real pipeline results to the private read surface, retain existing quality/expiry/application gates, replace the one-draft bootstrap with a reusable local launcher and verify restart/login/save behaviour under daily use. The supervised fast runtime/index/source-history adoption, historical refresh, real mixed-notice qualification and end-to-end automatic-publication/public-feed acceptance are still required for production. The founder can try the current browsing/saving experience now without waiting for public hosting.
