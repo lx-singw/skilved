@@ -7,11 +7,15 @@ import { SuggestionReview } from '../src/suggestion-review.mjs';
 import { SuggestionReplayTickets } from '../src/suggestion-replay-tickets.mjs';
 import { executeSuggestionCleanup, suggestionCleanupConfiguration } from '../src/suggestion-cleanup-operator.mjs';
 import {readOnboardingFile} from './collect-employers.mjs';
+import {importFastIngestionHistory} from '../src/fast-ingestion-migration.mjs';
+async function fastInput(path){const text=await readFile(path,'utf8');if(Buffer.byteLength(text)>8000000)throw Error('INVALID_COMMAND');return JSON.parse(text);}
 // Tokens are read from a private file, never command arguments, output, or a public route.
 const help=`Usage: pnpm catalogue:operator <command.json>
 Set SKILVED_OPERATOR_TOKEN_FILE to a private file containing a current Firebase ID token.
 Commands: source, employer-relationship, employer-relationship-reindex, undated-origin-import, inspect, queue, save, publish, alias, report-triage, enqueue, run-job, schedule.
 employer-relationship-reindex: source role; bindings [{id,revision,hash}] (1-30) and reason. Updates derived lookup metadata only.
+fast-history-import and fast-source-adopt: source role; private inputFile, expectedSha256 and reason.
+Adoption requires the exact reviewed held-history import; ordinary source edits cannot add/remove/change fast policy.
 employer-onboarding-record: source role; private bundleFile and reason; records evidence, grants no authority.
 employer-onboarding-review: source role; strict review with proposalId, expectedHash, action, expectedAuthority and explicit identity review for qualification.
 publication-preview: read-only preview with id, expected and action; uses the current reviewer role.
@@ -34,6 +38,8 @@ else {
     const runtime=await getRuntime(),{catalogue}=runtime;let result;
     switch(c.command) {
       case 'source':result=await catalogue.registerSource(token,c.source,c.expected,c.reason);break;
+      case 'fast-history-import':result=await importFastIngestionHistory(catalogue,token,await fastInput(c.inputFile),c);break;
+      case 'fast-source-adopt':result=await catalogue.adoptFastSource(token,await fastInput(c.inputFile),c);break;
       case 'employer-relationship':result=await catalogue.registerEmployerRelationship(token,c.relationship,c.expected,c.reason);break;
       case 'employer-relationship-reindex':result=await catalogue.reindexEmployerRelationships(token,c.bindings,c.reason);break;
       case 'employer-onboarding-record':result=await catalogue.recordEmployerOnboarding(token,await readOnboardingFile(c.bundleFile),c.reason);break;

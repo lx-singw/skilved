@@ -17,7 +17,7 @@ export function buildApplicationLayoutIntegration(worker,schema) {
   next=once(next,'saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction ||','saved.version !== SOURCE_HOLD_VERSION || saved.programmeExtraction !== this.programmeExtraction || !sourceHoldAdapterMatches(source,saved) ||');
   next=once(next,'const candidate = parseRecentJobsDetail({ html: response.text, url: response.url, observedOn: dayInSA(this.now()) });','const candidate = parseWorkerDetail(claim.source, { html: response.text, url: response.url, observedOn: dayInSA(this.now()) });');
   let nextSchema=once(schema,"    originalVerification: z.literal('shadow_v1').optional(),","    applicationLayouts: z.literal('shadow_v1').optional(),\n    originalVerification: z.literal('shadow_v1').optional(),");
-  nextSchema=once(nextSchema,"  'Origin discovery requires the shadow issuer registry');","  'Origin discovery requires the shadow issuer registry').refine(source =>\n  !source.automation?.applicationLayouts || source.automation.mode === 'shadow',\n  'Application layouts require explicit shadow mode');");
+  nextSchema=once(nextSchema,"  'Origin discovery requires the shadow issuer registry').refine(source =>","  'Origin discovery requires the shadow issuer registry').refine(source =>\n  !source.automation?.applicationLayouts || source.automation.mode === 'shadow',\n  'Application layouts require explicit shadow mode').refine(source =>");
   return{worker:next,schema:nextSchema};
 }
 

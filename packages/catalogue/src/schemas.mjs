@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {FastSourcePolicy} from './fast-source-policy.mjs';
 import { CategorySchema, IdSchema, InstantSchema } from '@skilved/types/opportunities';
 export const IssuerRoute = z.object({ name: z.string().trim().min(1).max(200),
   aliases: z.array(z.string().trim().min(1).max(200)).max(10).default([]),
@@ -31,6 +32,7 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     qualificationRef: z.string().min(1).max(2000), maxArticles: z.number().int().min(1).max(10),
     // Opt-in publisher discovery: maxArticles is the chunk size, not a page truncation.
     discovery: z.object({ maxPages: z.number().int().min(1).max(5) }).strict().optional(),
+    fastIngestion: FastSourcePolicy.optional(),
     originalVerification: z.literal('shadow_v1').optional(),
     missingDateEvidence: z.enum(['shadow_v1','shadow_v2']).optional(),
     issuerRegistry: z.literal('shadow_v1').optional(),
@@ -58,7 +60,9 @@ export const Source = z.object({ id: IdSchema, revision: z.number().int().positi
     source.automation.issuers.length === 0 && source.automation.undatedNotices === 'reject'),
   'Registry sources require original verification, no inline issuers and dated notices').refine(source =>
   !source.automation?.originDiscovery || source.automation.issuerRegistry === 'shadow_v1',
-  'Origin discovery requires the shadow issuer registry');
+  'Origin discovery requires the shadow issuer registry').refine(source =>
+  !source.automation?.fastIngestion || (source.automation.mode === 'shadow' && source.permission.method === 'recentjobs_html'),
+  'Fast ingestion requires shadow RecentJobs mode');
 export const Report = z.object({ opportunityId: IdSchema,
   kind: z.enum(['incorrect', 'closed', 'unsafe_destination', 'other']), text: z.string().trim().min(1).max(1500),
 }).strict();

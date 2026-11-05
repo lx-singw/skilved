@@ -6,6 +6,8 @@ import {Source} from './schemas.mjs';
 import {DomainError} from './config.mjs';
 import {assertSourceTarget} from './worker-policy.mjs';
 import {FastLeaseGuard} from './fast-lease-guard.mjs';
+import {FastSourcePolicy} from './fast-source-policy.mjs';
+export {FastSourcePolicy} from './fast-source-policy.mjs';
 
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const payload=value=>({json:JSON.stringify(value)});
@@ -41,12 +43,8 @@ const discoveryPageId=(pollId,url)=>hash(pollId+':page:'+url);
 const record=(snap,schema)=>{if(!snap.exists)return null;try{const row=schema.parse(value(snap));
   if(schema===Job&&['sourceId','state','nextAt','firstSeenAt'].some(k=>snap.data()[k]!==row[k]))fail('FAST_INGESTION_STATE_INVALID');
   return row;}catch{fail('FAST_INGESTION_STATE_INVALID');}};
-export const FastSourcePolicy=z.object({version:z.literal('shadow_v1'),
-  discoveryIntervalMs:z.number().int().min(120000).max(300000),
-  maxConcurrentJobs:z.number().int().min(1).max(20),leaseMs:z.number().int().min(30000).max(600000)}).strict();
-
 /** Explicit source-schema extension for this separate shadow coordinator.
- * Existing Source APIs/worker do not accept or enable this policy yet. */
+ * Source policy adoption is separately fenced by the reviewed history receipt. */
 export function parseFastIngestionSource(raw) {
   const input=structuredClone(raw),policy=FastSourcePolicy.parse(input?.automation?.fastIngestion);
   delete input.automation.fastIngestion;

@@ -104,6 +104,7 @@ export class RecentJobsWorker {
         fail('WORKER_FORBIDDEN');
       if (!raw) fail('SOURCE_PAUSED');
       const source = Source.parse(raw);
+      if(source.automation?.fastIngestion)fail('FAST_WORKER_REQUIRED');
       // Trusted launcher/controller assertions run again before every effect,
       // including after pacing. A startup policy check alone is insufficient.
       await this.assertAdmission?.(source, grant, this.principal);

@@ -2,7 +2,7 @@ import{createHash,randomUUID}from'node:crypto';
 import{z}from'zod';
 import{IdSchema,InstantSchema,DateSchema}from'@skilved/types/opportunities';
 import{Source,Reason}from'./schemas.mjs';
-import{FastSourcePolicy}from'./fast-ingestion-store.mjs';
+import{FastSourcePolicy}from'./fast-source-policy.mjs';
 import{DomainError}from'./config.mjs';
 import{assertSourceTarget}from'./worker-policy.mjs';
 
@@ -49,6 +49,7 @@ export function planFastIngestionMigration(raw,{now=()=>new Date().toISOString()
  const retained=inventory(snapshot),tables=Object.fromEntries(FAST_MIGRATION_COLLECTIONS.map(c=>[c,snapshot.collections[c].map(row=>({id:row.id,record:decode(row)}))]));
  const rawSource=tables.m0_sources.find(r=>r.id===sourceId)?.record;if(!rawSource)fail('FAST_MIGRATION_SOURCE_MISSING');const source=Source.parse(rawSource);
  if(source.id!==sourceId||source.automation?.mode!=='shadow'||source.permission.method!=='recentjobs_html'||source.revision>=Number.MAX_SAFE_INTEGER)fail('FAST_MIGRATION_SOURCE_INVALID');
+ if(source.automation.fastIngestion)fail('FAST_MIGRATION_SOURCE_INVALID');
  const blockers=new Set(),block=code=>blockers.add(code);
  const snapshotCurrent=snapshot.capturedAt<=at&&Date.parse(at)-Date.parse(snapshot.capturedAt)<=MAX_AGE_MS;
  if(!source.paused)block('SOURCE_NOT_QUIESCED');
@@ -136,5 +137,52 @@ export async function importFastIngestionHistory(catalogue,token,input,{expected
   tx.create(receiptRef,{...payload({version:1,sourceId:plan.sourceId,sourceRevision:plan.sourceRevision,targetSourceRevision:plan.targetSourceRevision,planSha256:plan.sha256,inventorySha256:plan.inventorySha256,notices:plan.noticeCount,importedAt:at,actor:uid,sourcePolicyApplied:false,quotaWrites:false,publication:false}),sourceId:plan.sourceId});
   tx.create(catalogue.ref('audit',randomUUID()),payload({action:'source.fast_history_import',subject:plan.sourceId,actor:uid,reason,at,planSha256:plan.sha256}));
   return{status:'imported',planSha256:plan.sha256,notices:plan.noticeCount,sourcePolicyApplied:false};
+ });
+}
+
+/** Adopt only the exact reviewed target after create-only history import. All
+ * retained inventory and imported rows are rechecked atomically with the policy
+ * write. No grant, budget, cache or historical job is changed or released. */
+export async function adoptFastIngestionSource(catalogue,token,input,{expectedSha256,reason}={}) {
+ Reason.parse(reason);
+ if(!/^[a-f0-9]{64}$/.test(expectedSha256??''))fail('FAST_MIGRATION_REVIEW_REQUIRED');
+ const uid=await catalogue.identity(token),plan=planFastIngestionMigration(input,{now:catalogue.now});
+ if(plan.sha256!==expectedSha256)fail('FAST_MIGRATION_HASH_MISMATCH');
+ if(plan.staticBlockers.length)fail('FAST_MIGRATION_BLOCKED');
+ const target=Source.parse(plan.proposedTargetSource);
+ if(!target.automation.discovery)fail('FAST_SOURCE_DISCOVERY_REQUIRED');
+ return catalogue.db.runTransaction(async tx=>{
+  await catalogue.operator(tx,uid,'source');
+  const sourceRef=catalogue.ref('sources',plan.sourceId),versionRef=catalogue.ref('source_versions',hash(`${target.id}:${target.revision}`));
+  const adoptionRef=catalogue.ref('ingestion_adoptions',plan.sha256),receiptRef=catalogue.ref('ingestion_migrations',plan.sha256);
+  const [sourceRow,versionRow,adoptionRow,receiptRow]=await Promise.all([tx.get(sourceRef),tx.get(versionRef),tx.get(adoptionRef),tx.get(receiptRef)]);
+  const at=catalogue.now();InstantSchema.parse(at);
+  if(adoptionRow.exists) {
+   const adopted=decode({data:adoptionRow.data()});
+   const valid=z.object({version:z.literal(1),sourceId:IdSchema,sourceRevision:z.number().int().positive(),planSha256:z.string(),targetSha256:z.string(),actor:IdSchema,at:InstantSchema,quotaWrites:z.literal(false),publication:z.literal(false)}).strict().safeParse(adopted);
+   if(!valid.success||adopted.sourceId!==target.id||adopted.sourceRevision!==target.revision||adopted.planSha256!==plan.sha256||adopted.targetSha256!==hash(canonical(target))||adopted.at<plan.capturedAt||adopted.at>at||!sourceRow.exists||!versionRow.exists||canonical(decode({data:sourceRow.data()}))!==canonical(target)||canonical(decode({data:versionRow.data()}))!==canonical(target))fail('FAST_SOURCE_ADOPTION_CONFLICT');
+   return{status:'verified',revision:target.revision,publication:false};
+  }
+  if(!plan.readyForHistoryImport||versionRow.exists)fail('FAST_SOURCE_ADOPTION_CONFLICT');
+  const receipt=receiptRow.exists?Receipt.safeParse(decode({data:receiptRow.data()})):null;
+  if(!receipt?.success||receiptRow.data().sourceId!==plan.sourceId||receipt.data.sourceId!==plan.sourceId||receipt.data.planSha256!==plan.sha256||receipt.data.inventorySha256!==plan.inventorySha256||receipt.data.sourceRevision!==plan.sourceRevision||receipt.data.targetSourceRevision!==target.revision||receipt.data.notices!==plan.noticeCount||receipt.data.importedAt<plan.capturedAt||receipt.data.importedAt>at)fail('FAST_SOURCE_HISTORY_REQUIRED');
+  const current={version:1,capturedAt:input.snapshot.capturedAt,collections:{}};let count=0;
+  for(const name of FAST_MIGRATION_COLLECTIONS){const rows=await tx.get(catalogue.db.collection(name).limit(MAX_DOCS+1));count+=rows.size;if(count>MAX_DOCS)fail('FAST_MIGRATION_LIMIT');current.collections[name]=rows.docs.map(d=>({id:d.id,data:d.data()}));}
+  if(inventory(current).sha256!==plan.inventorySha256)fail('FAST_MIGRATION_INVENTORY_CHANGED');
+  const rows=new Map();
+  for(const name of ['m0_ingestion_notices','m0_ingestion_jobs','m0_ingestion_migration_notices']){
+   const saved=await tx.get(catalogue.db.collection(name).where('sourceId','==',plan.sourceId).limit(MAX_NOTICES+1));
+   if(saved.size>MAX_NOTICES)fail('FAST_MIGRATION_TARGET_CONFLICT');
+   for(const row of saved.docs)rows.set(name+'/'+row.id,row.data());
+  }
+  if(rows.size!==plan.proposed.length)fail('FAST_MIGRATION_TARGET_CONFLICT');
+  // Point reads also bind documents whose indexed sourceId was tampered with.
+  for(const row of plan.proposed){const saved=await tx.get(catalogue.db.collection(row.collection).doc(row.id));if(!saved.exists||canonical(saved.data())!==canonical(row.data)||!rows.has(row.collection+'/'+row.id))fail('FAST_MIGRATION_TARGET_CONFLICT');}
+  const finalAt=catalogue.now();InstantSchema.parse(finalAt);
+  if(finalAt<at||Date.parse(finalAt)-Date.parse(plan.capturedAt)>MAX_AGE_MS)fail('FAST_MIGRATION_STALE');
+  tx.set(sourceRef,payload(target));tx.create(versionRef,payload(target));
+  tx.create(adoptionRef,payload({version:1,sourceId:target.id,sourceRevision:target.revision,planSha256:plan.sha256,targetSha256:hash(canonical(target)),actor:uid,at:finalAt,quotaWrites:false,publication:false}));
+  tx.create(catalogue.ref('audit',randomUUID()),payload({action:'source.fast_adopt',subject:target.id,actor:uid,at:finalAt,reason,planSha256:plan.sha256}));
+  return{status:'adopted',revision:target.revision,publication:false};
  });
 }

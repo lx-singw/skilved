@@ -10,6 +10,7 @@ import { enforceAutomaticFreshness } from './worker-policy.mjs';
 import { importUndatedOrigin } from './undated-origin-import.mjs';
 import { IssuerIndexBatch, reindexIssuerNames } from './issuer-name-index.mjs';
 import {OnboardingBundle,onboardingHash,recordOnboarding,decideOnboarding} from './employer-onboarding.mjs';
+import {adoptFastIngestionSource} from './fast-ingestion-migration.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -49,10 +50,19 @@ export class Catalogue {
     return this.mutate(token, 'source', 'source.update', source.id, reason, async tx => {
       const ref = this.ref('sources', source.id), old = value(await tx.get(ref));
       if ((old?.revision ?? null) !== expected || source.revision !== (expected ?? 0) + 1) fail('CONFLICT');
+      if(JSON.stringify(old?Source.parse(old).automation?.fastIngestion:undefined)!==JSON.stringify(source.automation?.fastIngestion))fail('FAST_SOURCE_ADOPTION_REQUIRED');
+      // A revision change invalidates pinned fast jobs. Permit an emergency
+      // pause, but require a separate revision-adoption path before resuming or
+      // editing a fast source; do not silently strand its retained queue.
+      if(old?.automation?.fastIngestion&&(!source.paused||old.paused||
+        JSON.stringify(Source.parse({...old,revision:source.revision,paused:true}))!==JSON.stringify(source)))fail('FAST_SOURCE_REVISION_ADOPTION_REQUIRED');
       tx.set(ref, payload(source));
       tx.create(this.ref('source_versions',hash(`${source.id}:${source.revision}`)),payload(source));
       return { revision: source.revision };
     });
+  }
+  async adoptFastSource(token,input,review) {
+    return adoptFastIngestionSource(this,token,input,review);
   }
   async inspect(token, collection, id) {
     if (!['sources','source_versions','employer_relationships','employer_relationship_versions','worker_issuer_resolutions',

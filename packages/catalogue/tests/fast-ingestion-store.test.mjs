@@ -13,9 +13,9 @@ async function fixture({slots=2,leaseMs=60000}={}){
  const discover=async(n=3)=>{const poll=await restart().poll();assert.equal(poll.state,'ready');const urls=Array.from({length:n},(_,i)=>`https://recentjobs.co.za/2026/11/04/authored-${i}/`);await restart().recordDiscovery(poll.claim,urls);const rows=await db.collection('m0_ingestion_jobs').where('sourceId','==',id).get();return rows.docs.map(d=>value(d)).sort((a,b)=>a.url.localeCompare(b.url));};
  return{store,source,id,principal,options,restart,now:()=>at,advance:ms=>{at=new Date(Date.parse(at)+ms).toISOString();},discover,budget,budgetRef,save:()=>store.ref('sources',id).set(payload(source))};
 }
-test('coordinator is default-off and its source policy is explicit, shadow-only and absent from current Source API',async()=>{
+test('coordinator is default-off and its shared source policy stays explicit and shadow-only',async()=>{
  assert.throws(()=>new FastIngestionStore(null,'caller@example.test'),{code:'FAST_INGESTION_DISABLED'});
- const f=await fixture();assert.equal(Source.safeParse(f.source).success,false);assert.equal(parseFastIngestionSource(f.source).automation.fastIngestion.discoveryIntervalMs,120000);
+ const f=await fixture();assert.equal(Source.safeParse(f.source).success,true);assert.equal(parseFastIngestionSource(f.source).automation.fastIngestion.discoveryIntervalMs,120000);
  for(const mode of ['automatic','disabled'])assert.throws(()=>parseFastIngestionSource({...f.source,automation:{...f.source.automation,mode}}));
  for(const change of [{discoveryIntervalMs:119999},{maxConcurrentJobs:21},{leaseMs:1},{version:'automatic'}])assert.throws(()=>parseFastIngestionSource({...f.source,automation:{...f.source.automation,fastIngestion:{...f.source.automation.fastIngestion,...change}}}));
 });
