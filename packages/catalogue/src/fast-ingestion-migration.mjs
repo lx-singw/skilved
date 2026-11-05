@@ -13,7 +13,7 @@ export const FAST_MIGRATION_COLLECTIONS=Object.freeze(['sources','source_version
 const MAX_DOCS=4000,MAX_BYTES=8000000,MAX_NOTICES=100,MAX_AGE_MS=900000;
 const hash=s=>createHash('sha256').update(s).digest('hex'),payload=v=>({json:JSON.stringify(v)});
 const fail=code=>{throw new DomainError(code);};
-function canonical(v,depth=0){if(depth>40)fail('FAST_MIGRATION_DATA_INVALID');if(v===null||typeof v==='string'||typeof v==='boolean')return JSON.stringify(v);if(typeof v==='number'&&Number.isFinite(v))return JSON.stringify(v);
+export function canonical(v,depth=0){if(depth>40)fail('FAST_MIGRATION_DATA_INVALID');if(v===null||typeof v==='string'||typeof v==='boolean')return JSON.stringify(v);if(typeof v==='number'&&Number.isFinite(v))return JSON.stringify(v);
  if(Array.isArray(v))return'['+v.map(x=>canonical(x,depth+1)).join(',')+']';if(v&&typeof v==='object'&&[Object.prototype,null].includes(Object.getPrototypeOf(v)))return'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k],depth+1)).join(',')+'}';fail('FAST_MIGRATION_DATA_INVALID');}
 const Doc=z.object({id:z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),data:z.record(z.unknown())}).strict();
 const Snapshot=z.object({version:z.literal(1),capturedAt:InstantSchema,collections:z.record(z.array(Doc))}).strict();

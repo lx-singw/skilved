@@ -11,6 +11,7 @@ import { importUndatedOrigin } from './undated-origin-import.mjs';
 import { IssuerIndexBatch, reindexIssuerNames } from './issuer-name-index.mjs';
 import {OnboardingBundle,onboardingHash,recordOnboarding,decideOnboarding} from './employer-onboarding.mjs';
 import {adoptFastIngestionSource} from './fast-ingestion-migration.mjs';
+import {adoptRssTransition} from './fast-rss-transition.mjs';
 
 const fail = code => { throw new DomainError(code); };
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -66,6 +67,7 @@ export class Catalogue {
   async adoptFastSource(token,input,review) {
     return adoptFastIngestionSource(this,token,input,review);
   }
+  async adoptRssSource(token,input,review){return adoptRssTransition(this,token,input,review);}
   async inspect(token, collection, id) {
     if (!['sources','source_versions','employer_relationships','employer_relationship_versions','worker_issuer_resolutions',
       'employer_onboarding','employer_onboarding_snapshots','employer_onboarding_decisions','employer_onboarding_needs',

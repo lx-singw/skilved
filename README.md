@@ -6,6 +6,8 @@ The public MVP includes **bursaries, learnerships, apprenticeships, internships,
 
 ## Current status
 
+5 November RSS Source transition: [the reviewed held-only revision API and native preparation](docs/current/operations/246_REVIEWED_HELD_SOURCE_RSS_TRANSITION_2026-11-05.md) preserve historical notices, archives and quota authority, with 95 affected checks passing. The candidate release passes native check-only admission. The old HTML worker is stopped, its ingest grant inactive and its original lease expired; Source revision 5 is unchanged pending the genuine Google-authenticated review/apply step. Public publishing and hosting remain off.
+
 5 November RSS integration: [the normal shadow pipeline now supports an explicitly selected publisher-feed transport](docs/current/operations/245_RSS_TRANSPORT_IN_NORMAL_SHADOW_PIPELINE_2026-11-05.md), with receipt-bound discovery, fresh per-job detail acquisition and retained provenance. All 328 final affected checks pass; an earlier concurrency-sensitive assertion and its unreproduced cause are recorded in the runbook. Extraction, employer verification, independent validation, quotas and private writing remain in the existing path. The live revision 5 Source and frozen HTML service are unchanged; reviewed revision/state adoption is needed before RSS cutover.
 
 5 November publisher access: [the advertised apprenticeship RSS feed is accessible in two native probes](docs/current/operations/244_PUBLISHER_RSS_ACCESS_AND_BOUND_REVIEW_2026-11-05.md). A reusable read-only review adapter yields nine pending candidates and one layout hold from ten notices; all 56 affected checks pass. No AI call, Source change or publication occurs. The running HTML worker is still challenged; reviewed RSS integration is next.

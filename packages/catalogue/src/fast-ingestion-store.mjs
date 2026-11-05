@@ -60,6 +60,11 @@ export function parseFastIngestionSource(raw) {
   return{...source,automation:{...source.automation,fastIngestion:policy}};
 }
 export const parseFastJob=recordSnapshot=>record(recordSnapshot,Job);
+export const parseFastNotice=snapshot=>record(snapshot,Notice);
+export const parseFastPoll=snapshot=>record(snapshot,Poll);
+export const parseFastCursor=snapshot=>record(snapshot,Cursor);
+export const parseFastSlots=snapshot=>record(snapshot,Slots);
+export const parseFastPacing=snapshot=>record(snapshot,Pacing);
 export const encodeFastJob=job=>{Job.parse(job);return jobPayload(job);};
 
 /** Default-off backend coordinator. It owns no fetch/model/publish capability.
@@ -129,7 +134,7 @@ export class FastIngestionStore {
       const policy=source.automation.fastIngestion,bucket=Math.floor(Date.parse(at)/policy.discoveryIntervalMs);
       const cursorRef=this.ref('ingestion_cursors',source.id),cursor=record(await tx.get(cursorRef),Cursor);
       if(cursor&&(cursor.sourceId!==source.id||cursor.sourceRevision!==source.revision))fail('SOURCE_CHANGED');
-      const id=cursor?.state==='leased'?cursor.pollId:hash(source.id+':fast-poll:'+bucket);
+      const id=cursor?.state==='leased'?cursor.pollId:hash(source.id+(usesPublisherFeed(source)?':fast-rss-poll:'+source.revision+':':':fast-poll:')+bucket);
       const ref=this.ref('ingestion_polls',id),previous=record(await tx.get(ref),Poll);
       const nextPollAt=new Date((bucket+1)*policy.discoveryIntervalMs).toISOString();
       if(previous&&(previous.sourceRevision!==source.revision||previous.sourceId!==source.id||previous.id!==id))fail('SOURCE_CHANGED');
