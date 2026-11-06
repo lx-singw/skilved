@@ -1,5 +1,7 @@
 # Operations documentation
 
+6 November live cutover: [authenticated RSS operation, unseen holds and restart proof](247_LIVE_RSS_CUTOVER_AND_UNSEEN_HOLDS_2026-11-06.md) verifies revision 6, restored reviewer access, preserved history/accounting and real autonomous discovery/dispatch. Two unseen notices remain evidence-held without AI calls or new drafts. Worker access expires today at 19:40 SAST; publishing and hosting remain off.
+
 5 November Source revision: [reviewed held-state RSS adoption and native preparation](246_REVIEWED_HELD_SOURCE_RSS_TRANSITION_2026-11-05.md) add atomic before/after archives, quota/identity preservation and revision-qualified polling, with 95 affected checks passing. The old worker is quiescent; genuine Source-role sign-in/application and revision-6 runtime admission remain required.
 
 5 November RSS integration: [publisher-feed transport in the normal shadow worker](245_RSS_TRANSPORT_IN_NORMAL_SHADOW_PIPELINE_2026-11-05.md) connects discovery/detail acquisition to the existing verification and private-drafting pipeline, with durable receipts, fresh per-job provenance and feed-window holds. Live Source/release adoption remains pending; hosting and public publishing remain off.

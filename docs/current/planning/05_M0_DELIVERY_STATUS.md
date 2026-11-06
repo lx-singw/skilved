@@ -1,8 +1,10 @@
 # M0 delivery status, decisions and evidence
 
-Updated: 5 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
+Updated: 6 November 2026. This is the current implementation-status record for the [chronological runbook](04_M0_CHRONOLOGICAL_BUILD_RUNBOOK.md). The roadmap/runbook specifies work; this record says what evidence exists. Owner: founder/implementer until actual operating/review roles are assigned. No dated sprint or production release is committed here.
 
 ## 1. Current position
+
+6 November real RSS operation: [the genuine revision-6 cutover and native continuity proof](../operations/247_LIVE_RSS_CUTOVER_AND_UNSEEN_HOLDS_2026-11-06.md) restore reviewer-only application access and retain 21 held historical notices, original quota authority and the private catalogue. The enabled local service autonomously reads ten feed items and dispatches two unseen notices; both stop at existing layout/unknown-date gates before AI spend. Repeat polling and a managed restart preserve first-seen times, holds and accounting. There are six existing private drafts, no new draft and zero public records. Access expires today at 19:40 SAST. Real supported output, capacity/concurrency/refresh qualification and automatic publication remain open.
 
 5 November reviewed RSS adoption: [the held-only Source revision API](../operations/246_REVIEWED_HELD_SOURCE_RSS_TRANSITION_2026-11-05.md) preserves historical ages/attempts, archives replaced bindings and carries refresh metadata without quota/cache writes. All 95 affected checks pass, including atomic rollback, expiry/replay, old-worker and same-bucket fences. The native candidate passes check-only admission. The existing worker/grant are quiescent and the original lease expired; revision 5 remains unchanged pending the genuine Google Source update, revision-6 admission and real RSS/provider/private-reader verification.
 
